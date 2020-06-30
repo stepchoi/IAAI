@@ -62,9 +62,11 @@ def lgbm_train(space):
 
     # write stock_wide prediction to DB
     df = pd.DataFrame()
-    df['trial_lgbm'] = sql_result['trial_lgbm']
+    print(sql_result['trial_lgbm'])
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
+    k = int(sql_result['trial_lgbm'])
+    df['trial_lgbm'] = [k] * len(test_id)
     print('stock-wise prediction: ', df)
 
     with engine.connect() as conn:
@@ -173,7 +175,7 @@ if __name__ == "__main__":
 
             to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-            cv_number = 0   # represent which cross-validation sets
+            cv_number = 1   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set
                 sql_result['cv_number'] = cv_number
 

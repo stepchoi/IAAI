@@ -133,7 +133,7 @@ class load_data:
             cut_bins[0] = -np.inf   # convert cut_bins into [-inf, ... , inf]
             cut_bins[-1] = np.inf
 
-            self.cut_bins[i]['cut_bins'] = cut_bins       # write qcut threshold to dict
+            self.cut_bins[i]['cut_bins'] = list(cut_bins)       # write qcut threshold to dict
 
             arr_q = pd.cut(arr, bins=cut_bins, labels=False)    # cut original series into 0, 1, .... (bins * n)
             df = pd.DataFrame(np.vstack((arr, arr_q))).T        # concat original series / qcut series
@@ -141,7 +141,7 @@ class load_data:
 
             arr_new = df[1].replace(median.index.to_list(), median[0].to_list()).values  # replace 0, 1, ... into median
 
-            return arr_new, np.array(median[0].to_list()) # return converted Y and median of all groups
+            return arr_new, median[0].to_list() # return converted Y and median of all groups
 
         for i in ['ni', 'rev']: # convert Net Income / Revenue as Y separately
             self.cut_bins[i] = {}
@@ -169,7 +169,7 @@ class load_data:
 
         print('sample_set keys: ', self.sample_set.keys())
 
-        return self.sample_set, self.cut_bins, gkf, self.test['identifer'].to_list()
+        return self.sample_set, self.cut_bins, gkf, self.test['identifier'].to_list()
 
 def count_by_sector(main):
     ''' counter # sample for each sector to decide sector-wide models & miscellaneous model'''
