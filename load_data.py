@@ -65,46 +65,44 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, icb_code, testing_period, qcut_q):
+    def __init__(self):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
         try:
-            main = pd.read_csv('preprocess/main.csv')
-            main['period_end'] = pd.to_datetime(main['period_end'], format='%Y-%m-%d')
+            self.main = pd.read_csv('preprocess/main.csv')
+            self.main['period_end'] = pd.to_datetime(self.main['period_end'], format='%Y-%m-%d')
             print('local version run - main')
         except:
-            main = add_macro().map_macros()
-
-        # main.to_csv('preprocess/main.csv', index=False)
-        # print('------------------ finish writing csv -------------------')
-        # count_by_sector(main)
-        # count_by_missing(main)
-        # count_by_year(main)
-
-        self.main = main.loc[main['icb_sector'] == icb_code]
-        # print(main.describe().T[['max','min']])
+            self.main = add_macro().map_macros()
+            # self.main.to_csv('preprocess/main.csv', index=False)
 
         # define self objects
         self.sample_set = {}
         self.cut_bins = {}
+        self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
-        self.testing_period = testing_period
-        self.qcut_q = qcut_q
 
-        # work through cleansing process
-        self.split_train_test()
-        self.standardize_x()
-        self.y_qcut()
+    def split_icb(self, icb_code):
+        ''' split samples from specific sectors (icb_code) '''
 
-    def split_train_test(self):
+        if type(icb_code) == int:
+            self.sector = self.main.loc[self.main['icb_sector'] == icb_code]
+        else:
+            indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+                              501010, 201020, 502030, 401010]
+            self.sector = self.main.loc[~self.main['icb_sector'].isin(indi_model_icb)]
+            print('This is miscellaneous model')
+        # print(main.describe().T[['max','min']])
+
+    def split_train_test(self, testing_period):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
         start = testing_period - relativedelta(years=10) # train df = 40 quarters
-        self.train = main.loc[(start <= self.main['period_end']) &
-                              (self.main['period_end'] < testing_period)].reset_index(drop=True)
-        test = self.main.loc[self.main['period_end'] == testing_period].reset_index(drop=True)
+        self.train = self.sector.loc[(start <= self.sector['period_end']) &
+                              (self.sector['period_end'] < testing_period)].reset_index(drop=True)
+        self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         # 2. split x, y for train / test set
         def divide_set(df):
@@ -117,7 +115,7 @@ class load_data:
 
         # keep non-qcut y for calculation
         self.sample_set['train_x'], self.sample_set['train_ni_org'], self.sample_set['train_rev_org'] = divide_set(self.train)
-        self.sample_set['test_x'], self.sample_set['test_ni_org'], self.sample_set['test_rev_org'] = divide_set(test)
+        self.sample_set['test_x'], self.sample_set['test_ni_org'], self.sample_set['test_rev_org'] = divide_set(self.test)
 
     def standardize_x(self):
         ''' tandardize x with train_x fit '''
@@ -126,7 +124,7 @@ class load_data:
         self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
         self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
 
-    def y_qcut(self):
+    def y_qcut(self, qcut_q):
         ''' qcut y '''
 
         def to_median(arr, cut_bins):
@@ -135,28 +133,43 @@ class load_data:
             cut_bins[0] = -np.inf   # convert cut_bins into [-inf, ... , inf]
             cut_bins[-1] = np.inf
 
+            self.cut_bins[i]['cut_bins'] = cut_bins       # write qcut threshold to dict
+
             arr_q = pd.cut(arr, bins=cut_bins, labels=False)    # cut original series into 0, 1, .... (bins * n)
             df = pd.DataFrame(np.vstack((arr, arr_q))).T        # concat original series / qcut series
-            median = df.groupby([1]).median()                   # find median of each group
+            median = df.groupby([1]).median().sort_index()      # find median of each group
+
             arr_new = df[1].replace(median.index.to_list(), median[0].to_list()).values  # replace 0, 1, ... into median
 
-            return arr_new
+            return arr_new, np.array(median[0].to_list()) # return converted Y and median of all groups
 
         for i in ['ni', 'rev']: # convert Net Income / Revenue as Y separately
-            train_cut, self.cut_bins[i] = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=self.qcut_q, retbins=True)
-            self.sample_set['train_{}'.format(i)] = to_median(self.sample_set['train_{}_org'.format(i)], self.cut_bins[i])
-            self.sample_set['test_{}'.format(i)] = to_median(self.sample_set['test_{}_org'.format(i)], self.cut_bins[i])
+            self.cut_bins[i] = {}
+            train_cut, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True)
 
-    def split_valid(self, y_type='ni'):
+            self.sample_set['train_{}'.format(i)], self.cut_bins[i]['med_train'] = \
+                to_median(self.sample_set['train_{}_org'.format(i)], cut_bins)
+            self.sample_set['test_{}'.format(i)], self.cut_bins[i]['med_test'] = \
+                to_median(self.sample_set['test_{}_org'.format(i)], cut_bins)
+
+    def split_valid(self, y_type):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
 
         gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'], self.sample_set['train_{}'.format(y_type)]
                                                   , groups=self.train['identifier'])
-        # for train, valid in gkf:
-        #     print(len(train), len(valid))
+        return gkf
+
+    def split_all(self, testing_period, qcut_q, y_type='ni'):
+        ''' work through cleansing process '''
+
+        self.split_train_test(testing_period)
+        self.standardize_x()
+        self.y_qcut(qcut_q)
+        gkf = self.split_valid(y_type)
+
         print('sample_set keys: ', self.sample_set.keys())
 
-        return self.sample_set, self.cut_bins, gkf
+        return self.sample_set, self.cut_bins, gkf, self.test['identifer'].to_list()
 
 def count_by_sector(main):
     ''' counter # sample for each sector to decide sector-wide models & miscellaneous model'''
@@ -182,20 +195,21 @@ if __name__ == '__main__':
     # these are parameters used to load_data
     icb_code = 301010
     testing_period = dt.datetime(2017,12,31)
-    qcut_q = 3
+    qcut_q = 10
     valid_method = 'shuffle'
     valid_no = 10
 
-    sample_set, cut_bins, cv = split_train_test(icb_code, testing_period, qcut_q).split_valid()
+    data = load_data()
+    data.split_icb(icb_code)
+    sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q)
 
     # check shape of sample sets (x + y + y_org) * (train + valid + test)
     print(cut_bins)
+
+
     for k in sample_set.keys():
         print(k, sample_set[k].shape, type(sample_set[k]))
 
     # y1 = pd.DataFrame(np.vstack((sample_set['train_y'], sample_set['train_y_org'])).T)
     # y1.to_csv('#df_check_y1.csv')
 
-
-''' # split for validation set -> average accuracy to !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-split tickers into 5 validation set '''

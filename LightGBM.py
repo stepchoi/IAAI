@@ -14,8 +14,8 @@ from sklearn.model_selection import train_test_split
 
 space = {
     # better accuracy
-    'learning_rate': hp.choice('learning_rate', np.arange(0.05, 0.5, 0.05, dtype='d')),
-    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']), # CHANGE FOR IBES
+    'learning_rate': hp.choice('learning_rate', [0.01, 0.1, 0.5]),
+    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
     'max_bin': hp.choice('max_bin', [255]),
     'num_leaves': hp.choice('num_leaves', np.arange(50, 200, 30, dtype=int)),
 
@@ -53,12 +53,23 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     )
 
-    gbm.save_model('mode.txt')
+    # gbm.save_model('model.txt')
 
-    '''Evaluation on Test Set'''
+    # prediction on all sets
     Y_train_pred = gbm.predict(X_train, num_iteration=gbm.best_iteration)
     Y_valid_pred = gbm.predict(X_valid, num_iteration=gbm.best_iteration)
     Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
+
+    # write stock_wide prediction to DB
+    df = pd.DataFrame()
+    df['trial_lgbm'] = sql_result['trial_lgbm']
+    df['identifier'] = test_id
+    df['pred'] = Y_test_pred
+    print('stock-wise prediction: ', df)
+
+    with engine.connect() as conn:
+        df.to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
+    engine.dispose()
 
     return Y_train_pred, Y_valid_pred, Y_test_pred
 
@@ -73,24 +84,20 @@ def eval(space):
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
                 # 'mae_train_org': mean_absolute_error(Y_train, Y_train_pred),
                 # 'mae_test_org': mean_absolute_error(Y_test, Y_test_pred),
-                'explained_variance_score': explained_variance_score(Y_test, Y_test_pred),
-                'max_error': max_error(Y_test, Y_test_pred),
-                # 'mse': mean_squared_error(Y_test, Y_test_pred),
-                'median_absolute_error': median_absolute_error(Y_test, Y_test_pred),
-                'r2_score': r2_score(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
-    sql_result.update(space)
-    sql_result.update(result)
+    sql_result.update(space)        # update hyper-parameter used in model
+    sql_result.update(result)       # update result of model
     sql_result['finish_timing'] = dt.datetime.now()
 
     pt = pd.DataFrame.from_records([sql_result], index=[0])
-
     print('sql_result_before writing: ', sql_result)
 
-    # with engine.connect() as conn:
-    #     pt.to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
-    # engine.dispose()
+    with engine.connect() as conn:
+        pt.to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
+    engine.dispose()
+
+    sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
 
@@ -99,47 +106,81 @@ def HPOT(space, max_evals):
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(best)
+
+    sql_result['trial_hpot'] += 1
     # return best
+
+def to_sql_bins(cut_bins):
+    ''' write cut_bins & median of each set to DB'''
+
+    df = pd.DataFrame(columns=['cut_bins','med_train','med_test'])
+    df[['cut_bins','med_train','med_test']] = df[['cut_bins','med_train','med_test']].astype('object')
+
+    for k in cut_bins['ni'].keys():     # record cut_bins & median
+        df.at[0, k] = cut_bins['ni'][k]
+
+    for col in ['qcut_q', 'icb_code', 'testing_period']:
+        df.at[0, col] = sql_result[col]
+
+    with engine.connect() as conn:      # record type of Y
+        df.to_sql('results_bins', con=conn, index=False, if_exists='append')
+    engine.dispose()
 
 if __name__ == "__main__":
 
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010, 201020, 502030, 401010]
-
-    try:
-        db_last = pd.read_sql("SELECT * FROM lightgbm_results order by finish_timing desc LIMIT 1", engine)  # identify current # trials from past execution
-        db_last_trial = db_last['trial']
+    try:    # read last records on DB TABLE lightgbm_results for resume / trial_no counting
+        db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", engine)  # identify current # trials from past execution
+        db_last_trial_hpot = db_last['trial_hpot']
+        db_last_trial_lgbm = db_last['trial_lgbm']
     except:
-        db_last_trial = 0
+        db_last_trial_hpot = 0
+        db_last_trial_lgbm = 0
+
+    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010, 'miscel']  # icb_code with > 1300 samples + rests in single big model
 
     # parser
-    resume = False
-    qcut_q = 3
-    sample_no = 1
-    ''' # change to 28 for official run <- check '''
+    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    qcut_q = 10         # number of Y classes
+    sample_no = 1       # number of training/testing period go over
+    ''' DEBUG: change to 28 for official run '''
 
-    sql_result = {}
-    sql_result['name'] = 'trial'
-    sql_result['trial'] = db_last_trial + 1
+    # records params to be written to DB
+    sql_result = {}                                 # sql_result
+    sql_result['name'] = 'trial'                    # name = labeling the experiments
+    sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
+    sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
     sql_result['qcut_q'] = qcut_q
 
-    # roll over each round
+    data = load_data()      # load all data: create load_data.main = df for all samples - within data(CLASS)
+
     period_1 = dt.datetime(2013, 3, 31)
 
-    for i in tqdm(range(sample_no)):                # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3)
+    for icb_code in indi_models:    # roll over industries
 
-        for icb_code in indi_models:                # roll over industries
+        data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
+        sql_result['icb_code'] = icb_code
 
-            sample_set, cut_bins, cv = load_data(icb_code, testing_period, qcut_q).split_valid()
-            sql_result['cut_bins'] = cut_bins['ni']
+        for i in tqdm(range(sample_no)):  # roll over testing period
 
+            testing_period = period_1 + i * relativedelta(months=3)
+            sql_result['testing_period'] = testing_period
+
+            sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q)   # split train / valid / test
+
+            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+
+            cv_number = 0   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set
+                sql_result['cv_number'] = cv_number
+
                 X_train, X_valid = sample_set['train_x'][train_index], sample_set['train_x'][valid_index]
                 Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
                 print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
 
                 HPOT(space, max_evals=10)
+                cv_number += 1
                 # exit(0)

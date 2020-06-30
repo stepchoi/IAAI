@@ -35,7 +35,7 @@ def reer_or_neer(macro):
 
 def clean_macro():
     ''' read all macro csv and combine tables -> upload to DB
-        (need local file: macro_calculation.xlsx) '''
+        (need local file: macro_data_raw.xlsx) '''
 
     macros = pd.read_excel('macro_data_raw.xlsx', 'macros')
     macros = eikon_to_datetime(macros, 'Name') # convert quarter (Q1) -> period end (3-31)
