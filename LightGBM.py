@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 
 space = {
     # better accuracy
-    'learning_rate': hp.choice('learning_rate', np.arange(0.6, 1.0, 0.05, dtype='d')),
+    'learning_rate': hp.choice('learning_rate', np.arange(0.05, 0.5, 0.05, dtype='d')),
     'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']), # CHANGE FOR IBES
     'max_bin': hp.choice('max_bin', [255]),
     'num_leaves': hp.choice('num_leaves', np.arange(50, 200, 30, dtype=int)),
