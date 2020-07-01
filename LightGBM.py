@@ -26,7 +26,7 @@ space = {
     'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
     'min_gain_to_split': hp.choice('min_gain_to_split', np.arange(0, 0.1, 0.02, dtype='d')),
     'lambda_l1': hp.choice('lambda_l1', np.arange(1, 20, 5, dtype=int)),
-    # 'lambda_l2': hp.choice('lambda_l2', np.arange(350, 450, 20, dtype=int)),
+    'lambda_l2': hp.choice('lambda_l2', np.arange(350, 450, 20, dtype=int)),
 
     # parameters won't change
     # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
@@ -62,7 +62,6 @@ def lgbm_train(space):
 
     # write stock_wide prediction to DB
     df = pd.DataFrame()
-    print(sql_result['trial_lgbm'])
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     k = int(sql_result['trial_lgbm'])
@@ -152,7 +151,7 @@ if __name__ == "__main__":
 
     # records params to be written to DB
     sql_result = {}                                 # sql_result
-    sql_result['name'] = 'trial'                    # name = labeling the experiments
+    sql_result['name'] = 'change y to med_train'                    # name = labeling the experiments
     sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
     sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
     sql_result['qcut_q'] = qcut_q

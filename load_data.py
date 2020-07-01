@@ -27,7 +27,8 @@ class add_macro():
         self.ratios = self.label_nation_sector(self.ratios)
 
     def label_nation_sector(self, ratios):
-        # read files mapping
+        ''' read files mapping icb_code & market '''
+
         with engine.connect() as conn:
             markets = pd.read_sql("SELECT index_ric, icb_sector, identifier FROM dl_value_universe "
                                   "WHERE identifier IS NOT NULL", conn)
@@ -127,30 +128,37 @@ class load_data:
     def y_qcut(self, qcut_q):
         ''' qcut y '''
 
-        def to_median(arr, cut_bins):
+        def to_median():
             ''' convert qcut bins to median of each group '''
 
-            cut_bins[0] = -np.inf   # convert cut_bins into [-inf, ... , inf]
-            cut_bins[-1] = np.inf
+            # cut original series into 0, 1, .... (bins * n)
+            train_y, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True, labels=False)
+            test_y = pd.cut(self.sample_set['test_{}_org'.format(i)], bins=cut_bins, labels=False)
 
-            self.cut_bins[i]['cut_bins'] = list(cut_bins)       # write qcut threshold to dict
+            # calculate median on train_y for each qcut group
+            df = pd.DataFrame(np.vstack((self.sample_set['train_{}_org'.format(i)], np.array(train_y)))).T   # concat original series / qcut series
+            print(df)
+            median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
 
-            arr_q = pd.cut(arr, bins=cut_bins, labels=False)    # cut original series into 0, 1, .... (bins * n)
-            df = pd.DataFrame(np.vstack((arr, arr_q))).T        # concat original series / qcut series
-            median = df.groupby([1]).median().sort_index()      # find median of each group
+            # replace 0, 1, ... into median
+            train_y = pd.DataFrame(train_y).replace(range(qcut_q), median)[0].values
+            test_y = pd.DataFrame(test_y).replace(range(qcut_q), median)[0].values
 
-            arr_new = df[1].replace(median.index.to_list(), median[0].to_list()).values  # replace 0, 1, ... into median
+            # print(train_y, test_y)
+            # print(cut_bins, median)
+            # from collections import Counter
+            # print(Counter(train_y), Counter(test_y))
 
-            return arr_new, median[0].to_list() # return converted Y and median of all groups
+            return train_y, test_y, cut_bins, median
 
         for i in ['ni', 'rev']: # convert Net Income / Revenue as Y separately
             self.cut_bins[i] = {}
-            train_cut, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True)
 
-            self.sample_set['train_{}'.format(i)], self.cut_bins[i]['med_train'] = \
-                to_median(self.sample_set['train_{}_org'.format(i)], cut_bins)
-            self.sample_set['test_{}'.format(i)], self.cut_bins[i]['med_test'] = \
-                to_median(self.sample_set['test_{}_org'.format(i)], cut_bins)
+            self.sample_set['train_{}'.format(i)], self.sample_set['test_{}'.format(i)], self.cut_bins[i]['cut_bins'], \
+            self.cut_bins[i]['med_train'] = to_median()
+
+        print(self.cut_bins)
+        exit(0)
 
     def split_valid(self, y_type):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
@@ -194,7 +202,7 @@ if __name__ == '__main__':
 
     # these are parameters used to load_data
     icb_code = 301010
-    testing_period = dt.datetime(2017,12,31)
+    testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
     valid_method = 'shuffle'
     valid_no = 10
