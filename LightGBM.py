@@ -114,18 +114,28 @@ def HPOT(space, max_evals):
 def to_sql_bins(cut_bins):
     ''' write cut_bins & median of each set to DB'''
 
-    df = pd.DataFrame(columns=['cut_bins','med_train','med_test'])
-    df[['cut_bins','med_train','med_test']] = df[['cut_bins','med_train','med_test']].astype('object')
-
-    for k in cut_bins['ni'].keys():     # record cut_bins & median
-        df.at[0, k] = cut_bins['ni'][k]
-
-    for col in ['qcut_q', 'icb_code', 'testing_period']:
-        df.at[0, col] = sql_result[col]
-
     with engine.connect() as conn:      # record type of Y
-        df.to_sql('results_bins', con=conn, index=False, if_exists='append')
+        exist = pd.read_sql('SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period={}'.format(
+            qcut_q, icb_code, testing_period), con=conn)
     engine.dispose()
+
+    print(exist)
+    if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
+
+        df = pd.DataFrame(columns=['cut_bins','med_train','med_test'])
+        df[['cut_bins','med_train','med_test']] = df[['cut_bins','med_train','med_test']].astype('object')
+
+        for k in cut_bins['ni'].keys():     # record cut_bins & median
+            df.at[0, k] = cut_bins['ni'][k]
+
+        for col in ['qcut_q', 'icb_code', 'testing_period']:
+            df.at[0, col] = sql_result[col]
+
+        with engine.connect() as conn:      # record type of Y
+            df.to_sql('results_bins', con=conn, index=False, if_exists='append')
+        engine.dispose()
+    else:
+        print('Already recorded in DB TABLE results_bins')
 
 if __name__ == "__main__":
 
