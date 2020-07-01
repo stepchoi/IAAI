@@ -158,7 +158,6 @@ class load_data:
             self.cut_bins[i]['med_train'] = to_median()
 
 
-
     def split_valid(self, y_type):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
 
