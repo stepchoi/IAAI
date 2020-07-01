@@ -62,18 +62,6 @@ def lgbm_train(space):
 
     return Y_train_pred, Y_valid_pred, Y_test_pred
 
-
-def pred_to_sql(Y_test_pred):
-    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
-
-    df = pd.DataFrame()
-    df['identifier'] = test_id
-    df['pred'] = Y_test_pred
-    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
-    print('stock-wise prediction: ', df)
-
-    return df
-
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
 
@@ -98,7 +86,7 @@ def eval(space):
         pt.to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
     engine.dispose()
 
-    if result['mae_valid'] < best_mae:
+    if result['mae_valid'] < best_mae: # update best_mae to the lowest value for Hyperopt
         best_mae = result['mae_valid']
         best_stock_df = pred_to_sql(Y_test_pred)
 
@@ -106,12 +94,24 @@ def eval(space):
 
     return result['mae_valid']
 
+def pred_to_sql(Y_test_pred):
+    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
+
+    df = pd.DataFrame()
+    df['identifier'] = test_id
+    df['pred'] = Y_test_pred
+    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    print('stock-wise prediction: ', df)
+
+    return df
+
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(best)
 
+    # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
         best_stock_df.to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
