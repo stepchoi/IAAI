@@ -157,10 +157,9 @@ if __name__ == "__main__":
         db_last_trial_hpot = 0
         db_last_trial_lgbm = 0
 
-    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 'miscel']  # icb_code with > 1300 samples + rests in single big model
-
-    print(db_last_param)
+    indi_models = [502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010, 'miscel', 301010, 101020, 201030, 302020, 351020]  # icb_code with > 1300 samples + rests in single big model
+    ''' 502060 is problematic on 2014-9-30, cv 5'''
 
     # parser
     resume = True       # change to True if want to resume from the last running as on DB TABLE lightgbm_results
@@ -200,21 +199,34 @@ if __name__ == "__main__":
 
                 if resume == True:
 
-                    if {'icb_code': icb_code, 'testing_period': testing_period, 'cv_number': cv_number} == db_last_param:
+                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period), 'cv_number': cv_number} == db_last_param:
                         resume = False
                         print('---------> Resume Training', icb_code, testing_period, cv_number)
                     else:
                         print('Not yet resume: params done', icb_code, testing_period, cv_number)
+                        cv_number += 1
                         continue
 
-                X_train, X_valid = sample_set['train_x'][train_index], sample_set['train_x'][valid_index]
-                Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
-                print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
+                try:
+                    X_train, X_valid = sample_set['train_x'][train_index], sample_set['train_x'][valid_index]
+                    Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
+                    print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
 
-                hpot = {}
-                hpot['best_mae'] = 1
-                hpot['best_stock_df'] = pd.DataFrame()
-                hpot['all_results'] = []
+                    hpot = {}
+                    hpot['best_mae'] = 1
+                    hpot['best_stock_df'] = pd.DataFrame()
+                    hpot['all_results'] = []
 
-                HPOT(space, max_evals=10)
-                cv_number += 1
+                    HPOT(space, max_evals=10)
+                    cv_number += 1
+
+                except:
+                    print('ERROR on', icb_code, testing_period, cv_number)
+                    with engine.connect() as conn:
+                        pd.DataFrame({'icb_code': icb_code,
+                                      'testing_period': pd.Timestamp(testing_period),
+                                      'cv_number': cv_number}, index=[0]).to_sql('results_error', con=conn, index=False,
+                                                                                   if_exists='append')
+                    engine.dispose()
+                    cv_number += 1
+                    continue

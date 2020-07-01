@@ -78,6 +78,8 @@ class load_data:
             self.main = add_macro().map_macros()
             # self.main.to_csv('preprocess/main.csv', index=False)
 
+        # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
+
         # define self objects
         self.sample_set = {}
         self.cut_bins = {}
