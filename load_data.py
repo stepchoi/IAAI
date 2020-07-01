@@ -157,8 +157,7 @@ class load_data:
             self.sample_set['train_{}'.format(i)], self.sample_set['test_{}'.format(i)], self.cut_bins[i]['cut_bins'], \
             self.cut_bins[i]['med_train'] = to_median()
 
-        print(self.cut_bins)
-        exit(0)
+
 
     def split_valid(self, y_type):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
