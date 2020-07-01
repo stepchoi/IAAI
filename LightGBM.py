@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     try:    # read last records on DB TABLE lightgbm_results for resume / trial_no counting
         db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", engine)  # identify current # trials from past execution
-        db_last_param = db_last[['icb_code','testing_period','cv_number']].to_dict()
+        db_last_param = db_last[['icb_code','testing_period','cv_number']].to_dict('index')[0]
         db_last_trial_hpot = int(db_last['trial_hpot'])
         db_last_trial_lgbm = int(db_last['trial_lgbm'])
     except:
