@@ -79,16 +79,12 @@ def eval(space):
     sql_result.update(result)       # update result of model
     sql_result['finish_timing'] = dt.datetime.now()
 
-    pt = pd.DataFrame.from_records([sql_result], index=[0])
+    hpot['all_results'].append(sql_result)
     print('sql_result_before writing: ', sql_result)
 
-    with engine.connect() as conn:
-        pt.to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
-    engine.dispose()
-
-    if result['mae_valid'] < best_mae: # update best_mae to the lowest value for Hyperopt
-        best_mae = result['mae_valid']
-        best_stock_df = pred_to_sql(Y_test_pred)
+    if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
+        hpot['best_mae'] = result['mae_valid']
+        hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
 
     sql_result['trial_lgbm'] += 1
 
@@ -113,7 +109,8 @@ def HPOT(space, max_evals):
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        best_stock_df.to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
+        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
+        pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
     engine.dispose()
 
     sql_result['trial_hpot'] += 1
@@ -164,7 +161,6 @@ if __name__ == "__main__":
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     qcut_q = 10         # number of Y classes
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    ''' DEBUG: change to 28 for official run '''
 
     # records params to be written to DB
     sql_result = {}                                 # sql_result
@@ -201,8 +197,10 @@ if __name__ == "__main__":
                 Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
                 print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
 
-                best_mae = 1
-                best_stock_df = pd.DataFrame()
+                hpot = {}
+                hpot['best_mae'] = 1
+                hpot['best_stock_df'] = pd.DataFrame()
+                hpot['all_results'] = []
+
                 HPOT(space, max_evals=10)
                 cv_number += 1
-                # exit(0)
