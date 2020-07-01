@@ -33,7 +33,7 @@ space = {
     'objective': 'regression_l1',
     'verbose': -1,
     # 'metric': 'multi_error',
-    'num_threads': 16  # for the best speed, set this to the number of real CPU cores
+    'num_threads': 12  # for the best speed, set this to the number of real CPU cores
 }
 
 
@@ -149,13 +149,13 @@ if __name__ == "__main__":
         db_last_trial_hpot = 0
         db_last_trial_lgbm = 0
 
-    indi_models = [101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 'miscel', 301010]  # icb_code with > 1300 samples + rests in single big model
+    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010, 'miscel']  # icb_code with > 1300 samples + rests in single big model
 
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     qcut_q = 10         # number of Y classes
-    sample_no = 28       # number of training/testing period go over
+    sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     ''' DEBUG: change to 28 for official run '''
 
     # records params to be written to DB
