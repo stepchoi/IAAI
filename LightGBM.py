@@ -60,19 +60,19 @@ def lgbm_train(space):
     Y_valid_pred = gbm.predict(X_valid, num_iteration=gbm.best_iteration)
     Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
 
-    return Y_train_pred, Y_valid_pred, Y_test_pred
-
-def df_to_sql_stock(Y_test_pred):
-    ''' convert Y_test_pred (array) to DataFrame available to be written to sql '''
-
     # write stock_wide prediction to DB
     df = pd.DataFrame()
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
-    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    k = int(sql_result['trial_lgbm'])
+    df['trial_lgbm'] = [k] * len(test_id)
     print('stock-wise prediction: ', df)
 
-    return df
+    with engine.connect() as conn:
+        df.to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
+    engine.dispose()
+
+    return Y_train_pred, Y_valid_pred, Y_test_pred
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
@@ -100,13 +100,6 @@ def eval(space):
 
     sql_result['trial_lgbm'] += 1
 
-    print(best_mae)
-    if result['mae_valid'] < best_mae:
-        best_mae = result['mae_valid']
-        print(best_mae)
-        best_stock_df = df_to_sql_stock(Y_test_pred)
-        print(best_stock_df)
-
     return result['mae_valid']
 
 def HPOT(space, max_evals):
@@ -115,21 +108,15 @@ def HPOT(space, max_evals):
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(best)
 
-
-    # write the best records (1 in 10) of Hyperopt to sql
-    with engine.connect() as conn:
-        best_stock_df.to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
-    engine.dispose()
-
     sql_result['trial_hpot'] += 1
     # return best
 
-def to_sql_cut_bins(cut_bins):
+def to_sql_bins(cut_bins):
     ''' write cut_bins & median of each set to DB'''
 
     with engine.connect() as conn:      # record type of Y
         exist = pd.read_sql('SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period={}'.format(
-            qcut_q, icb_code, str(testing_period)), con=conn)
+            qcut_q, icb_code, testing_period), con=conn)
     engine.dispose()
 
     print(exist)
@@ -195,7 +182,7 @@ if __name__ == "__main__":
 
             sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q)   # split train / valid / test
 
-            to_sql_cut_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
             cv_number = 1   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set
@@ -205,8 +192,6 @@ if __name__ == "__main__":
                 Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
                 print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
 
-                best_mae = 1                    # revert back to original value for each Hyperopt
-                best_stock_df = pd.DataFrame()
                 HPOT(space, max_evals=10)
                 cv_number += 1
                 # exit(0)
