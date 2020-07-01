@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_absolute_error
 import datetime as dt
 
 '''
@@ -12,45 +13,112 @@ import datetime as dt
 4. calculate comparable accuracy <- for available stock used in our prediction
 
 '''
+def calc_mae():
+    try:
+        yoy_all_median = pd.read_csv('yoy_all_median.csv')
+        print('local version run - yoy_all_median')
+    except:
+        yoy_all_median = act_lgbm_ibes()
+
+    mae = {}
+    for p in set(yoy_all_median['period_end']):
+        part_p = yoy_all_median.loc[yoy_all_median['period_end']==p]
+
+        for i in set(yoy_all_median['icb_code']):
+            part_i = part_p.loc[part_p['icb_code']==i]
+
+            for c in set(yoy_all_median['cv_number']):
+                part_c = part_i.loc[part_i['cv_number']==c]
+
+                try:
+                    mae['{}_{}_{}'.format(p, i, c)] = {}
+                    mae['{}_{}_{}'.format(p, i, c)]['ibes'] = mean_absolute_error(part_c['y_ibes_qcut'], part_c['y_ni_qcut'])
+                    mae['{}_{}_{}'.format(p, i, c)]['lgbm'] = mean_absolute_error(part_c['pred'], part_c['y_ni_qcut'])
+                except:
+                    print('not available', p, i, c)
+                    continue
+
+    print(mae)
+    df = pd.DataFrame(mae).T
+    df['diff'] = (df['lgbm'] - df['ibes'])/df['lgbm'] # calculate the relative performance of our model compared to consensus
+    df[]
+
+    df.to_csv('mae.csv')
+
+
+def act_lgbm_ibes():
+    ''' combine all prediction together '''
+    try:
+        yoy_ibes_median = pd.read_csv('yoy_ibes_median.csv')
+        print('local version run - yoy_ibes_median')
+    except:
+        yoy = eps_to_yoy()
+        yoy_ibes_median = yoy_to_median(yoy)
+
+    try:
+        detial_stock = pd.read_csv('detial_stock.csv')
+        print('local version run - detial_stock')
+    except:
+        with engine.connect() as conn:
+            result_stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
+            trial_lgbm = set(result_stock['trial_lgbm'])
+
+            query = text("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test "
+                         "FROM results_lightgbm WHERE name='batch saving' AND (trial_lgbm IN :trial_lgbm)")
+            query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
+            result_all = pd.read_sql(query, conn)
+        engine.dispose()
+
+        detial_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
+        detial_stock.to_csv('detial_stock.csv', index=False)
+
+    print(detial_stock)
+
+    detial_stock['testing_period'] = pd.to_datetime(detial_stock['testing_period'], format='%Y-%m-%d')
+    yoy_ibes_median['period_end'] = pd.to_datetime(yoy_ibes_median['period_end'], format='%Y-%m-%d')
+    yoy_all_median = detial_stock.merge(yoy_ibes_median, left_on=['identifier', 'testing_period'],
+                                      right_on=['identifier', 'period_end'])
+    print(detial_stock)
+    yoy_all_median.to_csv('yoy_all_median.csv', index=False)
+    return yoy_all_median
+
+
 def yoy_to_median(yoy):
 
     with engine.connect() as conn:
         bins_df = pd.read_sql('SELECT * FROM results_bins', conn)
-        # result_lgbm = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
     engine.dispose()
 
-    # print(result_lgbm)
-
-
+    yoy_list = []
     for i in range(len(bins_df)):
         print(bins_df.iloc[i])
 
         part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                            (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
 
-        part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], cut_bins=bins_df.iloc[i]['cut_bins'],
-                                            qcut_q=bins_df.iloc[i]['qcut_q'], med_test=bins_df.iloc[i]['med_test'])
+        part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i])
+        part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i])
 
-        part_yoy.to_csv('#check_ibes_qcut.csv', index=False)
-        exit(0)
+        yoy_list.append(part_yoy)
 
-def to_median(arr, cut_bins, qcut_q, med_test):
+    yoy_ibes_median = pd.concat(yoy_list, axis=0)
+    yoy_ibes_median.to_csv('yoy_ibes_median.csv', index=False)
+
+    return yoy_ibes_median
+
+def to_median(arr, convert):
     ''' convert qcut bins to median of each group '''
 
-    cut_bins = cut_bins.strip('{}').split(',')
-    med_test = med_test.strip('{}').split(',')
+    cut_bins = convert['cut_bins'].strip('{}').split(',')
+    med_test = convert['med_train'].strip('{}').split(',')
 
     cut_bins[0] = -np.inf  # convert cut_bins into [-inf, ... , inf]
     cut_bins[-1] = np.inf
     cut_bins = [float(x) for x in cut_bins]
     med_test = [float(x) for x in med_test]
-    print(cut_bins, med_test)
 
-    print(arr)
     arr_q = pd.cut(arr, bins=cut_bins, labels=False)         # cut original series into 0, 1, .... (bins * n)
-    print(arr_q)
-    arr_new = arr_q.replace(range(int(qcut_q)), med_test).values  # replace 0, 1, ... into median
-    print(arr_new)
+    arr_new = arr_q.replace(range(int(convert['qcut_q'])), med_test).values  # replace 0, 1, ... into median
 
     return arr_new                                           # return converted Y and median of all groups
 
@@ -64,21 +132,25 @@ def eps_to_yoy():
     try:
         ibes = pd.read_csv('preprocess/ibes_data.csv', usecols = ['identifier', 'period_end','EPS1FD12'])
         ws = pd.read_csv('preprocess/ws_ibes.csv')
+        actual = pd.read_csv('preprocess/clean_ratios.csv', usecols = ['identifier', 'period_end','y_ni'])
         print('local version run - ibes / share_osd')
     except:
         with engine.connect() as conn:
             ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12 FROM ibes_data', conn)
             ws = pd.read_sql('SELECT identifier, year, frequency_number, fn_18263, fn_8001, fn_5192 as share_osd '
                                     'FROM worldscope_quarter_summary', conn)
+            actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios')
         engine.dispose()
         # ws.to_csv('preprocess/ws_ibes.csv', index=False)
 
     ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%Y-%m-%d')
+    actual['period_end'] = pd.to_datetime(actual['period_end'], format='%Y-%m-%d')
     ibes.columns = ['identifier', 'period_end', 'eps1fd12']
 
     # map common share outstanding & market cap to ibes estimations
     ws = label_period_end(ws)
     ibes = ibes.merge(ws, on=['identifier', 'period_end'])
+    ibes = ibes.merge(actual, on=['identifier', 'period_end'])
 
     # calculate YoY (Y)
     ibes['fwd_ni'] = ibes['eps1fd12'] * ibes['share_osd']
@@ -88,7 +160,7 @@ def eps_to_yoy():
     # ibes.loc[ibes.groupby('identifier').tail(4).index, 'act_ni'] = np.nan
     # ibes.to_csv('#check_ibes_ni.csv', index=False)
 
-    return label_sector(ibes[['identifier', 'period_end', 'y_ibes']]).dropna(how='any')
+    return label_sector(ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
 
 def label_period_end(df):
     ''' find fiscal_period_end -> last_year_end for each identifier + frequency_number * 3m '''
@@ -126,7 +198,10 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
 
-    yoy = eps_to_yoy()
-    print(yoy)
+    # yoy = eps_to_yoy()
+    # print(yoy)
+    #
+    # yoy_to_median(yoy)
 
-    yoy_to_median(yoy)
+    # act_lgbm_ibes()
+    calc_mae()
