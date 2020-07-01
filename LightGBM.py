@@ -79,7 +79,7 @@ def eval(space):
     sql_result.update(result)       # update result of model
     sql_result['finish_timing'] = dt.datetime.now()
 
-    hpot['all_results'].append(sql_result)
+    hpot['all_results'].append(sql_result.copy())
     print('sql_result_before writing: ', sql_result)
 
     if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
@@ -97,7 +97,7 @@ def pred_to_sql(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
-    print('stock-wise prediction: ', df)
+    # print('stock-wise prediction: ', df)
 
     return df
 
@@ -106,6 +106,8 @@ def HPOT(space, max_evals):
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(best)
+
+    # print(pd.DataFrame(hpot['all_results']))
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
@@ -126,8 +128,8 @@ def to_sql_bins(cut_bins):
 
     if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
 
-        df = pd.DataFrame(columns=['cut_bins','med_train','med_test'])
-        df[['cut_bins','med_train','med_test']] = df[['cut_bins','med_train','med_test']].astype('object')
+        df = pd.DataFrame(columns=['cut_bins','med_train'])
+        df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
 
         for k in cut_bins['ni'].keys():     # record cut_bins & median
             df.at[0, k] = cut_bins['ni'][k]
@@ -164,7 +166,7 @@ if __name__ == "__main__":
 
     # records params to be written to DB
     sql_result = {}                                 # sql_result
-    sql_result['name'] = 'change y to med_train'                    # name = labeling the experiments
+    sql_result['name'] = 'batch saving'                    # name = labeling the experiments
     sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
     sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
     sql_result['qcut_q'] = qcut_q

@@ -148,7 +148,7 @@ class load_data:
             # from collections import Counter
             # print(Counter(train_y), Counter(test_y))
 
-            return train_y, test_y, cut_bins, median
+            return train_y, test_y, list(cut_bins), list(median)
 
         for i in ['ni', 'rev']: # convert Net Income / Revenue as Y separately
             self.cut_bins[i] = {}
