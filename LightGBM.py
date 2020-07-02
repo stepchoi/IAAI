@@ -186,8 +186,8 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     # training / testing sets split params
-    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
+    indi_models = [999999, 301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010]  # icb_code with > 1300 samples + rests in single big model (999999)
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     ''' 502060 is problematic on 2014-9-30, cv 5'''
 
@@ -210,65 +210,67 @@ if __name__ == "__main__":
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    for icb_code in indi_models:    # roll over industries
+    for exclude_fwd in [True, False]:
+        sql_result['exclude_fwd'] = exclude_fwd
+        print('exclude_fwd: ', exclude_fwd)
+        for icb_code in indi_models:    # roll over industries
 
-        data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
-        print('icb_code: ', icb_code)
-        sql_result['icb_code'] = icb_code
+            data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
+            print('icb_code: ', icb_code)
+            sql_result['icb_code'] = icb_code
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
+            for i in tqdm(range(sample_no)):  # roll over testing period
 
-            testing_period = period_1 + i * relativedelta(months=3)
-            print('testing_period: ', testing_period)
-            sql_result['testing_period'] = testing_period
+                testing_period = period_1 + i * relativedelta(months=3)
+                print('testing_period: ', testing_period)
+                sql_result['testing_period'] = testing_period
 
-            if resume == False:     # after resume: split train / valid / test
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, sql_result['qcut_q'])
-                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                if resume == False:     # after resume: split train / valid / test
+                    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, sql_result['qcut_q'])
+                    to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-            cv_number = 1   # represent which cross-validation sets
-            for train_index, valid_index in cv:     # roll over 5 cross validation set
-                sql_result['cv_number'] = cv_number
+                cv_number = 1   # represent which cross-validation sets
+                for train_index, valid_index in cv:     # roll over 5 cross validation set
+                    sql_result['cv_number'] = cv_number
 
-                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
-                if resume == True:
+                    # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
+                    if resume == True:
 
-                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
-                        'cv_number': cv_number} == db_last_param:  # if current loop = last records
-                        resume = False
-                        sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                          sql_result['qcut_q'])
-                        to_sql_bins(cut_bins)
-                        print('---------> Resume Training', icb_code, testing_period, cv_number)
-                    else:
-                        print('Not yet resume: params done', icb_code, testing_period, cv_number)
+                        if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
+                            'cv_number': cv_number} == db_last_param:  # if current loop = last records
+                            resume = False
+                            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                                              sql_result['qcut_q'])
+                            to_sql_bins(cut_bins)
+                            print('---------> Resume Training', icb_code, testing_period, cv_number)
+                        else:
+                            print('Not yet resume: params done', icb_code, testing_period, cv_number)
+                            cv_number += 1
+                            continue
+
+                    # when Resume = False: try split validation set from training set + start hyperopt
+                    try:
+                        sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                        sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                        sample_set['valid_y'] = sample_set['train_ni'][valid_index]
+                        sample_set['train_y'] = sample_set['train_ni'][train_index]
+
+                        sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                        sql_result['valid_len'] = len(sample_set['valid_x'])
+
+                        HPOT(space, max_evals=10)   # start hyperopt
+                        cv_number += 1
+
+                    except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+                        print('ERROR on', icb_code, testing_period, cv_number)
+
+                        with engine.connect() as conn:
+                            pd.DataFrame({'icb_code': icb_code,
+                                          'testing_period': pd.Timestamp(testing_period),
+                                          'cv_number': cv_number,
+                                          'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
+                                                                                             index=False, if_exists='append')
+                        engine.dispose()
                         cv_number += 1
                         continue
-
-                # when Resume = False: try split validation set from training set + start hyperopt
-                try:
-                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                    sample_set['valid_y'] = sample_set['train_ni'][valid_index]
-                    sample_set['train_y'] = sample_set['train_ni'][train_index]
-
-                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                    sql_result['valid_len'] = len(sample_set['valid_x'])
-
-                    HPOT(space, max_evals=10)   # start hyperopt
-                    cv_number += 1
-
-                except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                    print('ERROR on', icb_code, testing_period, cv_number)
-
-                    with engine.connect() as conn:
-                        pd.DataFrame({'icb_code': icb_code,
-                                      'testing_period': pd.Timestamp(testing_period),
-                                      'cv_number': cv_number,
-                                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
-                                                                                         index=False, if_exists='append')
-                    engine.dispose()
-                    cv_number += 1
-
-                    continue
 
