@@ -172,7 +172,7 @@ if __name__ == "__main__":
 
     # training / testing sets split params
     indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 'miscel']  # icb_code with > 1300 samples + rests in single big model
+                   201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     ''' 502060 is problematic on 2014-9-30, cv 5'''
 
@@ -187,6 +187,7 @@ if __name__ == "__main__":
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['name'] = 'batch saving'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
+    sql_result['exclude_fwd'] = True                    # remove fwd_ey, fwd_roic from x (ratios using ibes data)
 
     db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 

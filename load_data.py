@@ -89,16 +89,17 @@ class load_data:
     def split_icb(self, icb_code):
         ''' split samples from specific sectors (icb_code) '''
 
-        if type(icb_code) == int:
+        indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+                          501010, 201020, 502030, 401010]
+
+        if icb_code in indi_model_icb:
             self.sector = self.main.loc[self.main['icb_sector'] == icb_code]
         else:
-            indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-                              501010, 201020, 502030, 401010]
             self.sector = self.main.loc[~self.main['icb_sector'].isin(indi_model_icb)]
             print('This is miscellaneous model')
         # print(main.describe().T[['max','min']])
 
-    def split_train_test(self, testing_period):
+    def split_train_test(self, testing_period, exclude_fwd):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -111,7 +112,13 @@ class load_data:
         def divide_set(df):
             ''' split x, y from main '''
 
-            x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev'], axis=1).values
+            if exclude_fwd == False:
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev'], axis=1).values
+            else:   # remove 2 ratios calculated with ibes consensus data
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev','fwd_ey','fwd_roic'],
+                            axis=1).values
+            # print('check if exclude_fwd should be 46, we have ', x.shape)
+
             ni = df['y_ni'].values
             rev = df['y_rev'].values
             return x, ni, rev
@@ -166,10 +173,10 @@ class load_data:
                                                   , groups=self.train['identifier'])
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni'):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period)
+        self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
         self.y_qcut(qcut_q)
         gkf = self.split_valid(y_type)
@@ -200,7 +207,8 @@ def count_by_year(main):
 if __name__ == '__main__':
 
     # these are parameters used to load_data
-    icb_code = 301010
+    icb_code = 999999
+    exclude_fwd = True
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
     valid_method = 'shuffle'
@@ -208,7 +216,7 @@ if __name__ == '__main__':
 
     data = load_data()
     data.split_icb(icb_code)
-    sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q)
+    sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q, 'ni', exclude_fwd)
 
     # check shape of sample sets (x + y + y_org) * (train + valid + test)
     print(cut_bins)
