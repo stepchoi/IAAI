@@ -41,7 +41,6 @@ def calc_mae():
     print(mae)
     df = pd.DataFrame(mae).T
     df['diff'] = (df['lgbm'] - df['ibes'])/df['lgbm'] # calculate the relative performance of our model compared to consensus
-    df[]
 
     df.to_csv('mae.csv')
 

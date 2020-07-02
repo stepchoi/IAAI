@@ -225,7 +225,8 @@ if __name__ == "__main__":
                     with engine.connect() as conn:
                         pd.DataFrame({'icb_code': icb_code,
                                       'testing_period': pd.Timestamp(testing_period),
-                                      'cv_number': cv_number}, index=[0]).to_sql('results_error', con=conn, index=False,
+                                      'cv_number': cv_number
+                                      'qcut_q': qcut_q}, index=[0]).to_sql('results_error', con=conn, index=False,
                                                                                    if_exists='append')
                     engine.dispose()
                     cv_number += 1
