@@ -49,7 +49,7 @@ def lgbm_train(space):
     gbm = lgb.train(params,
                     lgb_train,
                     valid_sets=lgb_eval,
-                    num_boost_round=1000,
+                    num_boost_round=100,
                     early_stopping_rounds=150,
                     )
 
@@ -100,6 +100,16 @@ def pred_to_sql(Y_test_pred):
 
     return df
 
+def importance_to_sql(gbm):
+
+    df = pd.DataFrame()
+    df['name'] = feature_names
+
+    df['split'] = gbm.feature_importance(importance_type='split')
+    df['gain'] = gbm.feature_importance(importance_type='gain')
+
+
+
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
 
@@ -121,7 +131,6 @@ def HPOT(space, max_evals):
     hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
 
     sql_result['trial_hpot'] += 1
-    exit(0)
     # return best
 
 def to_sql_bins(cut_bins):
@@ -207,8 +216,8 @@ if __name__ == "__main__":
             print('testing_period: ', testing_period)
             sql_result['testing_period'] = testing_period
 
-            if resume == False:
-                sample_set, cut_bins, cv, test_id = data.split_all(testing_period, sql_result['qcut_q'])   # split train / valid / test
+            if resume == False:     # after resume: split train / valid / test
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, sql_result['qcut_q'])
                 to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
             cv_number = 1   # represent which cross-validation sets
@@ -221,7 +230,8 @@ if __name__ == "__main__":
                     if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
                         'cv_number': cv_number} == db_last_param:  # if current loop = last records
                         resume = False
-                        sample_set, cut_bins, cv, test_id = data.split_all(testing_period, sql_result['qcut_q'])
+                        sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                                          sql_result['qcut_q'])
                         to_sql_bins(cut_bins)
                         print('---------> Resume Training', icb_code, testing_period, cv_number)
                     else:
@@ -252,4 +262,7 @@ if __name__ == "__main__":
                                                                                          index=False, if_exists='append')
                     engine.dispose()
                     cv_number += 1
+
+                    exit(0)
                     continue
+

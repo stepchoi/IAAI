@@ -113,12 +113,14 @@ class load_data:
             ''' split x, y from main '''
 
             if exclude_fwd == False:
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev'], axis=1).values
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev'], axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
                 x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev','fwd_ey','fwd_roic'],
-                            axis=1).values
+                            axis=1)
+            self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
+            x = x.values
             ni = df['y_ni'].values
             rev = df['y_rev'].values
             return x, ni, rev
@@ -183,7 +185,7 @@ class load_data:
 
         print('sample_set keys: ', self.sample_set.keys())
 
-        return self.sample_set, self.cut_bins, gkf, self.test['identifier'].to_list()
+        return self.sample_set, self.cut_bins, gkf, self.test['identifier'].to_list(), self.feature_names
 
 def count_by_sector(main):
     ''' counter # sample for each sector to decide sector-wide models & miscellaneous model'''
