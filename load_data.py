@@ -218,7 +218,7 @@ if __name__ == '__main__':
 
     data = load_data()
     data.split_icb(icb_code)
-    sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q, 'ni', exclude_fwd)
+    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q, 'ni', exclude_fwd)
 
     # check shape of sample sets (x + y + y_org) * (train + valid + test)
     print(cut_bins)

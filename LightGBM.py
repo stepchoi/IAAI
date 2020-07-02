@@ -84,6 +84,7 @@ def eval(space):
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_model'] = gbm
+        hpot['best_importance'] = importance_to_sql(gbm)
 
     sql_result['trial_lgbm'] += 1
 
@@ -101,14 +102,18 @@ def pred_to_sql(Y_test_pred):
     return df
 
 def importance_to_sql(gbm):
+    ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
 
     df = pd.DataFrame()
-    df['name'] = feature_names
+    df['name'] = feature_names     # column names
+    df['split'] = gbm.feature_importance(importance_type='split')   # split = # of appearance
+    df['gain'] = gbm.feature_importance(importance_type='gain')     # gain = total gain
 
-    df['split'] = gbm.feature_importance(importance_type='split')
-    df['gain'] = gbm.feature_importance(importance_type='gain')
+    df = df.set_index('name').T.reset_index(drop=False)
+    df.columns = ['importance_type'] + df.columns.to_list()[1:]
+    df['trial_lgbm'] = sql_result['trial_lgbm']
 
-
+    return df
 
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
@@ -126,6 +131,7 @@ def HPOT(space, max_evals):
     with engine.connect() as conn:
         hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
         pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
+        hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append')
     engine.dispose()
 
     hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
@@ -254,6 +260,7 @@ if __name__ == "__main__":
 
                 except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
                     print('ERROR on', icb_code, testing_period, cv_number)
+
                     with engine.connect() as conn:
                         pd.DataFrame({'icb_code': icb_code,
                                       'testing_period': pd.Timestamp(testing_period),
@@ -263,6 +270,5 @@ if __name__ == "__main__":
                     engine.dispose()
                     cv_number += 1
 
-                    exit(0)
                     continue
 
