@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error
+from matplotlib import pyplot as plt
 import datetime as dt
 
 def download():
@@ -18,8 +18,7 @@ def download():
         results.to_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')), index=False) # download results & label with date
 
     # print(', '.join(results.columns.to_list()))
-    print(results.columns)
-
+    # print(results.columns)
     return results
 
 def calc_correl(results):
@@ -40,9 +39,50 @@ def calc_correl(results):
 
     print(pd.DataFrame(correls))
 
-    pd.DataFrame(correls).to_csv('results_lgbm/results_correl.csv')
+    pd.DataFrame(correls).to_csv('results_correl.csv')
 
+def plot_scatter(df, only_test=False):
+    ''' plot distribution of mae based on different hyper-parameters'''
 
+    params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
+             'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves'.rsplit(', ')
+
+    n = round(np.sqrt(len(params)))+1
+    fig = plt.figure(figsize=(4*n, 4*n), dpi=120)
+    # fig.suptitle(subset_name, fontsize=14)
+
+    k = 1
+    for p in params:
+        print(p, set(df[p]))
+
+        data_test = []
+        data_train = []
+        label = []
+        for name, g in df.groupby([p]):
+            label.append(name)
+            data_test.append(g['mae_test'])
+            data_train.append(g['mae_train'])
+
+        ax = fig.add_subplot(n, n, k)
+
+        def draw_plot(ax, data, label, edge_color, fill_color):
+            bp = ax.boxplot(data, labels = label, patch_artist=True)
+
+            for element in ['boxes', 'whiskers', 'fliers', 'means', 'medians', 'caps']:
+                plt.setp(bp[element], color=edge_color)
+
+            for patch in bp['boxes']:
+                patch.set(facecolor=fill_color)
+
+        draw_plot(ax, data_test, label, 'red', 'tan')
+
+        if only_test == False:
+            draw_plot(ax, data_train, label, 'blue', 'cyan')
+
+        ax.set_title(p)
+        k += 1
+
+    fig.savefig('results_lgbm/plot_{}_only'.format(dt.datetime.now().strftime('%Y%m%d')))
 
 
 if __name__ == "__main__":
@@ -50,4 +90,5 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     results = download()
-    calc_correl(results)
+    # calc_correl(results)
+    plot_scatter(results, only_test=True)
