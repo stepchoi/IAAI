@@ -104,8 +104,6 @@ def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
 
     hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
-    hpot['best_stock_df'] = pd.DataFrame()
-    hpot['best_model'] = lgb.Booster()
     hpot['all_results'] = []
 
     trials = Trials()
