@@ -43,8 +43,9 @@ def lgbm_train(space):
     params = space.copy()
     print(params)
 
-    lgb_train = lgb.Dataset(X_train, label=Y_train, free_raw_data=False)
-    lgb_eval = lgb.Dataset(X_valid, label=Y_valid, free_raw_data=False, reference=lgb_train)
+    # nonlocal sample_set
+    lgb_train = lgb.Dataset(sample_set['train_xx'], label=sample_set['train_y'], free_raw_data=False)
+    lgb_eval = lgb.Dataset(sample_set['valid_x'], label=sample_set['valid_y'], free_raw_data=False, reference=lgb_train)
 
     gbm = lgb.train(params,
                     lgb_train,
@@ -53,11 +54,14 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     )
 
-    # gbm.save_model('model.txt')
+    print(type(gbm))
+
+    # gbm.save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
+    exit(0)
 
     # prediction on all sets
-    Y_train_pred = gbm.predict(X_train, num_iteration=gbm.best_iteration)
-    Y_valid_pred = gbm.predict(X_valid, num_iteration=gbm.best_iteration)
+    Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
+    Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
     Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
 
     return Y_train_pred, Y_valid_pred, Y_test_pred
@@ -68,8 +72,8 @@ def eval(space):
     Y_train_pred, Y_valid_pred, Y_test_pred = lgbm_train(space)
     Y_test = sample_set['test_ni']
 
-    result = {  'mae_train': mean_absolute_error(Y_train, Y_train_pred),
-                'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+    result = {  'mae_train': mean_absolute_error(sample_set['train_y'], Y_train_pred),
+                'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
                 # 'mae_train_org': mean_absolute_error(Y_train, Y_train_pred),
                 # 'mae_test_org': mean_absolute_error(Y_test, Y_test_pred),
@@ -103,6 +107,11 @@ def pred_to_sql(Y_test_pred):
 
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
+
+    hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
+    hpot['best_stock_df'] = pd.DataFrame()
+    hpot['all_results'] = []
+
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(best)
@@ -123,7 +132,7 @@ def to_sql_bins(cut_bins):
 
     with engine.connect() as conn:      # record type of Y
         exist = pd.read_sql("SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period='{}'".format(
-            qcut_q, icb_code, str(testing_period)), con=conn)
+            sql_result['qcut_q'], sql_result['icb_code'], str(sql_result['testing_period'])), con=conn)
     engine.dispose()
 
     if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
@@ -143,39 +152,50 @@ def to_sql_bins(cut_bins):
     else:
         print('Already recorded in DB TABLE results_bins')
 
+def read_db_last():
+    ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
+
+    with engine.connect() as conn:
+        db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", conn)
+    engine.dispose()
+
+    db_last_param = db_last[['icb_code','testing_period','cv_number']].to_dict('index')[0]
+    db_last_trial_hpot = int(db_last['trial_hpot'])
+    db_last_trial_lgbm = int(db_last['trial_lgbm'])
+
+    sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
+    sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+
+    return db_last_param
+
 if __name__ == "__main__":
 
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    try:    # read last records on DB TABLE lightgbm_results for resume / trial_no counting
-        db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", engine)  # identify current # trials from past execution
-        db_last_param = db_last[['icb_code','testing_period','cv_number']].to_dict('index')[0]
-        db_last_trial_hpot = int(db_last['trial_hpot'])
-        db_last_trial_lgbm = int(db_last['trial_lgbm'])
-    except:
-        db_last_trial_hpot = 0
-        db_last_trial_lgbm = 0
-
-    indi_models = [502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 'miscel', 301010, 101020, 201030, 302020, 351020]  # icb_code with > 1300 samples + rests in single big model
+    # training / testing sets split params
+    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010, 'miscel']  # icb_code with > 1300 samples + rests in single big model
+    period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     ''' 502060 is problematic on 2014-9-30, cv 5'''
 
+    # create dict storing values/df used in training
+    sql_result = {}     # data write to DB TABLE lightgbm_results
+    hpot = {}           # storing data for best trials in each Hyperopt
+    sample_set = {}     # storing all samples used
+    test_id = []
+
     # parser
-    resume = True       # change to True if want to resume from the last running as on DB TABLE lightgbm_results
-    qcut_q = 10         # number of Y classes
+    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
+    sql_result['name'] = 'batch saving'                 # name = labeling the experiments
+    sql_result['qcut_q'] = 10                           # number of Y classes
 
-    # records params to be written to DB
-    sql_result = {}                                 # sql_result
-    sql_result['name'] = 'batch saving'                    # name = labeling the experiments
-    sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
-    sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
-    sql_result['qcut_q'] = qcut_q
+    db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    data = load_data()      # load all data: create load_data.main = df for all samples - within data(CLASS)
+    data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    period_1 = dt.datetime(2013, 3, 31)
+    ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
     for icb_code in indi_models:    # roll over industries
 
@@ -189,45 +209,52 @@ if __name__ == "__main__":
             print('testing_period: ', testing_period)
             sql_result['testing_period'] = testing_period
 
-            sample_set, cut_bins, cv, test_id = data.split_all(testing_period, qcut_q)   # split train / valid / test
-
-            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            if resume == False:
+                sample_set, cut_bins, cv, test_id = data.split_all(testing_period, sql_result['qcut_q'])   # split train / valid / test
+                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                print('resume is False, sample set: ', sample_set, cv)
 
             cv_number = 1   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set
                 sql_result['cv_number'] = cv_number
 
+                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
                 if resume == True:
 
-                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period), 'cv_number': cv_number} == db_last_param:
+                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
+                        'cv_number': cv_number} == db_last_param:  # if current loop = last records
                         resume = False
+                        sample_set, cut_bins, cv, test_id = data.split_all(testing_period, sql_result['qcut_q'])
+                        to_sql_bins(cut_bins)
                         print('---------> Resume Training', icb_code, testing_period, cv_number)
                     else:
                         print('Not yet resume: params done', icb_code, testing_period, cv_number)
                         cv_number += 1
                         continue
 
+                # when Resume = False: try split validation set from training set + start hyperopt
                 try:
-                    X_train, X_valid = sample_set['train_x'][train_index], sample_set['train_x'][valid_index]
-                    Y_train, Y_valid = sample_set['train_ni'][train_index], sample_set['train_ni'][valid_index]  # lightGBM use Net Income as Y
-                    print(X_train.shape, X_valid.shape, Y_train.shape, Y_valid.shape)
+                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                    sample_set['valid_y'] = sample_set['train_ni'][valid_index]
+                    sample_set['train_y'] = sample_set['train_ni'][train_index]
 
-                    hpot = {}
-                    hpot['best_mae'] = 1
-                    hpot['best_stock_df'] = pd.DataFrame()
-                    hpot['all_results'] = []
+                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                    sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                    HPOT(space, max_evals=10)
+                    print(sample_set['valid_x'].shape, sample_set['train_xx'].shape, sample_set['valid_y'].shape, sample_set['train_y'].shape)
+
+                    HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1
 
-                except:
+                except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
                     print('ERROR on', icb_code, testing_period, cv_number)
                     with engine.connect() as conn:
                         pd.DataFrame({'icb_code': icb_code,
                                       'testing_period': pd.Timestamp(testing_period),
-                                      'cv_number': cv_number
-                                      'qcut_q': qcut_q}, index=[0]).to_sql('results_error', con=conn, index=False,
-                                                                                   if_exists='append')
+                                      'cv_number': cv_number,
+                                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
+                                                                                         index=False, if_exists='append')
                     engine.dispose()
                     cv_number += 1
                     continue
