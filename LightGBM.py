@@ -43,7 +43,6 @@ def lgbm_train(space):
     params = space.copy()
     print(params)
 
-    # nonlocal sample_set
     lgb_train = lgb.Dataset(sample_set['train_xx'], label=sample_set['train_y'], free_raw_data=False)
     lgb_eval = lgb.Dataset(sample_set['valid_x'], label=sample_set['valid_y'], free_raw_data=False, reference=lgb_train)
 
@@ -54,22 +53,17 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     )
 
-    print(type(gbm))
-
-    # gbm.save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
-    exit(0)
-
     # prediction on all sets
     Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
     Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
     Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
 
-    return Y_train_pred, Y_valid_pred, Y_test_pred
+    return Y_train_pred, Y_valid_pred, Y_test_pred, gbm
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
 
-    Y_train_pred, Y_valid_pred, Y_test_pred = lgbm_train(space)
+    Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
     Y_test = sample_set['test_ni']
 
     result = {  'mae_train': mean_absolute_error(sample_set['train_y'], Y_train_pred),
@@ -89,6 +83,7 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
+        hpot['best_model'] = gbm
 
     sql_result['trial_lgbm'] += 1
 
@@ -110,6 +105,7 @@ def HPOT(space, max_evals):
 
     hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
     hpot['best_stock_df'] = pd.DataFrame()
+    hpot['best_model'] = lgb.Booster()
     hpot['all_results'] = []
 
     trials = Trials()
@@ -124,7 +120,10 @@ def HPOT(space, max_evals):
         pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
     engine.dispose()
 
+    hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
+
     sql_result['trial_hpot'] += 1
+    exit(0)
     # return best
 
 def to_sql_bins(cut_bins):
@@ -212,7 +211,6 @@ if __name__ == "__main__":
             if resume == False:
                 sample_set, cut_bins, cv, test_id = data.split_all(testing_period, sql_result['qcut_q'])   # split train / valid / test
                 to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
-                print('resume is False, sample set: ', sample_set, cv)
 
             cv_number = 1   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set
@@ -241,8 +239,6 @@ if __name__ == "__main__":
 
                     sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
                     sql_result['valid_len'] = len(sample_set['valid_x'])
-
-                    print(sample_set['valid_x'].shape, sample_set['train_xx'].shape, sample_set['valid_y'].shape, sample_set['train_y'].shape)
 
                     HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1
