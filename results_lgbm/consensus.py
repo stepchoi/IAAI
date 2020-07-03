@@ -130,7 +130,7 @@ def act_lgbm_ibes(yoy_ibes_median, update):
     ''' combine all prediction together '''
 
     if update !=1 :     # No Update
-        detail_stock = pd.read_csv('results_lgbm/ibes_detail_stock.csv')
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv')
         print('local version run - detail_stock')
 
     elif update == 1:   # Update stock specific results from FB
@@ -150,7 +150,7 @@ def act_lgbm_ibes(yoy_ibes_median, update):
         engine.dispose()
 
         detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
-        detail_stock.to_csv('results_lgbm/ibes_detail_stock.csv', index=False)
+        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', index=False)
 
     # convert datetime
     detail_stock['testing_period'] = pd.to_datetime(detail_stock['testing_period'], format='%Y-%m-%d')
@@ -213,7 +213,7 @@ def calc_mae(yoy_merge):
     engine.dispose()
 
     df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
-    df.drop(['industry_group_code'], axis=1).to_csv('results_lgbm/ibes_mae.csv', index=False)
+    df.drop(['industry_group_code'], axis=1).to_csv('results_lgbm/compare_with_ibes/ibes_mae.csv', index=False)
 
 def main(update=0):
     ''' main function: clean ibes + calculate mae '''
@@ -221,23 +221,23 @@ def main(update=0):
     if update == 1:
 
         try:
-            yoy = pd.read_csv('results_lgbm/ibes_yoy.csv')
+            yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
             yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
             print('local version run - ibes_yoy ')
         except:
             yoy = eps_to_yoy().merge_and_calc()
-            yoy.to_csv('results_lgbm/ibes_yoy.csv', index=False)
+            yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
 
         yoy_med = yoy_to_median(yoy)       # Update every time for new cut_bins
 
-        yoy_med.to_csv('results_lgbm/ibes_yoy_median.csv', index=False)
-        # yoy_med = pd.read_csv('results_lgbm/ibes_yoy_median.csv')
+        yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes_yoy_median.csv', index=False)
+        # yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_median.csv')
 
         yoy_merge = act_lgbm_ibes(yoy_med, update)
-        yoy_merge.to_csv('results_lgbm/ibes_yoy_merge.csv', index=False)
+        yoy_merge.to_csv('results_lgbm/compare_with_ibes/ibes_yoy_merge.csv', index=False)
 
     else:
-        yoy_merge = pd.read_csv('results_lgbm/ibes_yoy_merge.csv')
+        yoy_merge = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_merge.csv')
 
     calc_mae(yoy_merge)
 
