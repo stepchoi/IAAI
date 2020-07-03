@@ -21,7 +21,7 @@ def download(update=0):
     return importance
 
 def map_info(importance):
-    ''' mapping training detials to feature importance based on trial_lgbm'''
+    ''' mapping training details to feature importance based on trial_lgbm'''
 
     name = 'restart - without fwd'  # labels for training rounds
     trial_lgbm = set(importance['trial_lgbm'])
@@ -46,9 +46,9 @@ def group_icb(df):
     # print(df)
     print(df.groupby(['icb_code','importance_type']).sum())
 
-    df.groupby(['importance_type']).sum().T.to_csv('results_lgbm/feature_importance/feature_importance_sum_sum.csv')
+    df.groupby(['importance_type']).mean().T.to_csv('results_lgbm/feature_importance/feature_importance_sum_sum.csv')
 
-    # df.groupby(['icb_code','importance_type']).sum().T.to_csv('results_lgbm/feature_importance/feature_importance_sum.csv')
+    df.groupby(['icb_code','importance_type']).sum().T.to_csv('results_lgbm/feature_importance/feature_importance_sum.csv')
 
 
 if __name__ == "__main__":

@@ -8,14 +8,14 @@ def download(update=0):
     ''' donwload results from results_lightgbm '''
 
     if update==0:   # update if newer results is downloaded
-        results = pd.read_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')))
+        results = pd.read_csv('results_lgbm/params_tuning/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')))
         print('local version run - results')
     elif update==1:
         with engine.connect() as conn:
             results = pd.read_sql('SELECT * FROM results_lightgbm WHERE max_bin IS NOT NULL', con=conn)
         engine.dispose()
 
-        results.to_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')), index=False)
+        results.to_csv('results_lgbm/params_tuning/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')), index=False)
 
     # print(', '.join(results.columns.to_list()))
     # print(results.columns)
@@ -95,7 +95,7 @@ def plot_scatter(df, only_test=False):
         ax.set_title(p)
         k += 1
     name = {True: 'test', False: 'all'}
-    fig.savefig('results_lgbm/plot_{}_{}.png'.format(dt.datetime.now().strftime('%Y%m%d'), name[only_test]))
+    fig.savefig('results_lgbm/params_tuning/plot_{}_{}.png'.format(dt.datetime.now().strftime('%Y%m%d'), name[only_test]))
 
 
 if __name__ == "__main__":
