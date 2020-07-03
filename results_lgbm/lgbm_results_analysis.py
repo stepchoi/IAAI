@@ -4,18 +4,18 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
 
-def download():
+def download(update=0):
     ''' donwload results from results_lightgbm '''
 
-    try:
-        results = pd.read_csv('results_lgbm/results_20200702.csv')   # update if newer results is downloaded
+    if update==0:   # update if newer results is downloaded
+        results = pd.read_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')))
         print('local version run - results')
-    except:
+    elif update==1:
         with engine.connect() as conn:
             results = pd.read_sql('SELECT * FROM results_lightgbm WHERE max_bin IS NOT NULL', con=conn)
         engine.dispose()
 
-        results.to_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')), index=False) # download results & label with date
+        results.to_csv('results_lgbm/results_{}.csv'.format(dt.datetime.now().strftime('%Y%m%d')), index=False)
 
     # print(', '.join(results.columns.to_list()))
     # print(results.columns)
@@ -52,13 +52,26 @@ def plot_scatter(df, only_test=False):
     # fig.suptitle(subset_name, fontsize=14)
 
     k = 1
+    des_df_list = []
+    print(df.describe().T)
     for p in params:
         print(p, set(df[p]))
+
+        des_df = pd.DataFrame()
+        print(df.groupby(p).mean()[['mae_train','mae_valid','mae_test']])
+        exit(0)
+
+        ''' to be continue .....'''
+
+        print(df)
+        exit(0)
 
         data_test = []
         data_train = []
         label = []
         for name, g in df.groupby([p]):
+            print(g)
+
             label.append(name)
             data_test.append(g['mae_test'])
             data_train.append(g['mae_train'])
@@ -81,14 +94,15 @@ def plot_scatter(df, only_test=False):
 
         ax.set_title(p)
         k += 1
-
-    fig.savefig('results_lgbm/plot_{}_only'.format(dt.datetime.now().strftime('%Y%m%d')))
+    name = {True: 'test', False: 'all'}
+    fig.savefig('results_lgbm/plot_{}_{}.png'.format(dt.datetime.now().strftime('%Y%m%d'), name[only_test]))
 
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    results = download()
+    results = download(0)
     # calc_correl(results)
     plot_scatter(results, only_test=True)
+    plot_scatter(results, only_test=False)

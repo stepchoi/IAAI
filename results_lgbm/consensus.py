@@ -66,7 +66,13 @@ def calc_mae(yoy_merge):
     df = df.filter(['icb_code','testing_period', 'cv_number','ibes','lgbm_ex_fwd','lgbm_in_fwd',
                     'diff_ex_fwd','diff_in_fwd','len'])
 
-    df.to_csv('results_lgbm/ibes_mae.csv', index=False)
+    with engine.connect() as conn:
+        ind_name = pd.read_sql('SELECT * FROM industry_group', conn)
+    engine.dispose()
+
+    df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
+
+    df.drop(['industry_group_code'], axis=1).to_csv('results_lgbm/ibes_mae.csv', index=False)
 
 
 def act_lgbm_ibes(yoy_ibes_median, update):
@@ -262,7 +268,7 @@ def main(update=0):
     calc_mae(yoy_merge)
 
 if __name__ == "__main__":
-    db_string = 'postgres://postgreKs:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(1)
+    main(0)
