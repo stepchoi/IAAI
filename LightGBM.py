@@ -84,7 +84,7 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-        hpot['best_model'] = gbm
+        # hpot['best_model'] = gbm
         hpot['best_importance'] = importance_to_sql(gbm)
 
     sql_result['trial_lgbm'] += 1

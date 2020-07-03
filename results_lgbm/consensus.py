@@ -24,7 +24,7 @@ class eps_to_yoy:
                 self.ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12 FROM ibes_data', conn)
                 self.ws = pd.read_sql('SELECT identifier, year, frequency_number, fn_18263, fn_8001, fn_5192 as share_osd '
                                         'FROM worldscope_quarter_summary', conn)
-                self.actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios')
+                self.actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios', conn)
             engine.dispose()
             # ws.to_csv('preprocess/ws_ibes.csv', index=False)
 
