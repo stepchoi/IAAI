@@ -236,6 +236,7 @@ class eps_to_yoy:
         return df.merge(icb, on=['identifier'])
 
 def main(update=0):
+    ''' main function: clean ibes + calculate mae '''
 
     if update == 1:
 
@@ -261,7 +262,7 @@ def main(update=0):
     calc_mae(yoy_merge)
 
 if __name__ == "__main__":
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+    db_string = 'postgres://postgreKs:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
     main(1)
