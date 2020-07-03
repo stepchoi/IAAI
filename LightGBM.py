@@ -69,6 +69,7 @@ def eval(space):
     result = {  'mae_train': mean_absolute_error(sample_set['train_y'], Y_train_pred),
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
+                'R2': r2_score(Y_test, Y_test_pred),
                 # 'mae_train_org': mean_absolute_error(Y_train, Y_train_pred),
                 # 'mae_test_org': mean_absolute_error(Y_test, Y_test_pred),
                 'status': STATUS_OK}
