@@ -91,31 +91,6 @@ def eval(space):
 
     return result['mae_valid']
 
-def pred_to_sql(Y_test_pred):
-    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
-
-    df = pd.DataFrame()
-    df['identifier'] = test_id
-    df['pred'] = Y_test_pred
-    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
-    # print('stock-wise prediction: ', df)
-
-    return df
-
-def importance_to_sql(gbm):
-    ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
-
-    df = pd.DataFrame()
-    df['name'] = feature_names     # column names
-    df['split'] = gbm.feature_importance(importance_type='split')   # split = # of appearance
-    df['gain'] = gbm.feature_importance(importance_type='gain')     # gain = total gain
-
-    df = df.set_index('name').T.reset_index(drop=False)
-    df.columns = ['importance_type'] + df.columns.to_list()[1:]
-    df['trial_lgbm'] = sql_result['trial_lgbm']
-
-    return df
-
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
 
@@ -135,7 +110,7 @@ def HPOT(space, max_evals):
         hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append')
     engine.dispose()
 
-    hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
+    # hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
 
     sql_result['trial_hpot'] += 1
     # return best
@@ -165,6 +140,31 @@ def to_sql_bins(cut_bins):
     else:
         print('Already recorded in DB TABLE results_bins')
 
+def pred_to_sql(Y_test_pred):
+    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
+
+    df = pd.DataFrame()
+    df['identifier'] = test_id
+    df['pred'] = Y_test_pred
+    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    # print('stock-wise prediction: ', df)
+
+    return df
+
+def importance_to_sql(gbm):
+    ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
+
+    df = pd.DataFrame()
+    df['name'] = feature_names     # column names
+    df['split'] = gbm.feature_importance(importance_type='split')   # split = # of appearance
+    df['gain'] = gbm.feature_importance(importance_type='gain')     # gain = total gain
+
+    df = df.set_index('name').T.reset_index(drop=False)
+    df.columns = ['importance_type'] + df.columns.to_list()[1:]
+    df['trial_lgbm'] = sql_result['trial_lgbm']
+
+    return df
+
 def read_db_last():
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
@@ -172,7 +172,7 @@ def read_db_last():
         db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", conn)
     engine.dispose()
 
-    db_last_param = db_last[['icb_code','testing_period','cv_number']].to_dict('index')[0]
+    db_last_param = db_last[['exclude_fwd','icb_code','testing_period','cv_number']].to_dict('index')[0]
     db_last_trial_hpot = int(db_last['trial_hpot'])
     db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
@@ -195,25 +195,23 @@ if __name__ == "__main__":
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
     hpot = {}           # storing data for best trials in each Hyperopt
-    sample_set = {}     # storing all samples used
-    test_id = []
 
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['name'] = 'batch saving'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
-    sql_result['exclude_fwd'] = True                    # remove fwd_ey, fwd_roic from x (ratios using ibes data)
 
     db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
+    ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    for exclude_fwd in [True, False]:
+    for exclude_fwd in [True, False]:   # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
         sql_result['exclude_fwd'] = exclude_fwd
         print('exclude_fwd: ', exclude_fwd)
+
         for icb_code in indi_models:    # roll over industries
 
             data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
@@ -238,7 +236,7 @@ if __name__ == "__main__":
                     if resume == True:
 
                         if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
-                            'cv_number': cv_number} == db_last_param:  # if current loop = last records
+                            'cv_number': cv_number, 'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
                             resume = False
                             sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
                                                                                               sql_result['qcut_q'])

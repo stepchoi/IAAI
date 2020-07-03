@@ -39,9 +39,9 @@ def calc_correl(results):
 
     print(pd.DataFrame(correls))
 
-    pd.DataFrame(correls).to_csv('results_correl.csv')
+    pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
 
-def plot_scatter(df, only_test=False):
+def plot_boxplot(df, only_test=False):
     ''' plot distribution of mae based on different hyper-parameters'''
 
     params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
@@ -104,5 +104,5 @@ if __name__ == "__main__":
 
     results = download(0)
     # calc_correl(results)
-    plot_scatter(results, only_test=True)
-    plot_scatter(results, only_test=False)
+    plot_boxplot(results, only_test=True)
+    plot_boxplot(results, only_test=False)
