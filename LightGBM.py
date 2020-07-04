@@ -30,10 +30,10 @@ space = {
 
     # parameters won't change
     # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
-    # 'objective': 'regression_l1',     # for regression
-    'objective': 'multiclass',          # for classification
+    'objective': 'regression_l1',     # for regression
+    # 'objective': 'multiclass',          # for classification
     'verbose': -1,
-    'metric': 'multi_error',            # for classification
+    # 'metric': 'multi_error',            # for classification
     'num_threads': 12  # for the best speed, set this to the number of real CPU cores
 }
 
@@ -50,7 +50,7 @@ def lgbm_train(space):
     gbm = lgb.train(params,
                     lgb_train,
                     valid_sets=lgb_eval,
-                    num_boost_round=100,
+                    num_boost_round=1000,
                     early_stopping_rounds=150,
                     )
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'batch saving'                 # name = labeling the experiments
+    sql_result['name'] = 'True exclude fwd'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
 
     db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
@@ -230,8 +230,8 @@ if __name__ == "__main__":
                                                                                       sql_result['qcut_q'],
                                                                                       y_type='ni',
                                                                                       exclude_fwd=exclude_fwd,
-                                                                                      median=True)
-                    )
+                                                                                      use_median=True)
+
                     to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
                 cv_number = 1   # represent which cross-validation sets
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                                                                                               sql_result['qcut_q'],
                                                                                               y_type='ni',
                                                                                               exclude_fwd=exclude_fwd,
-                                                                                              median=True)
+                                                                                              use_median=True)
                             to_sql_bins(cut_bins)
                             print('---------> Resume Training', icb_code, testing_period, cv_number)
                         else:

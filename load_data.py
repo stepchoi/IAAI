@@ -136,17 +136,17 @@ class load_data:
         self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
         self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
 
-    def y_qcut(self, qcut_q, median):
+    def y_qcut(self, qcut_q, use_median):
         ''' qcut y '''
 
-        def to_median(median):
+        def to_median(use_median):
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
             train_y, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True, labels=False)
             test_y = pd.cut(self.sample_set['test_{}_org'.format(i)], bins=cut_bins, labels=False)
 
-            if median == True:
+            if use_median == True:
                 # calculate median on train_y for each qcut group
                 df = pd.DataFrame(np.vstack((self.sample_set['train_{}_org'.format(i)], np.array(train_y)))).T   # concat original series / qcut series
                 median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
@@ -165,7 +165,7 @@ class load_data:
             self.cut_bins[i] = {}
 
             self.sample_set['train_{}'.format(i)], self.sample_set['test_{}'.format(i)], self.cut_bins[i]['cut_bins'], \
-            self.cut_bins[i]['med_train'] = to_median()
+            self.cut_bins[i]['med_train'] = to_median(use_median)
 
 
     def split_valid(self, y_type):
@@ -175,12 +175,12 @@ class load_data:
                                                   , groups=self.train['identifier'])
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, median=True):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
-        self.y_qcut(qcut_q, median)
+        self.y_qcut(qcut_q, use_median)
         gkf = self.split_valid(y_type)
 
         print('sample_set keys: ', self.sample_set.keys())
