@@ -30,9 +30,10 @@ space = {
 
     # parameters won't change
     # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
-    'objective': 'regression_l1',
+    # 'objective': 'regression_l1',     # for regression
+    'objective': 'multiclass',          # for classification
     'verbose': -1,
-    # 'metric': 'multi_error',
+    'metric': 'multi_error',            # for classification
     'num_threads': 12  # for the best speed, set this to the number of real CPU cores
 }
 
@@ -208,7 +209,7 @@ if __name__ == "__main__":
 
     ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    for exclude_fwd in [True, False]:   # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    for exclude_fwd in [True]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
         sql_result['exclude_fwd'] = exclude_fwd
         print('exclude_fwd: ', exclude_fwd)
 
@@ -225,7 +226,12 @@ if __name__ == "__main__":
                 sql_result['testing_period'] = testing_period
 
                 if resume == False:     # after resume: split train / valid / test
-                    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, sql_result['qcut_q'])
+                    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                                      sql_result['qcut_q'],
+                                                                                      y_type='ni',
+                                                                                      exclude_fwd=exclude_fwd,
+                                                                                      median=True)
+                    )
                     to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
                 cv_number = 1   # represent which cross-validation sets
@@ -239,7 +245,10 @@ if __name__ == "__main__":
                             'cv_number': cv_number, 'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
                             resume = False
                             sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                              sql_result['qcut_q'])
+                                                                                              sql_result['qcut_q'],
+                                                                                              y_type='ni',
+                                                                                              exclude_fwd=exclude_fwd,
+                                                                                              median=True)
                             to_sql_bins(cut_bins)
                             print('---------> Resume Training', icb_code, testing_period, cv_number)
                         else:

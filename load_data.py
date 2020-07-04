@@ -136,28 +136,28 @@ class load_data:
         self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
         self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
 
-    def y_qcut(self, qcut_q):
+    def y_qcut(self, qcut_q, median):
         ''' qcut y '''
 
-        def to_median():
+        def to_median(median):
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
             train_y, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True, labels=False)
             test_y = pd.cut(self.sample_set['test_{}_org'.format(i)], bins=cut_bins, labels=False)
 
-            # calculate median on train_y for each qcut group
-            df = pd.DataFrame(np.vstack((self.sample_set['train_{}_org'.format(i)], np.array(train_y)))).T   # concat original series / qcut series
-            median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
+            if median == True:
+                # calculate median on train_y for each qcut group
+                df = pd.DataFrame(np.vstack((self.sample_set['train_{}_org'.format(i)], np.array(train_y)))).T   # concat original series / qcut series
+                median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
 
-            # replace 0, 1, ... into median
-            train_y = pd.DataFrame(train_y).replace(range(qcut_q), median)[0].values
-            test_y = pd.DataFrame(test_y).replace(range(qcut_q), median)[0].values
-
-            # print(train_y, test_y)
-            # print(cut_bins, median)
-            # from collections import Counter
-            # print(Counter(train_y), Counter(test_y))
+                # replace 0, 1, ... into median
+                train_y = pd.DataFrame(train_y).replace(range(qcut_q), median)[0].values
+                test_y = pd.DataFrame(test_y).replace(range(qcut_q), median)[0].values
+            else:
+                train_y = np.array(train_y)
+                test_y = np.array(test_y)
+                median = ['Not applicable']
 
             return train_y, test_y, list(cut_bins), list(median)
 
@@ -175,12 +175,12 @@ class load_data:
                                                   , groups=self.train['identifier'])
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, median=True):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
-        self.y_qcut(qcut_q)
+        self.y_qcut(qcut_q, median)
         gkf = self.split_valid(y_type)
 
         print('sample_set keys: ', self.sample_set.keys())
