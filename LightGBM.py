@@ -202,27 +202,33 @@ if __name__ == "__main__":
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['name'] = 'true exclude fwd'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
+    use_median = True       # default setting
+    chron_valid = False     # default setting
 
     db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
+    # ALTER 1: change for classification problem
+    # use_median = False
+    # sql_result['qcut_q'] = 3
+    # space['objective'] = 'multiclass'
+    # space['metric'] = 'multi_error'
+
+    # ALTER 2: change using chronological last few as validation
+    # chron_valid = True
+
     ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
     for exclude_fwd in [True]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
         sql_result['exclude_fwd'] = exclude_fwd
-        print('exclude_fwd: ', exclude_fwd)
 
         for icb_code in indi_models:    # roll over industries
-
             data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
-            print('icb_code: ', icb_code)
             sql_result['icb_code'] = icb_code
 
             for i in tqdm(range(sample_no)):  # roll over testing period
-
                 testing_period = period_1 + i * relativedelta(months=3)
-                print('testing_period: ', testing_period)
                 sql_result['testing_period'] = testing_period
 
                 if resume == False:     # after resume: split train / valid / test
@@ -230,7 +236,8 @@ if __name__ == "__main__":
                                                                                       sql_result['qcut_q'],
                                                                                       y_type='ni',
                                                                                       exclude_fwd=exclude_fwd,
-                                                                                      use_median=True)
+                                                                                      use_median=use_median,
+                                                                                      chron_valid=chron_valid)
 
                     to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
@@ -248,7 +255,8 @@ if __name__ == "__main__":
                                                                                               sql_result['qcut_q'],
                                                                                               y_type='ni',
                                                                                               exclude_fwd=exclude_fwd,
-                                                                                              use_median=True)
+                                                                                              use_median=use_median,
+                                                                                              chron_valid=chron_valid)
                             to_sql_bins(cut_bins)
                             print('---------> Resume Training', icb_code, testing_period, cv_number)
                         else:

@@ -168,20 +168,28 @@ class load_data:
             self.cut_bins[i]['med_train'] = to_median(use_median)
 
 
-    def split_valid(self, y_type):
+    def split_valid(self, y_type, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
+        if chron_valid == False:    # split validation by stocks
+            gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'],
+                                                      self.sample_set['train_{}'.format(y_type)],
+                                                      groups=self.train['identifier'])
 
-        gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'], self.sample_set['train_{}'.format(y_type)]
-                                                  , groups=self.train['identifier'])
+        if chron_valid == True:     # split validation set by chronological order
+            valid_period = testing_period - 8 * relativedelta(months=3)   # using last 2 year samples as valid set
+            test_index = self.train.loc[self.train['period_end'] >= valid_period].index.to_list()
+            train_index = self.train.loc[self.train['period_end'] < valid_period].index.to_list()
+            gkf = [(train_index, test_index)]
+
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median)
-        gkf = self.split_valid(y_type)
+        gkf = self.split_valid(y_type, testing_period, chron_valid)
 
         print('sample_set keys: ', self.sample_set.keys())
 
@@ -209,8 +217,10 @@ def count_by_year(main):
 if __name__ == '__main__':
 
     # these are parameters used to load_data
-    icb_code = 999999
+    icb_code = 101020
     exclude_fwd = True
+    use_median = True
+    chron_valid = False
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
     valid_method = 'shuffle'
@@ -218,7 +228,16 @@ if __name__ == '__main__':
 
     data = load_data()
     data.split_icb(icb_code)
-    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q, 'ni', exclude_fwd)
+    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
+                                                                      y_type='ni',
+                                                                      exclude_fwd=exclude_fwd,
+                                                                      use_median=use_median,
+                                                                      chron_valid=chron_valid)
+
+    for train_index, test_index in cv:
+        print(len(train_index), len(test_index))
+
+    exit(0)
 
     # check shape of sample sets (x + y + y_org) * (train + valid + test)
     print(cut_bins)
