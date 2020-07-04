@@ -70,7 +70,7 @@ def eval(space):
     result = {  'mae_train': mean_absolute_error(sample_set['train_y'], Y_train_pred),
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
-                'R2': r2_score(Y_test, Y_test_pred),
+                'r2': r2_score(Y_test, Y_test_pred),
                 # 'mae_train_org': mean_absolute_error(Y_train, Y_train_pred),
                 # 'mae_test_org': mean_absolute_error(Y_test, Y_test_pred),
                 'status': STATUS_OK}
@@ -106,8 +106,8 @@ def HPOT(space, max_evals):
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
         pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
+        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
         hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append')
     engine.dispose()
 
@@ -188,8 +188,8 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     # training / testing sets split params
-    indi_models = [999999, 301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010]  # icb_code with > 1300 samples + rests in single big model (999999)
+    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                   201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     ''' 502060 is problematic on 2014-9-30, cv 5'''
 
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'True exclude fwd'                 # name = labeling the experiments
+    sql_result['name'] = 'true exclude fwd'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
 
     db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
