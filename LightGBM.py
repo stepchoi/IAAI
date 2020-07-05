@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 space = {
     # better accuracy
-    'learning_rate': hp.choice('learning_rate', [0.001, 0.01, 0.1, 0.5]),
+    'learning_rate': hp.choice('learning_rate', [0.05, 0.1, 0.25, 0.5]),
     'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
     'max_bin': hp.choice('max_bin', [127, 255]),
     'num_leaves': hp.choice('num_leaves', [25, 75, 125, 250, 500]), # np.arange(50, 200, 30, dtype=int)
@@ -52,6 +52,8 @@ def lgbm_train(space):
                     num_boost_round=1000,
                     early_stopping_rounds=150,
                     )
+
+    gbm.save_model('model_class.txt')
 
     # prediction on all sets
     Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
