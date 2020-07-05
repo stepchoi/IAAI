@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import datetime as dt
 
 def download(update=0):
@@ -55,8 +55,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # importance = download()
-    # importance_info = map_info(importance)
+    importance = download(1)
+    importance_info = map_info(importance)
 
-    importance_info = pd.read_csv('results_lgbm/feature_importance/feature_importance_info.csv')
+    # importance_info = pd.read_csv('results_lgbm/feature_importance/feature_importance_info.csv')
     group_icb(importance_info)

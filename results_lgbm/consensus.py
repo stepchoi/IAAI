@@ -136,14 +136,12 @@ def act_lgbm_ibes(yoy_ibes_median, update):
     elif update == 1:   # Update stock specific results from FB
         print('----------------> update stock results from DB ')
 
-        name = 'restart - without fwd'  # labels for training rounds
-
         with engine.connect() as conn:
             result_stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
             trial_lgbm = set(result_stock['trial_lgbm'])
 
             query = text("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                         "FROM results_lightgbm WHERE name='{}' AND (trial_lgbm IN :trial_lgbm)".format(name))
+                         "FROM results_lightgbm WHERE name='restart - without fwd' AND (trial_lgbm IN :trial_lgbm)")
             query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
             result_all = pd.read_sql(query, conn)
 

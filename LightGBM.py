@@ -210,12 +210,13 @@ if __name__ == "__main__":
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # ALTER 1: change for classification problem
-    # use_median = False
-    # sql_result['qcut_q'] = 3
-    # space['objective'] = 'multiclass'
-    # space['metric'] = 'multi_error'
+    use_median = False
+    sql_result['qcut_q'] = 3
+    space['num_class']= 3,
+    space['objective'] = 'multiclass'
+    space['metric'] = 'multi_error'
 
-    # ALTER 2: change using chronological last few as validation
+    ## ALTER 2: change using chronological last few as validation
     # chron_valid = True
 
     ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
