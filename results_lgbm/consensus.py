@@ -243,4 +243,19 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(1)
+    # main(1)
+
+    df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
+    print(df)
+
+    from collections import Counter
+    c = Counter(df['exclude_fwd'])
+    print(c)
+
+    for name, g in df.groupby(['exclude_fwd']):
+        print('--------------------> exclude_fwd', name)
+        print( g.describe())
+
+
+
+

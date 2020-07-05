@@ -6,8 +6,7 @@ import pandas as pd
 from load_data import load_data
 from dateutil.relativedelta import relativedelta
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, explained_variance_score, max_error, mean_squared_error, \
-    mean_squared_log_error, median_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score,
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -71,8 +70,6 @@ def eval(space):
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
                 'r2': r2_score(Y_test, Y_test_pred),
-                # 'mae_train_org': mean_absolute_error(Y_train, Y_train_pred),
-                # 'mae_test_org': mean_absolute_error(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
     sql_result.update(space)        # update hyper-parameter used in model
@@ -92,6 +89,36 @@ def eval(space):
 
     return result['mae_valid']
 
+def eval_classify():
+    ''' train & evaluate LightGBM on given space by hyperopt trails '''
+
+    Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
+    Y_test = sample_set['test_ni']
+
+    result = {  'loss': 1 - accuracy_score(sample_set['valid_y'], Y_valid_pred),
+                'accuracy_score_train': accuracy_score(sample_set['train_y'], Y_train_pred),
+                'accuracy_score_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
+                'accuracy_score_test': accuracy_score(Y_test, Y_test_pred),
+                'r2': r2_score(Y_test, Y_test_pred),
+                'status': STATUS_OK}
+
+    sql_result.update(space)        # update hyper-parameter used in model
+    sql_result.update(result)       # update result of model
+    sql_result['finish_timing'] = dt.datetime.now()
+
+    hpot['all_results'].append(sql_result.copy())
+    print('sql_result_before writing: ', sql_result)
+
+    if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
+        hpot['best_mae'] = result['mae_valid']
+        hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
+        # hpot['best_model'] = gbm
+        hpot['best_importance'] = importance_to_sql(gbm)
+
+    sql_result['trial_lgbm'] += 1
+
+    return result['loss']
+
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
 
@@ -99,10 +126,12 @@ def HPOT(space, max_evals):
     hpot['all_results'] = []
 
     trials = Trials()
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    print(best)
 
-    # print(pd.DataFrame(hpot['all_results']))
+    if space['objective'] == 'regression_l1':
+        best = fmin(fn=eval_classify, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    elif space['objective'] == 'multiclass':
+        best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    print(space['objective'], best)
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
@@ -200,7 +229,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'true exclude fwd'                 # name = labeling the experiments
+    sql_result['name'] = 'classification'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     use_median = True       # default setting
     chron_valid = False     # default setting
