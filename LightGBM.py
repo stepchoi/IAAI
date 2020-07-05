@@ -6,7 +6,7 @@ import pandas as pd
 from load_data import load_data
 from dateutil.relativedelta import relativedelta
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score,
+from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
@@ -89,16 +89,16 @@ def eval(space):
 
     return result['mae_valid']
 
-def eval_classify():
+def eval_classify(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
 
     Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
     Y_test = sample_set['test_ni']
 
-    result = {  'loss': 1 - accuracy_score(sample_set['valid_y'], Y_valid_pred),
-                'accuracy_score_train': accuracy_score(sample_set['train_y'], Y_train_pred),
-                'accuracy_score_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
-                'accuracy_score_test': accuracy_score(Y_test, Y_test_pred),
+    result = {
+                'mae_train': accuracy_score(sample_set['train_y'], Y_train_pred),   # use column names of regression
+                'mae_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
+                'mae_test': accuracy_score(Y_test, Y_test_pred),
                 'r2': r2_score(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
@@ -117,7 +117,7 @@ def eval_classify():
 
     sql_result['trial_lgbm'] += 1
 
-    return result['loss']
+    return 1 - result['mae_valid']
 
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
@@ -128,9 +128,9 @@ def HPOT(space, max_evals):
     trials = Trials()
 
     if space['objective'] == 'regression_l1':
-        best = fmin(fn=eval_classify, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    elif space['objective'] == 'multiclass':
         best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    elif space['objective'] == 'multiclass':
+        best = fmin(fn=eval_classify, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(space['objective'], best)
 
     # write stock_pred for the best hyperopt records to sql
