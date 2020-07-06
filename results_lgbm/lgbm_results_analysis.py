@@ -45,7 +45,7 @@ def plot_boxplot(df, only_test=False):
     ''' plot distribution of mae based on different hyper-parameters'''
 
     params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
-             'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves'.rsplit(', ')
+             'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves, name, exclude_fwd'.rsplit(', ')
 
     n = round(np.sqrt(len(params)))+1
     fig = plt.figure(figsize=(4*n, 4*n), dpi=120)
@@ -119,9 +119,9 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # results = download(0)
-    # # calc_correl(results)
-    # plot_boxplot(results, only_test=True)
-    # plot_boxplot(results, only_test=False)
+    results = download(1)
+    # calc_correl(results)
+    plot_boxplot(results, only_test=True)
+    plot_boxplot(results, only_test=False)
 
-    compare_valid()
+    # compare_valid()

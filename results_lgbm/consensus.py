@@ -183,11 +183,6 @@ def calc_mae(yoy_merge):
         dict['len'] = len(df)
         return dict
 
-    print(yoy_merge.shape)
-    print(yoy_merge.isnull().sum())
-    # yoy_merge = yoy_merge.dropna(how='any')     # remove NaN records
-    # print(yoy_merge.shape)
-
     mae = {}
     for p in set(yoy_merge['testing_period']):
         part_p = yoy_merge.loc[yoy_merge['testing_period']==p]
@@ -256,18 +251,3 @@ if __name__ == "__main__":
     # for name, g in df.groupby(['exclude_fwd']):
     #     print('--------------------> exclude_fwd', name)
     #     print( g.describe())
-
-    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
-    # print(df)
-    #
-    # from collections import Counter
-    # c = Counter(df['exclude_fwd'])
-    # print(c)
-    #
-    # for name, g in df.groupby(['exclude_fwd']):
-    #     print('--------------------> exclude_fwd', name)
-    #     print( g.describe())
-    #
-    #
-
-

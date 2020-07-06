@@ -9,7 +9,7 @@ def qcut_yoy(yoy):
     ''' convert yoy in qcut format to medians with med_train from training set'''
 
     with engine.connect() as conn:
-        bins_df = pd.read_sql('SELECT * FROM results_bins WHERE qcut_q = 3', conn)
+        bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train ='{\"Not applicable\"}'", conn)
     engine.dispose()
 
     yoy_list = []
