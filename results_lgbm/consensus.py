@@ -45,11 +45,19 @@ class eps_to_yoy:
         self.ibes['fwd_ni'] = self.ibes['pred_ratio'] * self.ibes['fn_18263']
         self.ibes['y_ibes'] = (self.ibes['fwd_ni'] - self.ibes['fn_18263']) / self.ibes['fn_8001']
 
+        self.ibes = self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
+
+        print(self.ibes.shape)
+        self.ibes = self.ibes.drop_duplicates()
+        print(self.ibes.shape)
+        self.ibes = self.ibes.drop_duplicates(subset=['identifier', 'period_end'])
+        print(self.ibes.shape)
+
         # ibes['act_ni'] = ibes['fn_18263'].shift(-4)
         # ibes.loc[ibes.groupby('identifier').tail(4).index, 'act_ni'] = np.nan
         # self.ibes.to_csv('#check_ibes_ni.csv', index=False)
 
-        return self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
+        return self.ibes
 
     def label_period_end(self, df):
         ''' find fiscal_period_end -> last_year_end for each identifier + frequency_number * 3m '''
