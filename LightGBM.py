@@ -50,15 +50,21 @@ def lgbm_train(space):
                     lgb_train,
                     valid_sets=lgb_eval,
                     num_boost_round=1000,
-                    early_stopping_rounds=150,
-                    )
-
-    gbm.save_model('model_class.txt')
+                    early_stopping_rounds=150)
 
     # prediction on all sets
-    Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
-    Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
-    Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
+    if space['objective'] == 'regression_l1':
+        Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
+        Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
+        Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
+
+    elif space['objective'] == 'multiclass':
+        Y_train_pred_softmax = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
+        Y_train_pred = [list(i).index(max(i)) for i in Y_train_pred_softmax]
+        Y_valid_pred_softmax = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
+        Y_valid_pred = [list(i).index(max(i)) for i in Y_valid_pred_softmax]
+        Y_test_pred_softmax = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
+        Y_test_pred = [list(i).index(max(i)) for i in Y_test_pred_softmax]
 
     return Y_train_pred, Y_valid_pred, Y_test_pred, gbm
 
@@ -106,15 +112,16 @@ def eval_classify(space):
 
     sql_result.update(space)        # update hyper-parameter used in model
     sql_result.update(result)       # update result of model
+    sql_result.pop('num_class')
+    sql_result.pop('metric')
     sql_result['finish_timing'] = dt.datetime.now()
 
     hpot['all_results'].append(sql_result.copy())
     print('sql_result_before writing: ', sql_result)
 
-    if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
+    if result['mae_valid'] > hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-        # hpot['best_model'] = gbm
         hpot['best_importance'] = importance_to_sql(gbm)
 
     sql_result['trial_lgbm'] += 1
@@ -132,6 +139,7 @@ def HPOT(space, max_evals):
     if space['objective'] == 'regression_l1':
         best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     elif space['objective'] == 'multiclass':
+        hpot['best_mae'] = 0  # record best training (min mae_valid) in each hyperopt
         best = fmin(fn=eval_classify, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(space['objective'], best)
 
@@ -231,7 +239,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'classification'                 # name = labeling the experiments
+    sql_result['name'] = 'chron valid'                 # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     use_median = True       # default setting
     chron_valid = False     # default setting
@@ -241,18 +249,18 @@ if __name__ == "__main__":
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # ALTER 1: change for classification problem
-    use_median = False
-    sql_result['qcut_q'] = 3
-    space['num_class']= 3,
-    space['objective'] = 'multiclass'
-    space['metric'] = 'multi_error'
+    # use_median = False
+    # sql_result['qcut_q'] = 3
+    # space['num_class']= 3,
+    # space['objective'] = 'multiclass'
+    # space['metric'] = 'multi_error'
 
     ## ALTER 2: change using chronological last few as validation
-    # chron_valid = True
+    chron_valid = True
 
     ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    for exclude_fwd in [True]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    for exclude_fwd in [True, False]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
         sql_result['exclude_fwd'] = exclude_fwd
 
         for icb_code in indi_models:    # roll over industries
@@ -263,15 +271,14 @@ if __name__ == "__main__":
                 testing_period = period_1 + i * relativedelta(months=3)
                 sql_result['testing_period'] = testing_period
 
-                if resume == False:     # after resume: split train / valid / test
-                    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                      sql_result['qcut_q'],
-                                                                                      y_type='ni',
-                                                                                      exclude_fwd=exclude_fwd,
-                                                                                      use_median=use_median,
-                                                                                      chron_valid=chron_valid)
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                                  sql_result['qcut_q'],
+                                                                                  y_type='ni',
+                                                                                  exclude_fwd=exclude_fwd,
+                                                                                  use_median=use_median,
+                                                                                  chron_valid=chron_valid)
 
-                    to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
                 cv_number = 1   # represent which cross-validation sets
                 for train_index, valid_index in cv:     # roll over 5 cross validation set
@@ -283,13 +290,6 @@ if __name__ == "__main__":
                         if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
                             'cv_number': cv_number, 'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
                             resume = False
-                            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                              sql_result['qcut_q'],
-                                                                                              y_type='ni',
-                                                                                              exclude_fwd=exclude_fwd,
-                                                                                              use_median=use_median,
-                                                                                              chron_valid=chron_valid)
-                            to_sql_bins(cut_bins)
                             print('---------> Resume Training', icb_code, testing_period, cv_number)
                         else:
                             print('Not yet resume: params done', icb_code, testing_period, cv_number)

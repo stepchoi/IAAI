@@ -257,6 +257,17 @@ if __name__ == "__main__":
     #     print('--------------------> exclude_fwd', name)
     #     print( g.describe())
 
-
+    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
+    # print(df)
+    #
+    # from collections import Counter
+    # c = Counter(df['exclude_fwd'])
+    # print(c)
+    #
+    # for name, g in df.groupby(['exclude_fwd']):
+    #     print('--------------------> exclude_fwd', name)
+    #     print( g.describe())
+    #
+    #
 
 
