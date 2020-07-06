@@ -10,7 +10,7 @@ class worldscope:
         ''' organize worldscope_quarter_summary data -> identifier + period_end + data'''
 
         try:
-            self.ws = pd.read_csv('preprocess/useless/quarter_summary.csv')     # local version
+            self.ws = pd.read_csv('preprocess/quarter_summary.csv')     # local version
             print('local version run - quarter_summary')
         except:
             self.ws = pd.read_sql('select * from worldscope_quarter_summary', engine)
@@ -33,7 +33,7 @@ class worldscope:
         ''' find fiscal_period_end -> last_year_end for each identifier + frequency_number * 3m '''
 
         try:
-            fiscal_year_end = pd.read_csv('preprocess/useless/static_fiscal_year_end.csv')
+            fiscal_year_end = pd.read_csv('preprocess/static_fiscal_year_end.csv')
         except:
             fiscal_year_end = pd.read_sql("SELECT identifier, data as fiscal_year_end FROM worldscope_static"
                                           " WHERE field_number = '5352.0'", engine)
@@ -129,13 +129,13 @@ def calc_fwd(ws):
     ''' calculate the forward ratios (2) using DB ibes_data'''
 
     try:
-        ibes = pd.read_csv('preprocess/useless/ibes_clean.csv')
+        ibes = pd.read_csv('preprocess/ibes_data.csv')
     except:
         ibes = pd.read_sql('SELECT * FROM ibes_data', engine) # ibes_data is the cleaned with clean_csv.py and uploaded
         engine.dispose()
 
     ibes['identifier'] = ibes['identifier'].apply(lambda x: x.zfill(9)) # zfill identifiers with leading 0
-    ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%Y-%m-%d')
+    ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%d/%m/%Y')
 
     ibes_ws = pd.merge(ibes, ws[['identifier','period_end', 'fn_5085', 'roic_demon']], on=['identifier','period_end'])
 
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     fund_ratio.iloc[:,2:-1] = trim_outlier(fund_ratio.iloc[:,2:-1])
     # print(fund_ratio.describe().T[['max']])
 
-    fund_ratio.drop_duplicates().to_csv('clean_ratios.csv', index=False)
+    fund_ratio.drop_duplicates().to_csv('preprocess/clean_ratios.csv', index=False)
     print(fund_ratio.columns, fund_ratio.shape)
     exit(0)
 

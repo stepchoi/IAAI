@@ -2,7 +2,6 @@ from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
-import datetime as dt
 from tqdm import tqdm
 
 class eps_to_yoy:
@@ -15,13 +14,14 @@ class eps_to_yoy:
         '''read IBES original data for calculation'''
 
         try:
-            self.ibes = pd.read_csv('preprocess/ibes_data.csv', usecols = ['identifier', 'period_end','EPS1FD12'])
+            self.ibes = pd.read_csv('preprocess/ibes_data.csv', usecols = ['identifier','period_end',
+                                                                           'EPS1FD12','EPS1TR12'])
             self.ws = pd.read_csv('preprocess/ws_ibes.csv')
             self.actual = pd.read_csv('preprocess/clean_ratios.csv', usecols = ['identifier', 'period_end','y_ni'])
             print('local version run - ibes / share_osd')
         except:
             with engine.connect() as conn:
-                self.ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12 FROM ibes_data', conn)
+                self.ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12, eps1tr12 FROM ibes_data', conn)
                 self.ws = pd.read_sql('SELECT identifier, year, frequency_number, fn_18263, fn_8001, fn_5192 as share_osd '
                                         'FROM worldscope_quarter_summary', conn)
                 self.actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios', conn)
@@ -33,7 +33,7 @@ class eps_to_yoy:
 
         self.ibes['period_end'] = pd.to_datetime(self.ibes['period_end'], format='%Y-%m-%d')
         self.actual['period_end'] = pd.to_datetime(self.actual['period_end'], format='%Y-%m-%d')
-        self.ibes.columns = ['identifier', 'period_end', 'eps1fd12']
+        self.ibes.columns = ['identifier', 'period_end', 'eps1fd12','eps1tr12']
 
         # map common share outstanding & market cap to ibes estimations
         self.ws = self.label_period_end(self.ws)
@@ -41,12 +41,13 @@ class eps_to_yoy:
         self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])
 
         # calculate YoY (Y)
-        self.ibes['fwd_ni'] = self.ibes['eps1fd12'] * self.ibes['share_osd']
+        self.ibes['pred_ratio'] = self.ibes['eps1fd12'] / self.ibes['eps1tr12']
+        self.ibes['fwd_ni'] = self.ibes['pred_ratio'] * self.ibes['fn_18263']
         self.ibes['y_ibes'] = (self.ibes['fwd_ni'] - self.ibes['fn_18263']) / self.ibes['fn_8001']
 
         # ibes['act_ni'] = ibes['fn_18263'].shift(-4)
         # ibes.loc[ibes.groupby('identifier').tail(4).index, 'act_ni'] = np.nan
-        # ibes.to_csv('#check_ibes_ni.csv', index=False)
+        # self.ibes.to_csv('#check_ibes_ni.csv', index=False)
 
         return self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
 
@@ -243,18 +244,18 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # main(1)
+    main(1)
 
-    df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
-    print(df)
-
-    from collections import Counter
-    c = Counter(df['exclude_fwd'])
-    print(c)
-
-    for name, g in df.groupby(['exclude_fwd']):
-        print('--------------------> exclude_fwd', name)
-        print( g.describe())
+    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
+    # print(df)
+    #
+    # from collections import Counter
+    # c = Counter(df['exclude_fwd'])
+    # print(c)
+    #
+    # for name, g in df.groupby(['exclude_fwd']):
+    #     print('--------------------> exclude_fwd', name)
+    #     print( g.describe())
 
 
 

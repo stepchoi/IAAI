@@ -3,6 +3,50 @@ import pandas as pd
 import datetime as dt
 from sqlalchemy import create_engine, text
 
+def clean_ibes_new():
+    ibes = pd.ExcelFile('preprocess/IBES_data_raw.xlsx')
+
+    # map ticker to identifier
+    with engine.connect() as conn:
+        id = pd.read_sql('SELECT member_ric, identifier FROM dl_value_universe WHERE identifier IS NOT NULL', conn)
+    engine.dispose()
+
+    def clean(df, id):
+        ''' clean for each Excel Sheet (each market) '''
+
+        tic_list = [df.columns.to_list()[0]] + df.iloc[:,0].to_list()  # find ticker list
+
+        # compile df of Ticker + Symbol
+        ticker_symbol = pd.DataFrame(index=['CAP1FD12', 'EBD1FD12', 'EPS1FD12', 'EPS1TR12'],
+                                     columns=tic_list).unstack().reset_index().iloc[:, :2]
+        ticker_symbol.columns = ['ticker', 'symbol']
+
+        # extract Data df
+        data_df = df.iloc[:, 2:].set_index('Name').dropna(how='all').T.reset_index(drop=False)
+        new_df = pd.concat([ticker_symbol, data_df], axis=1)    # label ticker /symbol for each
+
+        id.columns = ['ticker', 'identifier']
+        new_df = new_df.merge(id, on=['ticker']).set_index(['symbol','identifier']) # map identifier to IBES data
+        new_df = new_df.iloc[:,2:].unstack().T.reset_index()    # change column to Symbols
+        new_df[['EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12']] = \
+            new_df[['EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12']].apply(pd.to_numeric, errors='coerce')
+
+        # covert quarter date -> period end
+        new_df[['quarter', 'year']] = new_df['level_0'].str.split(' ', expand=True)
+        new_df['quarter'] = new_df['quarter'].replace(['Q1', 'Q2', 'Q3', 'Q4'], ['0331', '0630', '0930', '1231'])
+        new_df['period_end'] = new_df['year'] + new_df['quarter']
+        new_df['period_end'] = pd.to_datetime(new_df['period_end'], format='%Y%m%d')
+        new_df = new_df.filter(['identifier', 'period_end', 'EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'])
+
+        return new_df.dropna(subset=['EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'], how='all')
+
+    clean_list = []
+    for i in range(4):
+        df = ibes.parse(i)
+        clean_list.append(clean(df, id))
+
+    pd.concat(clean_list, axis=0).to_csv('preprocess/ibes_data.csv', index=False)
+
 def clean_ibes():
 
     ''' organize multiple excel sheet for IBES data to single TABLE '''
@@ -72,4 +116,4 @@ if __name__ == '__main__':
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    check_ws_available()
+    clean_ibes_new()

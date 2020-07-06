@@ -97,12 +97,31 @@ def plot_boxplot(df, only_test=False):
     name = {True: 'test', False: 'all'}
     fig.savefig('results_lgbm/params_tuning/plot_{}_{}.png'.format(dt.datetime.now().strftime('%Y%m%d'), name[only_test]))
 
+def compare_valid():
+    chron_v = pd.read_csv('results_lgbm/results_chron_valid.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
+                                                                         'mae_valid', 'mae_test', 'exclude_fwd'])
+    group_v = pd.read_csv('results_lgbm/results_regression.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
+                                                                        'mae_valid', 'mae_test', 'exclude_fwd'])
+    def clean(df, valid_type):
+        df_best = df.iloc[df.groupby(['trial_hpot'])['mae_valid'].idxmin()]
+        df_mean = df_best.groupby(['icb_code', 'testing_period','exclude_fwd']).mean()[['mae_train', 'mae_valid', 'mae_test']]
+        df_mean = df_mean.reset_index(drop=False)
+        df_mean['valid_type'] = valid_type
+        return df_mean
+
+    df_list = []
+    df_list.append(clean(chron_v, 'chron'))
+    df_list.append(clean(group_v, 'stock'))
+    final = pd.concat(df_list, axis=0)
+    final.to_csv('results_lgbm/compare_valid.csv', index=False)
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    results = download(0)
-    # calc_correl(results)
-    plot_boxplot(results, only_test=True)
-    plot_boxplot(results, only_test=False)
+    # results = download(0)
+    # # calc_correl(results)
+    # plot_boxplot(results, only_test=True)
+    # plot_boxplot(results, only_test=False)
+
+    compare_valid()
