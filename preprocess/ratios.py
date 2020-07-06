@@ -153,11 +153,12 @@ def calc_fwd(ws):
 
     return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic']]
 
-def full_period(df, index_col):
+def full_period(df, index_col, date_format):
     ''' add NaN for missing records to facilitate time_series ratios calculation (worldscope & stock_return)'''
 
     start = dt.datetime(1998, 3, 31)
     date_list = [start + pd.offsets.MonthEnd(x * 3) for x in range(90)]  # create list of date for sampling period
+    df['period_end'] = pd.to_datetime(df['period_end'], format=date_format)
 
     full_period = pd.DataFrame(columns=set(df[index_col]), index=date_list)
     full_period = full_period.unstack().reset_index(drop=False).iloc[:, :2]

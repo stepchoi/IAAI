@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, mean_absolute_error
 from tqdm import tqdm
 from results_lgbm.consensus import eps_to_yoy
 
@@ -14,6 +14,7 @@ def qcut_yoy(yoy):
 
     yoy_list = []
     for i in tqdm(range(len(bins_df))):   # roll over all cut_bins used by LightGBM -> convert to median
+        print(bins_df.iloc[i]['cut_bins'])
 
         if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
             indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
@@ -133,7 +134,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(1)
+    # main(1)
 
 
     # with engine.connect() as conn:
@@ -143,6 +144,53 @@ if __name__ == "__main__":
     # print(df)
     #
     # print(df.describe().T)
+
+    df_org = pd.read_csv('preprocess/ibes_data.csv', usecols=['identifier','period_end','EPS1FD12', 'EPS1TR12']).dropna(how='any')
+
+    df_org['ibes_cut'], cut_bins = pd.qcut(df_org['EPS1TR12'], q=3, retbins=True, labels=False)
+    df_org['ibes_ttm_cut'] = pd.cut(df_org['EPS1FD12'], bins=cut_bins, labels=False)
+    # print(df_org)
+    # print('acc1: ',accuracy_score(df_org['Y_fwd'], df_org['Y_act']))
+
+
+    mcap = pd.read_csv('preprocess/quarter_summary_clean.csv', usecols=['identifier','period_end','fn_8001','fn_18263'])   # 5085 / 2999 / 18263
+    # mcap['fn_8001'] = mcap['fn_8001']*10e-5
+
+    df = df_org.merge(mcap, on=['identifier','period_end'])
+    df['Y_fwd'] = (df['EPS1FD12'] - df['EPS1TR12'])/df['fn_8001']
+    df['Y_fwd_ws'] = (df['EPS1FD12']/df['EPS1TR12']*df['fn_18263'] - df['fn_18263'])/df['fn_8001']
+
+    from preprocess.ratios import full_period
+    df = full_period(df, 'identifier','%Y-%m-%d')
+
+    df['actual_eps'] = df['EPS1TR12'].shift(-4)
+    df['actual_eps_ws'] = df['fn_18263'].shift(-4)
+
+    df.loc[df.groupby('identifier').tail(4).index, ['actual_eps','fn_18263']] = np.nan  # y-1 ~ y0
+    df['Y_act'] = (df['actual_eps'] - df['EPS1TR12'])/df['fn_8001']
+    df['Y_act_ws'] = (df['actual_eps_ws'] - df['fn_18263'])/df['fn_8001']
+
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(how='any')
+
+    # print('mae',mean_absolute_error(df['Y_fwd'],df['Y_act']))
+
+    df['Y_act_cut'], cut_bins = pd.qcut(df['Y_act'], q=3, retbins=True, labels=False)
+    cut_bins[0], cut_bins[-1] = -np.inf, np.inf
+    df['Y_fwd_cut'] = pd.cut(df['Y_fwd'], bins=cut_bins, labels=False)
+
+    df['Y_act_ws_cut'], cut_bins = pd.qcut(df['Y_act_ws'], q=3, retbins=True, labels=False)
+    cut_bins[0], cut_bins[-1] = -np.inf, np.inf
+    df['Y_fwd_ws_cut'] = pd.cut(df['Y_fwd_ws'], bins=cut_bins, labels=False)
+
+    # print(cut_bins)
+    # print(df)
+    # df.to_csv('#check_ibes.csv')
+
+    print('acc1',accuracy_score(df['ibes_ttm_cut'], df['ibes_cut']))
+    print('acc2',accuracy_score(df['Y_act_cut'], df['Y_fwd_cut']))
+    print('acc3',accuracy_score(df['Y_act_ws_cut'], df['Y_fwd_ws_cut']))
+
 
 
 

@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 space = {
     # better accuracy
-    'learning_rate': hp.choice('learning_rate', [0.05, 0.1, 0.25, 0.5]),
+    'learning_rate': hp.choice('learning_rate', [0.05, 0.08, 0.1, 0.15]),
     'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
     'max_bin': hp.choice('max_bin', [127, 255]),
     'num_leaves': hp.choice('num_leaves', [25, 75, 125, 250, 500]), # np.arange(50, 200, 30, dtype=int)
@@ -23,7 +23,7 @@ space = {
     'feature_fraction': hp.choice('feature_fraction', [0.3, 0.5, 0.7, 0.9]),
     'bagging_fraction': hp.choice('bagging_fraction', [0.3, 0.5, 0.7, 0.9]),
     'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.0001, 0.001, 0.01, 0.1, 1]),
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.01, 0.02, 0.05, 0.08]
     'lambda_l1': hp.choice('lambda_l1', [0, 1, 5, 15]),
     'lambda_l2': hp.choice('lambda_l2', [1, 10, 100, 500]),
 

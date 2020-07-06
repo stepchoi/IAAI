@@ -47,6 +47,8 @@ def plot_boxplot(df, only_test=False):
     params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
              'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves, name, exclude_fwd'.rsplit(', ')
 
+    df = df.loc[df['name']!='classification']
+
     n = round(np.sqrt(len(params)))+1
     fig = plt.figure(figsize=(4*n, 4*n), dpi=120)
     # fig.suptitle(subset_name, fontsize=14)
@@ -56,15 +58,9 @@ def plot_boxplot(df, only_test=False):
     print(df.describe().T)
     for p in params:
         print(p, set(df[p]))
-
-        des_df = pd.DataFrame()
-        print(df.groupby(p).mean()[['mae_train','mae_valid','mae_test']])
-        exit(0)
-
-        ''' to be continue .....'''
-
-        print(df)
-        exit(0)
+        #
+        # des_df = pd.DataFrame()
+        # print(df.groupby(p).mean()[['mae_train','mae_valid','mae_test']])
 
         data_test = []
         data_train = []
@@ -119,7 +115,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    results = download(1)
+    results = download(0)
     # calc_correl(results)
     plot_boxplot(results, only_test=True)
     plot_boxplot(results, only_test=False)
