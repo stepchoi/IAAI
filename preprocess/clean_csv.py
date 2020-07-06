@@ -38,6 +38,12 @@ def clean_ibes_new():
         new_df['period_end'] = pd.to_datetime(new_df['period_end'], format='%Y%m%d')
         new_df = new_df.filter(['identifier', 'period_end', 'EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'])
 
+        print(new_df.shape)
+        new_df = new_df.drop_duplicates()
+        print(new_df.shape)
+        new_df = new_df.drop_duplicates(subset=['identifier', 'period_end'])
+        print(new_df.shape)
+
         return new_df.dropna(subset=['EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'], how='all')
 
     clean_list = []

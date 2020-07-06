@@ -31,6 +31,8 @@ class eps_to_yoy:
     def merge_and_calc(self):
         ''' merge worldscope & ibes dataframe and calculate YoY ratios '''
 
+        self.ibes = self.ibes.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
+
         self.ibes['period_end'] = pd.to_datetime(self.ibes['period_end'], format='%Y-%m-%d')
         self.actual['period_end'] = pd.to_datetime(self.actual['period_end'], format='%Y-%m-%d')
         self.ibes.columns = ['identifier', 'period_end', 'eps1fd12','eps1tr12']
@@ -247,15 +249,20 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(1)
+    # main(1)
 
-    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_detail_stock.csv', usecols=['trial_lgbm', 'exclude_fwd','mae_test'])
+    eps_to_yoy().merge_and_calc()
+
+    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
     # print(df)
     #
-    # from collections import Counter
-    # c = Counter(df['exclude_fwd'])
-    # print(c)
+    # print(df.shape)
+    # df = df.drop_duplicates()
+    # print(df.shape)
+    # print(df)
     #
-    # for name, g in df.groupby(['exclude_fwd']):
-    #     print('--------------------> exclude_fwd', name)
-    #     print( g.describe())
+    # df1 = df.drop_duplicates(subset=['identifier', 'period_end'])
+    # print(df.shape)
+    # print(df)
+
+
