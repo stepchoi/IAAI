@@ -23,7 +23,7 @@ space = {
     'feature_fraction': hp.choice('feature_fraction', [0.3, 0.5, 0.7, 0.9]),
     'bagging_fraction': hp.choice('bagging_fraction', [0.3, 0.5, 0.7, 0.9]),
     'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.01, 0.02, 0.05, 0.08]
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.01, 0.02, 0.05, 0.08]),
     'lambda_l1': hp.choice('lambda_l1', [0, 1, 5, 15]),
     'lambda_l2': hp.choice('lambda_l2', [1, 10, 100, 500]),
 
