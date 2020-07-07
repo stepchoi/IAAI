@@ -212,7 +212,7 @@ def read_db_last():
         db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", conn)
     engine.dispose()
 
-    db_last_param = db_last[['exclude_fwd','icb_code','testing_period','cv_number']].to_dict('index')[0]
+    db_last_param = db_last[['exclude_fwd','icb_code','testing_period']].to_dict('index')[0]
     db_last_trial_hpot = int(db_last['trial_hpot'])
     db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
@@ -237,9 +237,9 @@ if __name__ == "__main__":
     hpot = {}           # storing data for best trials in each Hyperopt
 
     # parser
-    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'chron valid'                 # name = labeling the experiments
+    sql_result['name'] = 'industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     use_median = True       # default setting
     chron_valid = False     # default setting
@@ -267,13 +267,24 @@ if __name__ == "__main__":
         #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
         #     sql_result['icb_code'] = icb_code
 
-        for icb_industry in [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]:   # roll over industries (first 2 icb code)
-            data.split_industry(icb_industry)
-            sql_result['icb_code'] = icb_industry
+        for icb_code in [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]:   # roll over industries (first 2 icb code)
+            data.split_industry(icb_code)
+            sql_result['icb_code'] = icb_code
 
             for i in tqdm(range(sample_no)):  # roll over testing period
                 testing_period = period_1 + i * relativedelta(months=3)
                 sql_result['testing_period'] = testing_period
+
+                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
+                if resume == True:
+
+                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
+                        'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
+                        resume = False
+                        print('---------> Resume Training', icb_code, testing_period)
+                    else:
+                        print('Not yet resume: params done', icb_code, testing_period)
+                        continue
 
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
                                                                                   sql_result['qcut_q'],
@@ -287,18 +298,6 @@ if __name__ == "__main__":
                 cv_number = 1   # represent which cross-validation sets
                 for train_index, valid_index in cv:     # roll over 5 cross validation set
                     sql_result['cv_number'] = cv_number
-
-                    # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
-                    if resume == True:
-
-                        if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
-                            'cv_number': cv_number, 'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
-                            resume = False
-                            print('---------> Resume Training', icb_code, testing_period, cv_number)
-                        else:
-                            print('Not yet resume: params done', icb_code, testing_period, cv_number)
-                            cv_number += 1
-                            continue
 
                     # when Resume = False: try split validation set from training set + start hyperopt
                     try:

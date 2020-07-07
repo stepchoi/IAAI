@@ -270,23 +270,23 @@ if __name__ == "__main__":
     # print(df.shape)
     # print(df)
 
-    from sklearn.preprocessing import StandardScaler
-
-    df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_merge.csv')
-    df = df.replace([np.inf, -np.inf], np.nan).dropna(how='any')
-    print(df.columns)
-    df = pd.DataFrame(StandardScaler().fit_transform(df[['y_ibes','y_ni','y_ibes_qcut','y_ni_qcut']]))
-    print(df.shape)
-
-    print(mean_absolute_error(df[0],df[1]))
-    print(mean_absolute_error(df[2],df[3]))
-
-    df_org = pd.read_csv('preprocess/ibes_data.csv').dropna(subset=['EPS1FD12','EPS1TR12'], how='any')
-    df_org['EPS1TR12'] = df_org['EPS1TR12'].shift(-4)
-    df_org.loc[df_org.groupby('identifier').tail(4).index, ['EPS1FD12','EPS1TR12']] = np.nan  # y-1 ~ y0
-    df_org = df_org.dropna(subset=['EPS1FD12','EPS1TR12'], how='any')
-
-    df_org = pd.DataFrame(StandardScaler().fit_transform(df_org[['EPS1FD12', 'EPS1TR12']]))
-    print(df_org.shape)
-    print(mean_absolute_error(df_org[0],df_org[1]))
+    # from sklearn.preprocessing import StandardScaler
+    #
+    # df = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_merge.csv')
+    # df = df.replace([np.inf, -np.inf], np.nan).dropna(how='any')
+    # print(df.columns)
+    # df = pd.DataFrame(StandardScaler().fit_transform(df[['y_ibes','y_ni','y_ibes_qcut','y_ni_qcut']]))
+    # print(df.shape)
+    #
+    # print(mean_absolute_error(df[0],df[1]))
+    # print(mean_absolute_error(df[2],df[3]))
+    #
+    # df_org = pd.read_csv('preprocess/ibes_data.csv').dropna(subset=['EPS1FD12','EPS1TR12'], how='any')
+    # df_org['EPS1TR12'] = df_org['EPS1TR12'].shift(-4)
+    # df_org.loc[df_org.groupby('identifier').tail(4).index, ['EPS1FD12','EPS1TR12']] = np.nan  # y-1 ~ y0
+    # df_org = df_org.dropna(subset=['EPS1FD12','EPS1TR12'], how='any')
+    #
+    # df_org = pd.DataFrame(StandardScaler().fit_transform(df_org[['EPS1FD12', 'EPS1TR12']]))
+    # print(df_org.shape)
+    # print(mean_absolute_error(df_org[0],df_org[1]))
 
