@@ -112,18 +112,17 @@ class load_data:
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
-        print('train set length: ', len(self.train), '; test set length: ', len(self.test))
-
 
         # 2. split x, y for train / test set
         def divide_set(df):
             ''' split x, y from main '''
 
             if exclude_fwd == False:
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev'], axis=1)
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry',
+                             'y_ni', 'y_rev'], axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'y_ni', 'y_rev','fwd_ey','fwd_roic'],
-                            axis=1)
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ni',
+                             'y_rev','fwd_ey','fwd_roic'], axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
@@ -225,7 +224,7 @@ def count_by_year(main):
 if __name__ == '__main__':
 
     # these are parameters used to load_data
-    icb_code = 101020
+    icb_code = 50
     exclude_fwd = True
     use_median = True
     chron_valid = False
@@ -235,7 +234,9 @@ if __name__ == '__main__':
     valid_no = 10
 
     data = load_data()
-    data.split_icb(icb_code)
+    # data.split_icb(icb_code)
+    data.split_industry(icb_code)
+
     sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                       y_type='ni',
                                                                       exclude_fwd=exclude_fwd,
