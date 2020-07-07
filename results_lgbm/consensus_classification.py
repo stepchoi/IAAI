@@ -134,8 +134,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # main(1)
-
+    # main(0)
+    # exit(0)
 
     # with engine.connect() as conn:
     #     df = pd.read_sql('SELECT * FROM results_lightgbm WHERE trial_lgbm >= 81591', conn)
@@ -153,11 +153,11 @@ if __name__ == "__main__":
     # print('acc1: ',accuracy_score(df_org['Y_fwd'], df_org['Y_act']))
 
 
-    mcap = pd.read_csv('preprocess/quarter_summary_clean.csv', usecols=['identifier','period_end','fn_8001','fn_18263'])   # 5085 / 2999 / 18263
+    mcap = pd.read_csv('preprocess/quarter_summary_clean.csv', usecols=['identifier','period_end','fn_8001','fn_18263', 'fn_5192'])   # 5085 / 2999 / 18263
     # mcap['fn_8001'] = mcap['fn_8001']*10e-5
 
     df = df_org.merge(mcap, on=['identifier','period_end'])
-    df['Y_fwd'] = (df['EPS1FD12'] - df['EPS1TR12'])/df['fn_8001']
+    df['Y_fwd'] = (df['EPS1FD12'] - df['EPS1TR12'])/df['fn_8001']*df['fn_5192']
     df['Y_fwd_ws'] = (df['EPS1FD12']/df['EPS1TR12']*df['fn_18263'] - df['fn_18263'])/df['fn_8001']
 
     from preprocess.ratios import full_period
@@ -168,12 +168,14 @@ if __name__ == "__main__":
 
     df.loc[df.groupby('identifier').tail(4).index, ['actual_eps','fn_18263']] = np.nan  # y-1 ~ y0
     df['Y_act'] = (df['actual_eps'] - df['EPS1TR12'])/df['fn_8001']
-    df['Y_act_ws'] = (df['actual_eps_ws'] - df['fn_18263'])/df['fn_8001']
+    df['Y_act_ws'] = (df['actual_eps_ws'] - df['fn_18263'])/df['fn_8001']*df['fn_5192']
 
     df = df.replace([np.inf, -np.inf], np.nan)
     df = df.dropna(how='any')
 
-    # print('mae',mean_absolute_error(df['Y_fwd'],df['Y_act']))
+    print('mae',mean_absolute_error(df['Y_fwd'],df['Y_act']))
+    print('mae',mean_absolute_error(df['Y_fwd_ws'],df['Y_act_ws']))
+
 
     df['Y_act_cut'], cut_bins = pd.qcut(df['Y_act'], q=3, retbins=True, labels=False)
     cut_bins[0], cut_bins[-1] = -np.inf, np.inf

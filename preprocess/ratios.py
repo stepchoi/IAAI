@@ -192,6 +192,8 @@ if __name__ == '__main__':
     # except:
     ws = worldscope().label_period_end()
     ws = fill_missing_ws(ws)
+    # ws.to_csv('preprocess/quarter_summary_clean.csv', index=False)
+    # exit(0)
 
     def check_ws_ratios(ws):
         ''' check 3 ratios calculated by worldscope - gross margin, pretax margin, D/A '''

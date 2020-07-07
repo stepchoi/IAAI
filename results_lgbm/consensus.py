@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
 from tqdm import tqdm
+from preprocess.ratios import full_period
+
 
 class eps_to_yoy:
     ''' calculate 1. IBES forward NET INCOME =
@@ -16,14 +18,14 @@ class eps_to_yoy:
         try:
             self.ibes = pd.read_csv('preprocess/ibes_data.csv', usecols = ['identifier','period_end',
                                                                            'EPS1FD12','EPS1TR12'])
-            self.ws = pd.read_csv('preprocess/ws_ibes.csv')
+            self.ws = pd.read_csv('preprocess/quarter_summary.csv', usecols=['identifier', 'year', 'frequency_number',
+                                                                             'fn_18263', 'fn_8001', 'fn_5192'])
             self.actual = pd.read_csv('preprocess/clean_ratios.csv', usecols = ['identifier', 'period_end','y_ni'])
             print('local version run - ibes / share_osd')
         except:
             with engine.connect() as conn:
                 self.ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12, eps1tr12 FROM ibes_data', conn)
-                self.ws = pd.read_sql('SELECT identifier, year, frequency_number, fn_18263, fn_8001, fn_5192 as share_osd '
-                                        'FROM worldscope_quarter_summary', conn)
+                self.ws = pd.read_sql('SELECT identifier, year, frequency_number, fn_18263, fn_8001, fn_5192 FROM worldscope_quarter_summary', conn)
                 self.actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios', conn)
             engine.dispose()
             # ws.to_csv('preprocess/ws_ibes.csv', index=False)
@@ -43,8 +45,12 @@ class eps_to_yoy:
         self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])
 
         # calculate YoY (Y)
-        self.ibes['y_ibes'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12'])*self.ibes['fn_5192']/self.ibes['fn_8001']
-        self.ibes = self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
+        self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')
+        self.ibes['eps1tr12_4'] = self.ibes['eps1tr12'].shift(-4)
+        self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'eps1tr12_4'] = np.nan  # y-1 ~ y0
+        self.ibes['y_ibes_act'] = (self.ibes['eps1tr12_4'] - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
+        self.ibes['y_ibes'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']
+        self.ibes = self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes', 'y_ibes_act','y_ni']]).dropna(how='any')
 
         print(self.ibes.shape)
         self.ibes = self.ibes.drop_duplicates()
@@ -127,6 +133,7 @@ def yoy_to_median(yoy):
 
         part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i])
         part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i])
+        part_yoy['y_ibes_act_qcut'] = to_median(part_yoy['y_ibes_act'], convert=bins_df.iloc[i])
 
         yoy_list.append(part_yoy)
 
@@ -184,7 +191,7 @@ def calc_mae(yoy_merge):
         ''' calculate different mae for groups of sample '''
 
         dict = {}
-        dict['ibes'] = mean_absolute_error(df['y_ibes_qcut'], df['y_ni_qcut'])
+        dict['ibes'] = mean_absolute_error(df['y_ibes_qcut'], df['y_ibes_act_qcut'])
         dict['lgbm_ex_fwd'] = mean_absolute_error(df['pred_ex_fwd'], df['y_ni_qcut'])
         dict['lgbm_in_fwd'] = mean_absolute_error(df['pred_in_fwd'], df['y_ni_qcut'])
         dict['len'] = len(df)
@@ -246,7 +253,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # main(1)
+    main(1)
+    exit(0)
 
     # eps_to_yoy().merge_and_calc()
 
