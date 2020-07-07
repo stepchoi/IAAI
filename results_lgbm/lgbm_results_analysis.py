@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import datetime as dt
 
 def download(update=0):
