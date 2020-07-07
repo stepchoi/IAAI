@@ -43,10 +43,7 @@ class eps_to_yoy:
         self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])
 
         # calculate YoY (Y)
-        self.ibes['pred_ratio'] = self.ibes['eps1fd12'] / self.ibes['eps1tr12']
-        self.ibes['fwd_ni'] = self.ibes['pred_ratio'] * self.ibes['fn_18263']
-        self.ibes['y_ibes'] = (self.ibes['fwd_ni'] - self.ibes['fn_18263']) / self.ibes['fn_8001']
-
+        self.ibes['y_ibes'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12'])*self.ibes['fn_5192']/self.ibes['fn_8001']
         self.ibes = self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes','y_ni']]).dropna(how='any')
 
         print(self.ibes.shape)
