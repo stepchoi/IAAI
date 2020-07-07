@@ -43,7 +43,7 @@ def lgbm_train(space):
     params = space.copy()
     print(params)
 
-    lgb_train = lgb.Dataset(sample_set['train_xx'], label=sample_set['train_y'], free_raw_data=False)
+    lgb_train = lgb.Dataset(sample_set['train_xx'], label=sample_set['train_yy'], free_raw_data=False)
     lgb_eval = lgb.Dataset(sample_set['valid_x'], label=sample_set['valid_y'], free_raw_data=False, reference=lgb_train)
 
     gbm = lgb.train(params,
@@ -72,9 +72,9 @@ def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
 
     Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
-    Y_test = sample_set['test_ni']
+    Y_test = sample_set['test_y']
 
-    result = {  'mae_train': mean_absolute_error(sample_set['train_y'], Y_train_pred),
+    result = {  'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
                 'r2': r2_score(Y_test, Y_test_pred),
@@ -101,10 +101,10 @@ def eval_classify(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
 
     Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
-    Y_test = sample_set['test_ni']
+    Y_test = sample_set['test_y']
 
     result = {
-                'mae_train': accuracy_score(sample_set['train_y'], Y_train_pred),   # use column names of regression
+                'mae_train': accuracy_score(sample_set['train_yy'], Y_train_pred),   # use column names of regression
                 'mae_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': accuracy_score(Y_test, Y_test_pred),
                 'r2': r2_score(Y_test, Y_test_pred),
@@ -159,8 +159,9 @@ def to_sql_bins(cut_bins):
     ''' write cut_bins & median of each set to DB'''
 
     with engine.connect() as conn:      # record type of Y
-        exist = pd.read_sql("SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period='{}'".format(
-            sql_result['qcut_q'], sql_result['icb_code'], str(sql_result['testing_period'])), con=conn)
+        exist = pd.read_sql("SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period='{}' "
+                            "AND y_type='{}'".format(sql_result['qcut_q'], sql_result['icb_code'],
+                                                     str(sql_result['testing_period']), sql_result['y_type']), con=conn)
     engine.dispose()
 
     if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
@@ -168,10 +169,10 @@ def to_sql_bins(cut_bins):
         df = pd.DataFrame(columns=['cut_bins','med_train'])
         df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
 
-        for k in cut_bins['ni'].keys():     # record cut_bins & median
-            df.at[0, k] = cut_bins['ni'][k]
+        for k in cut_bins.keys():     # record cut_bins & median
+            df.at[0, k] = cut_bins[k]
 
-        for col in ['qcut_q', 'icb_code', 'testing_period']:
+        for col in ['qcut_q', 'icb_code', 'testing_period','y_type']:
             df.at[0, col] = sql_result[col]
 
         with engine.connect() as conn:      # record type of Y
@@ -241,6 +242,7 @@ if __name__ == "__main__":
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['name'] = 'industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
+    sql_result['y_type'] = 'ni'
     use_median = True       # default setting
     chron_valid = False     # default setting
 
@@ -288,7 +290,7 @@ if __name__ == "__main__":
 
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
                                                                                   sql_result['qcut_q'],
-                                                                                  y_type='ni',
+                                                                                  sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
                                                                                   use_median=use_median,
                                                                                   chron_valid=chron_valid)
@@ -303,8 +305,8 @@ if __name__ == "__main__":
                     try:
                         sample_set['valid_x'] = sample_set['train_x'][valid_index]
                         sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                        sample_set['valid_y'] = sample_set['train_ni'][valid_index]
-                        sample_set['train_y'] = sample_set['train_ni'][train_index]
+                        sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                        sample_set['train_yy'] = sample_set['train_y'][train_index]
 
                         sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
                         sql_result['valid_len'] = len(sample_set['valid_x'])

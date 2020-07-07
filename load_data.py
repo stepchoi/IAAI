@@ -118,22 +118,21 @@ class load_data:
             ''' split x, y from main '''
 
             if exclude_fwd == False:
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry',
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ibes',
                              'y_ni', 'y_rev'], axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ni',
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ni','y_ibes',
                              'y_rev','fwd_ey','fwd_roic'], axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
             x = x.values
-            ni = df['y_ni'].values
-            rev = df['y_rev'].values
-            return x, ni, rev
+            y = {'ni': df['y_ni'].values, 'rev': df['y_rev'].values, 'ibes': df['y_ibes'].values}
+            return x, y
 
         # keep non-qcut y for calculation
-        self.sample_set['train_x'], self.sample_set['train_ni_org'], self.sample_set['train_rev_org'] = divide_set(self.train)
-        self.sample_set['test_x'], self.sample_set['test_ni_org'], self.sample_set['test_rev_org'] = divide_set(self.test)
+        self.sample_set['train_x'], self.sample_set['train_y'] = divide_set(self.train)
+        self.sample_set['test_x'], self.sample_set['test_y'] = divide_set(self.test)
 
     def standardize_x(self):
         ''' tandardize x with train_x fit '''
@@ -142,19 +141,19 @@ class load_data:
         self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
         self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
 
-    def y_qcut(self, qcut_q, use_median):
+    def y_qcut(self, qcut_q, use_median, y_type):
         ''' qcut y '''
 
         def to_median(use_median):
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
-            train_y, cut_bins = pd.qcut(self.sample_set['train_{}_org'.format(i)], q=qcut_q, retbins=True, labels=False)
-            test_y = pd.cut(self.sample_set['test_{}_org'.format(i)], bins=cut_bins, labels=False)
+            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False)
+            test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
 
             if use_median == True:
                 # calculate median on train_y for each qcut group
-                df = pd.DataFrame(np.vstack((self.sample_set['train_{}_org'.format(i)], np.array(train_y)))).T   # concat original series / qcut series
+                df = pd.DataFrame(np.vstack((self.sample_set['train_y'][y_type], np.array(train_y)))).T   # concat original series / qcut series
                 median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
 
                 # replace 0, 1, ... into median
@@ -167,18 +166,15 @@ class load_data:
 
             return train_y, test_y, list(cut_bins), list(median)
 
-        for i in ['ni', 'rev']: # convert Net Income / Revenue as Y separately
-            self.cut_bins[i] = {}
-
-            self.sample_set['train_{}'.format(i)], self.sample_set['test_{}'.format(i)], self.cut_bins[i]['cut_bins'], \
-            self.cut_bins[i]['med_train'] = to_median(use_median)
+        self.cut_bins = {}
+        self.sample_set['train_y'], self.sample_set['test_y'], self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
 
 
     def split_valid(self, y_type, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
         if chron_valid == False:    # split validation by stocks
             gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'],
-                                                      self.sample_set['train_{}'.format(y_type)],
+                                                      self.sample_set['train_y'],
                                                       groups=self.train['identifier'])
 
         if chron_valid == True:     # split validation set by chronological order
@@ -194,7 +190,7 @@ class load_data:
 
         self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
-        self.y_qcut(qcut_q, use_median)
+        self.y_qcut(qcut_q, use_median, y_type)
         gkf = self.split_valid(y_type, testing_period, chron_valid)
 
         print('sample_set keys: ', self.sample_set.keys())

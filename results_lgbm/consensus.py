@@ -47,9 +47,11 @@ class eps_to_yoy:
         # calculate YoY (Y)
         self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')
         self.ibes['eps1tr12_4'] = self.ibes['eps1tr12'].shift(-4)
-        self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'eps1tr12_4'] = np.nan  # y-1 ~ y0
+        self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'eps1tr12_4'] = np.nan
         self.ibes['y_ibes_act'] = (self.ibes['eps1tr12_4'] - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
+
         self.ibes['y_ibes'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']
+
         self.ibes = self.label_sector(self.ibes[['identifier', 'period_end', 'y_ibes', 'y_ibes_act','y_ni']]).dropna(how='any')
 
         print(self.ibes.shape)

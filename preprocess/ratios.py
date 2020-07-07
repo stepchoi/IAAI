@@ -130,35 +130,43 @@ def calc_fwd(ws):
 
     try:
         ibes = pd.read_csv('preprocess/ibes_data.csv')
+        ibes.columns = ['identifier', 'period_end', 'ebd1fd12', 'cap1fd12', 'eps1fd12', 'eps1tr12']
+        ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%d/%m/%Y')
     except:
         ibes = pd.read_sql('SELECT * FROM ibes_data', engine) # ibes_data is the cleaned with clean_csv.py and uploaded
         engine.dispose()
 
     ibes['identifier'] = ibes['identifier'].apply(lambda x: x.zfill(9)) # zfill identifiers with leading 0
-    ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%d/%m/%Y')
-
-    ibes_ws = pd.merge(ibes, ws[['identifier','period_end', 'fn_5085', 'roic_demon']], on=['identifier','period_end'])
+    ibes_ws = pd.merge(ibes, ws[['identifier','period_end', 'fn_8001','fn_5192','fn_5085', 'roic_demon']],
+                       on=['identifier','period_end'])
 
     def fill_missing_ibse(df):
         ''' fill in missing fwd_roic by replacing missing CAP1FD12 with 0 when company has no history of CAP1FD12'''
 
-        non_cap_comp = set(df['identifier']) - set(df.dropna(subset = ['CAP1FD12'])['identifier'])
-        df.loc[df['identifier'].isin(non_cap_comp), 'CAP1FD12'] = \
-            df.loc[df['identifier'].isin(non_cap_comp), 'CAP1FD12'].fillna(0)
+        non_cap_comp = set(df['identifier']) - set(df.dropna(subset = ['cap1fd12'])['identifier'])
+        df.loc[df['identifier'].isin(non_cap_comp), 'cap1fd12'] = \
+            df.loc[df['identifier'].isin(non_cap_comp), 'cap1fd12'].fillna(0)
         return df
 
-    ibes_ws = fill_missing_ibse(ibes_ws)
-    ibes_ws['fwd_ey'] = ibes_ws['EPS1FD12'] / ibes_ws['fn_5085']
-    ibes_ws['fwd_roic'] = (ibes_ws['EBD1FD12'] - ibes_ws['CAP1FD12']) / ibes_ws['roic_demon']
+    ibes_ws = fill_missing_ibse(ibes_ws)                                        # calculate IBES TTM as Y
+    ibes_ws = full_period(ibes_ws, 'identifier')
+    ibes_ws['y_ibes'] = (ibes_ws['eps1tr12'].shift(-4) - ibes_ws['eps1tr12']) / ibes_ws['fn_8001'] * ibes_ws['fn_5192']
+    ibes_ws.loc[ibes_ws.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan
 
-    return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic']]
 
-def full_period(df, index_col, date_format):
+    ibes_ws['fwd_ey'] = ibes_ws['eps1fd12'] / ibes_ws['fn_5085']
+    ibes_ws['fwd_roic'] = (ibes_ws['ebd1fd12'] - ibes_ws['cap1fd12']) / ibes_ws['roic_demon']
+
+    return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic','y_ibes']]
+
+def full_period(df, index_col, date_format=None):
     ''' add NaN for missing records to facilitate time_series ratios calculation (worldscope & stock_return)'''
 
     start = dt.datetime(1998, 3, 31)
     date_list = [start + pd.offsets.MonthEnd(x * 3) for x in range(90)]  # create list of date for sampling period
-    df['period_end'] = pd.to_datetime(df['period_end'], format=date_format)
+
+    if date_format != None:
+        df['period_end'] = pd.to_datetime(df['period_end'], format=date_format)
 
     full_period = pd.DataFrame(columns=set(df[index_col]), index=date_list)
     full_period = full_period.unstack().reset_index(drop=False).iloc[:, :2]
