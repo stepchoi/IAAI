@@ -263,9 +263,13 @@ if __name__ == "__main__":
     for exclude_fwd in [True, False]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
         sql_result['exclude_fwd'] = exclude_fwd
 
-        for icb_code in indi_models:    # roll over industries
-            data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
-            sql_result['icb_code'] = icb_code
+        # for icb_code in indi_models:    # roll over sectors (first 6 icb code)
+        #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
+        #     sql_result['icb_code'] = icb_code
+
+        for icb_industry in [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]:   # roll over industries (first 2 icb code)
+            data.split_industry(icb_industry)
+            sql_result['icb_code'] = icb_industry
 
             for i in tqdm(range(sample_no)):  # roll over testing period
                 testing_period = period_1 + i * relativedelta(months=3)

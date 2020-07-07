@@ -78,6 +78,8 @@ class load_data:
             self.main = add_macro().map_macros()
             # self.main.to_csv('preprocess/main.csv', index=False)
 
+        self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
+
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
         # define self objects
@@ -98,6 +100,9 @@ class load_data:
             self.sector = self.main.loc[~self.main['icb_sector'].isin(indi_model_icb)]
             print('This is miscellaneous model')
         # print(main.describe().T[['max','min']])
+
+    def split_industry(self, icb_industry):
+        self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
     def split_train_test(self, testing_period, exclude_fwd):
         ''' split training / testing set based on testing period '''
@@ -201,6 +206,7 @@ def count_by_sector(main):
     with engine.connect() as conn:
         name = pd.read_sql('SELECT * FROM industry_group', conn)
     engine.dispose()
+
     name['industry_group_code'] = name['industry_group_code'].apply(pd.to_numeric, errors='coerce')
     name = name.dropna(how='any').set_index(['industry_group_code'])
 
