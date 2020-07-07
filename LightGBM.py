@@ -256,7 +256,7 @@ if __name__ == "__main__":
     # space['metric'] = 'multi_error'
 
     ## ALTER 2: change using chronological last few as validation
-    chron_valid = True
+    # chron_valid = True
 
     ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
