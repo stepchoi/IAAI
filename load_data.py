@@ -112,6 +112,8 @@ class load_data:
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
+        print('train set length: ', len(self.train), '; test set length: ', len(self.test))
+
 
         # 2. split x, y for train / test set
         def divide_set(df):
