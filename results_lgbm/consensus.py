@@ -46,9 +46,9 @@ class eps_to_yoy:
 
         # calculate YoY (Y)
         self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')
-        self.ibes['eps1tr12_4'] = self.ibes['eps1tr12'].shift(-4)
-        self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'eps1tr12_4'] = np.nan
-        self.ibes['y_ibes_act'] = (self.ibes['eps1tr12_4'] - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
+        self.ibes['y_ibes_act'] = (self.ibes['eps1tr12'].shift(-4) - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
+        self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'y_ibes_act'] = np.nan
+
 
         self.ibes['y_ibes'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']
 
@@ -94,10 +94,11 @@ class eps_to_yoy:
         with engine.connect() as conn:
             icb = pd.read_sql("SELECT icb_sector, identifier FROM dl_value_universe WHERE identifier IS NOT NULL", conn)
         engine.dispose()
+        icb['icb_industry'] = icb['icb_sector'].astype(str).str[:2].astype(int)
 
         return df.merge(icb, on=['identifier'])
 
-def yoy_to_median(yoy):
+def yoy_to_median(yoy, industry):
     ''' convert yoy in qcut format to medians with med_train from training set'''
 
     with engine.connect() as conn:
@@ -123,15 +124,19 @@ def yoy_to_median(yoy):
     yoy_list = []
     for i in tqdm(range(len(bins_df))):   # roll over all cut_bins used by LightGBM -> convert to median
 
-        if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
-            indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-                           501010, 201020, 502030, 401010]
-            part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                               (~yoy['icb_sector'].isin(indi_models))]
+        if industry == False:
+            if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
+                indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+                               501010, 201020, 502030, 401010]
+                part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
+                                   (~yoy['icb_sector'].isin(indi_models))]
 
+            else:
+                part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
+                                   (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
         else:
             part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                               (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
+                               (yoy['icb_industry'] == bins_df.iloc[i]['icb_code'])]
 
         part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i])
         part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i])
@@ -225,7 +230,7 @@ def calc_mae(yoy_merge):
     df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
     df.drop(['industry_group_code'], axis=1).to_csv('results_lgbm/compare_with_ibes/ibes_mae.csv', index=False)
 
-def main(update=0):
+def main(update=0, industry=False):
     ''' main function: clean ibes + calculate mae '''
 
     if update == 1:
@@ -238,7 +243,7 @@ def main(update=0):
             yoy = eps_to_yoy().merge_and_calc()
             yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
 
-        yoy_med = yoy_to_median(yoy)       # Update every time for new cut_bins
+        yoy_med = yoy_to_median(yoy, industry)       # Update every time for new cut_bins
 
         yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes_yoy_median.csv', index=False)
         # yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_median.csv')

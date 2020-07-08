@@ -183,7 +183,7 @@ def to_sql_bins(cut_bins):
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
-
+1
     df = pd.DataFrame()
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
