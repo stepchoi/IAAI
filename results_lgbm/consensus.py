@@ -94,7 +94,7 @@ class eps_to_yoy:
         with engine.connect() as conn:
             icb = pd.read_sql("SELECT icb_sector, identifier FROM dl_value_universe WHERE identifier IS NOT NULL", conn)
         engine.dispose()
-        icb['icb_industry'] = icb['icb_sector'].astype(str).str[:2].astype(int)
+        icb['icb_industry'] = icb.dropna(how='any')['icb_sector'].astype(str).str[:2].astype(int)
 
         return df.merge(icb, on=['identifier'])
 
@@ -191,7 +191,7 @@ def act_lgbm_ibes(yoy_ibes_median, update):
 
     return yoy_merge
 
-def calc_mae(yoy_merge):
+def calc_mae(yoy_merge, industry):
     ''' calculate mae for each testing_period, icb_code, (cv_number) '''
 
     def part_mae(df):
@@ -208,14 +208,25 @@ def calc_mae(yoy_merge):
     for p in set(yoy_merge['testing_period']):
         part_p = yoy_merge.loc[yoy_merge['testing_period']==p]
 
-        for i in set(yoy_merge['icb_code']):
-            part_i = part_p.loc[part_p['icb_code']==i]
+        if industry == False:
+            for i in set(yoy_merge['icb_code']):
+                part_i = part_p.loc[part_p['icb_code']==i]
 
-            try:    # calculate aggregate mae for all 5 cv groups
-                mae['{}_{}_all'.format(p, i)] = part_mae(part_i)
-            except:
-                print('not available', p, i)
-                continue
+                try:    # calculate aggregate mae for all 5 cv groups
+                    mae['{}_{}_all'.format(p, i)] = part_mae(part_i)
+                except:
+                    print('not available', p, i)
+                    continue
+
+        else:
+            for i in set(yoy_merge['icb_industry']):
+                part_i = part_p.loc[part_p['icb_industry'] == i]
+
+                try:  # calculate aggregate mae for all 5 cv groups
+                    mae['{}_{}_all'.format(p, i)] = part_mae(part_i)
+                except:
+                    print('not available', p, i)
+                    continue
 
     df = pd.DataFrame(mae).T.reset_index()
 
@@ -228,7 +239,7 @@ def calc_mae(yoy_merge):
     engine.dispose()
 
     df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
-    df.drop(['industry_group_code'], axis=1).to_csv('results_lgbm/compare_with_ibes/ibes_mae.csv', index=False)
+    return df.drop(['industry_group_code'], axis=1)
 
 def main(update=0, industry=False):
     ''' main function: clean ibes + calculate mae '''
@@ -254,13 +265,14 @@ def main(update=0, industry=False):
     else:
         yoy_merge = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy_merge.csv')
 
-    calc_mae(yoy_merge)
+    df = calc_mae(yoy_merge, industry)
+    df.to_csv('results_lgbm/compare_with_ibes/ibes_mae_industry.csv', index=False)
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(1, industry=True)
+    main(0, industry=True)  # change to csv name
     exit(0)
 
     # eps_to_yoy().merge_and_calc()

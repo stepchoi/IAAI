@@ -83,7 +83,7 @@ def calc_accu(yoy_merge):
         ''' calculate different mae for groups of sample '''
 
         dict = {}
-        dict['ibes'] = accuracy_score(df['y_ibes_qcut'], df['y_ni_qcut'])
+        dict['ibes'] = accuracy_score(df['y_ibes_qcut'], df['y_ibes_act'])
         dict['lgbm'] = accuracy_score(df['pred'], df['y_ni_qcut'])
         dict['len'] = len(df)
         return dict
@@ -134,8 +134,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # main(0)
-    # exit(0)
+    main(1)
+    exit(0)
 
     # with engine.connect() as conn:
     #     df = pd.read_sql('SELECT * FROM results_lightgbm WHERE trial_lgbm >= 81591', conn)
@@ -144,8 +144,12 @@ if __name__ == "__main__":
     # print(df)
     #
     # print(df.describe().T)
-
-    df_org = pd.read_csv('preprocess/ibes_data.csv', usecols=['identifier','period_end','EPS1FD12', 'EPS1TR12']).dropna(how='any')
+    try:
+        df_org = pd.read_csv('preprocess/ibes_data.csv', usecols=['identifier','period_end','EPS1FD12', 'EPS1TR12']).dropna(how='any')
+    except:
+        with engine.connect() as conn:
+            df_org = pd.read_sql('SELECT identifier, period_end, eps1fd12, eps1tr12 FROM ibes_data', conn)
+        engine.dispose()
 
     df_org['ibes_cut'], cut_bins = pd.qcut(df_org['EPS1TR12'], q=3, retbins=True, labels=False)
     df_org['ibes_ttm_cut'] = pd.cut(df_org['EPS1FD12'], bins=cut_bins, labels=False)
