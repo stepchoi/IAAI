@@ -183,7 +183,7 @@ def to_sql_bins(cut_bins):
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
-1
+
     df = pd.DataFrame()
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
@@ -240,7 +240,7 @@ if __name__ == "__main__":
     # parser
     resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'industry'                     # name = labeling the experiments
+    sql_result['name'] = 'new industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
     use_median = True       # default setting
