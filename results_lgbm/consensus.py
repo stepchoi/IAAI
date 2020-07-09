@@ -131,13 +131,16 @@ def download_result_stock(r_name):
     print('----------------> update stock results from DB ')
 
     with engine.connect() as conn:
-        result_stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
-        trial_lgbm = set(result_stock['trial_lgbm'])
 
-        query = text("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                     "FROM results_lightgbm WHERE name='{}' AND (trial_lgbm IN :trial_lgbm)".format(r_name))
+        # read DB TABLE results_lightgbm data for given "name"
+        result_all = pd.read_sql("SELECT name, trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
+                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
+        trial_lgbm = set(result_all['trial_lgbm'])
+
+        # read corresponding part of DB TABLE results_lightgbm_stock
+        query = text('SELECT * FROM results_lightgbm_stock WHERE (trial_lgbm IN :trial_lgbm)')
         query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
-        result_all = pd.read_sql(query, conn)
+        result_stock = pd.read_sql(query, conn)
 
     engine.dispose()
 
@@ -152,16 +155,18 @@ def act_lgbm_ibes(detail_stock, yoy_med):
     yoy_med = date_type(yoy_med)
     detail_stock['exclude_fwd'] = detail_stock['exclude_fwd'].fillna(False)
 
-    check_dup(detail_stock, index_col=['identifier','trial_lgbm'], ex=False)
-
     # pivot prediction for lgbm with fwd & lgbm without fwd
     detail_stock = pd.merge(detail_stock.loc[detail_stock['exclude_fwd'] == True],
                             detail_stock.loc[detail_stock['exclude_fwd'] == False],
                             on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'],
                             how='outer', suffixes=('_ex_fwd', '_in_fwd'))
 
+    detail_stock = detail_stock.groupby(['name', 'identifier', 'testing_period']).mean().reset_index(drop=False)  # use average for cross listing & multiple cross-validation
+
+    check_dup(detail_stock, index_col=['identifier','trial_lgbm'], ex=False)
+
     print(detail_stock.shape, detail_stock.columns)
-    # check_dup(detail_stock, index_col=['identifier','testing_period','cv_number'])
+
 
     detail_stock = detail_stock.filter(['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number',
                                         'pred_x', 'pred_y'])
@@ -268,9 +273,10 @@ def main(industry=False, ibes_act = False, classify=False):
         yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
         yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv', index=False)
 
+
     try:    # STEP3: download lightgbm results for stocks
         detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
-        detail_stock = date_type(detail_stock)
+        detail_stock = date_type(detail_stock, date_col='testing_period')
         print('local version run - 3. stock_{}'.format(r_name))
     except:
         detail_stock = download_result_stock(r_name)
