@@ -101,7 +101,10 @@ class load_data:
             print('This is miscellaneous model')
         # print(main.describe().T[['max','min']])
 
-    def split_industry(self, icb_industry):
+    def split_industry(self, icb_industry, combine_ind=True):
+        if combine_ind == True:
+            self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+
         self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
     def split_train_test(self, testing_period, exclude_fwd):
@@ -170,7 +173,7 @@ class load_data:
         self.sample_set['train_y'], self.sample_set['test_y'], self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
 
 
-    def split_valid(self, y_type, testing_period, chron_valid):
+    def split_valid(self, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
         if chron_valid == False:    # split validation by stocks
             gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'],
@@ -231,7 +234,7 @@ if __name__ == '__main__':
 
     data = load_data()
     # data.split_icb(icb_code)
-    data.split_industry(icb_code)
+    data.split_industry(icb_code, combine_ind=True)
 
     sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                       y_type='ni',

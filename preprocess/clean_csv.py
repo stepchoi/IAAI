@@ -38,11 +38,7 @@ def clean_ibes_new():
         new_df['period_end'] = pd.to_datetime(new_df['period_end'], format='%Y%m%d')
         new_df = new_df.filter(['identifier', 'period_end', 'EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'])
 
-        print(new_df.shape)
         new_df = new_df.drop_duplicates()
-        print(new_df.shape)
-        new_df = new_df.drop_duplicates(subset=['identifier', 'period_end'])
-        print(new_df.shape)
 
         return new_df.dropna(subset=['EBD1FD12', 'CAP1FD12', 'EPS1FD12','EPS1TR12'], how='all')
 
@@ -51,7 +47,9 @@ def clean_ibes_new():
         df = ibes.parse(i)
         clean_list.append(clean(df, id))
 
-    pd.concat(clean_list, axis=0).to_csv('preprocess/ibes_data.csv', index=False)
+    ibes_data = pd.concat(clean_list, axis=0)
+
+    ibes_data.to_csv('preprocess/ibes_data.csv', index=False)
 
 def clean_ibes():
 

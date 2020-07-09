@@ -56,17 +56,20 @@ class worldscope:
 
         return self.ws.drop(['last_year_end','fiscal_year_end','year','frequency_number','fiscal_quarter_end'], axis=1)
 
-def fill_missing_ws(ws):
-    ''' fill in missing values by calculating with existing data '''
+    def fill_missing_ws(self):
+        ''' fill in missing values by calculating with existing data '''
 
-    # 1. replace Net Debt (fn_18199) with Total Debt (fn_3255) - Cash & ST investment(fn_2003)
-    ws['fn_18199'] = ws['fn_18199'].fillna(ws['fn_3255'] - ws['fn_2001'])
+        ws = self.label_period_end()
 
-    # 2. replace TTM EBITDA (fn_18309) with EBIT (fn_18308) + DDA (fn_18313)
-    ws['fn_18308'] = ws['fn_18308'].fillna(ws['fn_18304'] + ws['fn_18269']) # fill in EBIT = Pretax + interest
-    ws['fn_18309'] = ws['fn_18309'].fillna(ws['fn_18308'] + ws['fn_18313'])
+        # 1. replace Net Debt (fn_18199) with Total Debt (fn_3255) - Cash & ST investment(fn_2003)
+        ws['fn_18199'] = ws['fn_18199'].fillna(ws['fn_3255'] - ws['fn_2001'])
 
-    return ws
+        # 2. replace TTM EBITDA (fn_18309) with EBIT (fn_18308) + DDA (fn_18313)
+        ws['fn_18308'] = ws['fn_18308'].fillna(ws['fn_18304'] + ws['fn_18269']) # fill in EBIT = Pretax + interest
+        ws['fn_18309'] = ws['fn_18309'].fillna(ws['fn_18308'] + ws['fn_18313'])
+
+        return ws
+
 
 def calc_divide(ws):
     ''' calculate ratios by dividing two fund items '''
@@ -198,27 +201,26 @@ if __name__ == '__main__':
     #     ws = pd.read_csv('ws.csv')
     #     print('local version run - ws')
     # except:
-    ws = worldscope().label_period_end()
-    ws = fill_missing_ws(ws)
+    ws = worldscope().fill_missing_ws()
     # ws.to_csv('preprocess/quarter_summary_clean.csv', index=False)
     # exit(0)
 
-    def check_ws_ratios(ws):
-        ''' check 3 ratios calculated by worldscope - gross margin, pretax margin, D/A '''
-
-        ws['new_gross_margin'] = (ws['fn_18262'] - ws['fn_18312'] - ws['fn_18313']) / ws['fn_18262']
-        ws['new_pretax_margin'] = ws['fn_18271'] / ws['fn_18262']
-        ws['new_d_a'] = ws['fn_3255'] / ws['fn_2999']
-
-        org = ['fn_18267', 'fn_18304', 'fn_8236']
-        new = ['new_gross_margin', 'new_pretax_margin', 'new_d_a']
-
-        for i in range(3):
-            diff = (ws[org[i]] - ws[new[i]]*10e7).dropna()
-            print(org[i], new[i])
-            print(diff.describe())
-
-    check_ws_ratios(ws)
+    # def check_ws_ratios(ws):
+    #     ''' check 3 ratios calculated by worldscope - gross margin, pretax margin, D/A '''
+    #
+    #     ws['new_gross_margin'] = (ws['fn_18262'] - ws['fn_18312'] - ws['fn_18313']) / ws['fn_18262']
+    #     ws['new_pretax_margin'] = ws['fn_18271'] / ws['fn_18262']
+    #     ws['new_d_a'] = ws['fn_3255'] / ws['fn_2999']
+    #
+    #     org = ['fn_18267', 'fn_18304', 'fn_8236']
+    #     new = ['new_gross_margin', 'new_pretax_margin', 'new_d_a']
+    #
+    #     for i in range(3):
+    #         diff = (ws[org[i]] - ws[new[i]]*10e7).dropna()
+    #         print(org[i], new[i])
+    #         print(diff.describe())
+    #
+    # check_ws_ratios(ws)
 
     # 2. calculate ratios
     divide_ratio = calc_divide(ws)
