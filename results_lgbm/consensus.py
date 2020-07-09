@@ -161,15 +161,13 @@ def act_lgbm_ibes(detail_stock, yoy_med):
                             on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'],
                             how='outer', suffixes=('_ex_fwd', '_in_fwd'))
 
-    detail_stock = detail_stock.groupby(['name', 'identifier', 'testing_period']).mean().reset_index(drop=False)  # use average for cross listing & multiple cross-validation
+    # use average for cross listing & multiple cross-validation
+    detail_stock = detail_stock.groupby(['name', 'identifier', 'testing_period']).mean()[['icb_code', 'pred_ex_fwd',
+                                                                                          'pred_in_fwd']].reset_index(drop=False)
 
-    check_dup(detail_stock, index_col=['identifier','trial_lgbm'], ex=False)
+    check_dup(detail_stock, index_col=['name', 'identifier','trial_lgbm'], ex=False)
 
     print(detail_stock.shape, detail_stock.columns)
-
-
-    detail_stock = detail_stock.filter(['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number',
-                                        'pred_x', 'pred_y'])
 
     # merge (stock prediction) with (ibes consensus median)
     yoy_merge=detail_stock.merge(yoy_med, left_on=['identifier','testing_period'], right_on=['identifier','period_end'])
