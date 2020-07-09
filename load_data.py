@@ -194,7 +194,7 @@ class load_data:
         self.split_train_test(testing_period, exclude_fwd)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type)
-        gkf = self.split_valid(y_type, testing_period, chron_valid)
+        gkf = self.split_valid(testing_period, chron_valid)
 
         print('sample_set keys: ', self.sample_set.keys())
 

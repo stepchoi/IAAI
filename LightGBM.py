@@ -238,7 +238,7 @@ if __name__ == "__main__":
     hpot = {}           # storing data for best trials in each Hyperopt
 
     # parser
-    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['name'] = 'new industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
