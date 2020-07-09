@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 
+from miscel import check_dup, date_type
+
 class worldscope:
 
     def __init__(self):
@@ -70,7 +72,6 @@ class worldscope:
 
         return ws
 
-
 def calc_divide(ws):
     ''' calculate ratios by dividing two fund items '''
 
@@ -80,8 +81,6 @@ def calc_divide(ws):
     # calculate combination fields for roic
     ws['roic_num'] = ws['fn_18309'] - ws['fn_18311']  # TTM EBITDA - TTM Capex
     ws['roic_demon'] = ws['fn_8001'] + ws['fn_18199']  # Market Cap + Net Debt
-
-    print(ws.isnull().sum())
 
     num_only_col = ['fn_18267','fn_18158'] # ratios provided by Worldscope
 
@@ -134,10 +133,13 @@ def calc_fwd(ws):
     try:
         ibes = pd.read_csv('preprocess/ibes_data.csv')
         ibes.columns = ['identifier', 'period_end', 'ebd1fd12', 'cap1fd12', 'eps1fd12', 'eps1tr12']
-        ibes['period_end'] = pd.to_datetime(ibes['period_end'], format='%d/%m/%Y')
+        ibes = date_type(ibes)
+        print('local version run - ibes_data')
     except:
         ibes = pd.read_sql('SELECT * FROM ibes_data', engine) # ibes_data is the cleaned with clean_csv.py and uploaded
         engine.dispose()
+
+    ibes = ibes.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
 
     ibes['identifier'] = ibes['identifier'].apply(lambda x: x.zfill(9)) # zfill identifiers with leading 0
     ibes_ws = pd.merge(ibes, ws[['identifier','period_end', 'fn_8001','fn_5192','fn_5085', 'roic_demon']],

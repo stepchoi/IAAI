@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, accuracy_score
 from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
-from miscel import date_type
+from miscel import date_type, check_dup
 
 class eps_to_yoy:
     ''' 1. calculate    1. IBES forward NET INCOME =
@@ -66,14 +66,16 @@ class eps_to_yoy:
         engine.dispose()
         icb['icb_industry'] = icb.dropna(how='any')['icb_sector'].astype(str).str[:2].astype(int)
 
-        return df.merge(icb, on=['identifier'])
+        return df.merge(icb.drop_duplicates(), on=['identifier'], how='left')   # remove dup due to cross listing
 
 def yoy_to_median(yoy, industry, classify):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
 
-    with engine.connect() as conn:
-        if industry == True:
+    with engine.connect() as conn:  # read for results bins for sampling each sector / industry
+        if industry == True:    # select qcut for industry (2) regression problem
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code < 100", conn)
+        elif classify == True:  # select qcut threshold for classification problem
+            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train ='{\"Not applicable\"}'", conn)
         else:
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code > 100", conn)
     engine.dispose()
@@ -87,11 +89,11 @@ def yoy_to_median(yoy, industry, classify):
         cut_bins[0] = -np.inf  # convert cut_bins into [-inf, ... , inf]
         cut_bins[-1] = np.inf
         cut_bins = [float(x) for x in cut_bins]     # convert string in list to float
-        med_test = [float(x) for x in med_test]
 
         arr_q = pd.cut(arr, bins=cut_bins, labels=False)  # cut original series into 0, 1, .... (bins * n)
 
         if classify == False:
+            med_test = [float(x) for x in med_test]
             arr_q = arr_q.replace(range(int(convert['qcut_q'])), med_test).values  # replace 0, 1, ... into median
 
         return arr_q  # return converted Y and median of all groups
@@ -99,7 +101,8 @@ def yoy_to_median(yoy, industry, classify):
     yoy_list = []
     for i in tqdm(range(len(bins_df))):   # roll over all cut_bins used by LightGBM -> convert to median
 
-        if industry == False:
+        if industry == False:   # sector(6) sampling
+
             if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
                 indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                                501010, 201020, 502030, 401010]
@@ -109,21 +112,20 @@ def yoy_to_median(yoy, industry, classify):
             else:
                 part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                                    (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
-        else:
+        else:  # industry(2) sampling
             part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                                (yoy['icb_industry'] == bins_df.iloc[i]['icb_code'])]
 
+        # qcut (and convert to median if applicable) for y_ibes, y_ni, y_ibes_act
         part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i], classify=classify)
         part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i], classify=classify)
         part_yoy['y_ibes_act_qcut'] = to_median(part_yoy['y_ibes_act'], convert=bins_df.iloc[i], classify=classify)
 
         yoy_list.append(part_yoy)
 
-    yoy_ibes_median = pd.concat(yoy_list, axis=0)
+    return pd.concat(yoy_list, axis=0)
 
-    return yoy_ibes_median
-
-def download_result_stock():
+def download_result_stock(r_name):
     ''' 3. download from DB TABLE results_lightgbm_stock '''
 
     print('----------------> update stock results from DB ')
@@ -133,7 +135,7 @@ def download_result_stock():
         trial_lgbm = set(result_stock['trial_lgbm'])
 
         query = text("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                     "FROM results_lightgbm WHERE name='restart - without fwd' AND (trial_lgbm IN :trial_lgbm)")
+                     "FROM results_lightgbm WHERE name='{}' AND (trial_lgbm IN :trial_lgbm)".format(r_name))
         query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
         result_all = pd.read_sql(query, conn)
 
@@ -143,24 +145,29 @@ def download_result_stock():
 
     return detail_stock
 
-def act_lgbm_ibes(detail_stock, yoy_ibes_median):
+def act_lgbm_ibes(detail_stock, yoy_med):
     ''' 4. combine all prediction together '''
 
     # convert datetime
-    yoy_ibes_median['period_end'] = pd.to_datetime(yoy_ibes_median['period_end'], format='%Y-%m-%d')
+    yoy_med = date_type(yoy_med)
     detail_stock['exclude_fwd'] = detail_stock['exclude_fwd'].fillna(False)
+
+    check_dup(detail_stock, index_col=['identifier','trial_lgbm'], ex=False)
 
     # pivot prediction for lgbm with fwd & lgbm without fwd
     detail_stock = pd.merge(detail_stock.loc[detail_stock['exclude_fwd'] == True],
                             detail_stock.loc[detail_stock['exclude_fwd'] == False],
-                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'], how='outer')
+                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'],
+                            how='outer', suffixes=('_ex_fwd', '_in_fwd'))
+
+    print(detail_stock.shape, detail_stock.columns)
+    # check_dup(detail_stock, index_col=['identifier','testing_period','cv_number'])
+
     detail_stock = detail_stock.filter(['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number',
                                         'pred_x', 'pred_y'])
-    detail_stock.columns = detail_stock.columns.to_list()[:-2] + ['pred_ex_fwd', 'pred_in_fwd']
 
     # merge (stock prediction) with (ibes consensus median)
-    yoy_merge = detail_stock.merge(yoy_ibes_median, left_on=['identifier', 'testing_period'],
-                                      right_on=['identifier', 'period_end'])
+    yoy_merge=detail_stock.merge(yoy_med, left_on=['identifier','testing_period'], right_on=['identifier','period_end'])
 
     return yoy_merge
 
@@ -241,6 +248,11 @@ def calc_score(yoy_merge, industry, ibes_act, classify):
 def main(industry=False, ibes_act = False, classify=False):
     ''' main function: clean ibes + calculate mae '''
 
+    # DB TABLE results_lightgbm column Name -> distinguish training versions {industry:{classify}}
+    name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'}}
+    r_name = name_list[industry][classify]
+    print(r_name)
+
     try:    # STEP1: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
         yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
@@ -257,12 +269,12 @@ def main(industry=False, ibes_act = False, classify=False):
         yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv', index=False)
 
     try:    # STEP3: download lightgbm results for stocks
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_detail_stock.csv')
-        detail_stock['testing_period'] = pd.to_datetime(detail_stock['testing_period'], format='%Y-%m-%d')
-        print('local version run - 3. detail_stock')
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
+        detail_stock = date_type(detail_stock)
+        print('local version run - 3. stock_{}'.format(r_name))
     except:
-        detail_stock = download_result_stock()
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_detail_stock.csv', index=False)
+        detail_stock = download_result_stock(r_name)
+        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name), index=False)
 
     try:    # STEP4: combine lightgbm and ibes results
         yoy_merge = pd.read_csv('results_lgbm/compare_with_ibes/ibes4_yoy_merge.csv')   # delete this file for stock results update
