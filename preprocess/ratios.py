@@ -5,6 +5,9 @@ import datetime as dt
 
 from miscel import check_dup, date_type
 
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
+
 class worldscope:
 
     def __init__(self):
@@ -195,8 +198,6 @@ def trim_outlier(df, prc=0.01):
     return df
 
 if __name__ == '__main__':
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-    engine = create_engine(db_string)
 
     # 1. organize worldscope_quarter_summary
     # try:
