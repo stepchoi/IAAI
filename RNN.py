@@ -12,13 +12,13 @@ from sqlalchemy import create_engine
 
 from load_data_rnn import load_data
 
-def RNN_train(space):
+def RNN_train():
 
     model = models.Sequential()
-    model.add(Dense(64, activation='tanh'))
+    model.add(Dense(64, activation='tanh', input_shape=(X_train.shape[1], X_train.shape[2])))
     model.add(Dense(32, activation='tanh'))
     model.add(Dense(1))
-    model.summary()
+    model.compile(optimizer='adam', loss='mae')
 
     ## try LSTM / GRU models?
     ## Callback?
@@ -26,9 +26,10 @@ def RNN_train(space):
     ## add regularization?
 
 
-    model.compile(optimizer='adam', loss='mae')
 
     model.fit(X_train, Y_train, epochs=20, batch_size=128, validation_data=(X_valid, Y_valid), verbose=1)
+    model.summary()
+
 
     loss_train, train_mae = model.evaluate(X_train, Y_train, batch_size=128, verbose=1)
     loss_valid, valid_mae = model.evaluate(X_valid, Y_valid, batch_size=128, verbose=1)
