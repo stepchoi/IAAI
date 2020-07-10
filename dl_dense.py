@@ -12,14 +12,31 @@ from sqlalchemy import create_engine
 
 from load_data_lgbm import load_data
 
-from keras import backend as K
-K.tensorflow_backend._get_available_gpus()
+space = {
 
-def dense_train():
+    # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
+    'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
+
+    'neurons_layer_1': hp.choice('neurons_layer_1', [4, 8, 16]),
+    'neurons_layer_2': hp.choice('neurons_layer_2', [4, 8, 16]),
+    'neurons_layer_3': hp.choice('neurons_layer_3', [4, 8, 16]),
+
+    'batch_size': hp.choice('batch_size', [512, 1024, 2048]),
+    # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
+
+}
+
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
+
+def dense_train(space):
+
+    params = space.copy()
+    print(params)
 
     model = models.Sequential()
-    model.add(Dense(32, activation='tanh'))
-    model.add(Dense(32, activation='tanh'))
+    for i in range(params['num_Dense_layer']):
+        model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation='tanh'))
     model.add(Dense(1))
 
     model.compile(optimizer='adam', loss='mae')
@@ -29,9 +46,7 @@ def dense_train():
 
     ## add regularization?
 
-
-
-    model.fit(X_train, Y_train, epochs=20, batch_size=128, validation_data=(X_valid, Y_valid), verbose=1)
+    model.fit(X_train, Y_train, epochs=20, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
 
@@ -42,6 +57,33 @@ def dense_train():
     print(train_mae, valid_mae, test_mae)
 
     return train_mae, valid_mae, test_mae
+
+def f(space):
+
+    train_mae, valid_mae, test_mae = dense_train(space)
+
+    result = {'mae_train': train_mae,
+              'mae_valid': valid_mae,
+              'mae_test': test_mae,
+              'status': STATUS_OK}
+
+    print(space)
+    print(result)
+    sql_result.update(result)
+    sql_result.update(space)
+
+    with engine.connect() as conn:
+        pd.DataFrame(sql_result).to_sql('results_dense', con=conn, if_exists='append')
+    engine.dispose()
+
+    return result
+
+def HPOT(space):
+
+
+    trials = Trials()
+    best = fmin(fn=f, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
+    return best
 
 # def history_log():
 #     num_epoch = 200
@@ -57,6 +99,8 @@ def dense_train():
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
+
+    sql_result = {}
 
     # these are parameters used to load_data
     icb_code = 301010
@@ -85,4 +129,4 @@ if __name__ == "__main__":
 
         print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-        dense_train()
+        dense_train(space)
