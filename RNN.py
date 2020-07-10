@@ -10,7 +10,7 @@ from keras.layers import Dense, GRU, Dropout, Flatten
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
 
-from load_data_rnn import load_data
+from load_data_lgbm import load_data
 
 def RNN_train():
 
@@ -53,19 +53,30 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
+    # these are parameters used to load_data
     icb_code = 301010
-    testing_period = dt.datetime(2013, 3, 31)
+    exclude_fwd = False
+    use_median = True
+    chron_valid = False
+    testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
 
     data = load_data()
     data.split_icb(icb_code)
-    train_x, train_y, X_test, Y_test, cv = data.split_train_test(testing_period, qcut_q, y_type='ni')
+    sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
+                                                                      y_type='ni',
+                                                                      exclude_fwd=exclude_fwd,
+                                                                      use_median=use_median,
+                                                                      chron_valid=chron_valid)
+
+    X_test = sample_set['test_x']
+    Y_test = sample_set['test_y']
 
     for train_index, test_index in cv:
-        X_train = train_x[train_index]
-        Y_train = train_y[train_index]
-        X_valid = train_x[test_index]
-        Y_valid = train_y[test_index]
+        X_train = sample_set['train_x'][train_index]
+        Y_train = sample_set['train_y'][train_index]
+        X_valid = sample_set['train_x'][test_index]
+        Y_valid = sample_set['train_y'][test_index]
 
         print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 

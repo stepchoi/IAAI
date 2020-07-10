@@ -3,7 +3,7 @@ import datetime as dt
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
-from load_data import load_data
+from load_data_lgbm import load_data
 from dateutil.relativedelta import relativedelta
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
@@ -233,7 +233,8 @@ if __name__ == "__main__":
     # training / testing sets split params
     indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
-    indi_industry = [10, 20, 30, 35, 40, 45, 50, 60, 65]
+    indi_industry_comb = [10, 20, 30, 35, 40, 45, 50, 60, 65]
+    indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     ''' 502060 is problematic on 2014-9-30, cv 5'''
 
@@ -273,7 +274,7 @@ if __name__ == "__main__":
         #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
         #     sql_result['icb_code'] = icb_code
 
-        for icb_code in [0]:   # roll over industries (first 2 icb code)
+        for icb_code in indi_industry_comb:   # roll over industries (first 2 icb code)
             data.split_industry(icb_code, combine_ind=True)
             sql_result['icb_code'] = icb_code
 

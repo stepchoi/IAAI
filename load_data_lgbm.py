@@ -139,8 +139,9 @@ class load_data:
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
             x = x.values
+            y = {}
             for col in y_col:
-                y = {col[2:]: df[col].values}
+                y[col[2:]] = df[col].values
 
             return x, y
 

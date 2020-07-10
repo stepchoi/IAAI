@@ -6,7 +6,7 @@ from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
 from miscel import date_type, check_dup
 from collections import Counter
-
+import os
 
 class eps_to_yoy:
     ''' 1. calculate    1. IBES forward NET INCOME =
@@ -79,9 +79,9 @@ def yoy_to_median(yoy, industry, classify):
         elif classify == True:  # select qcut threshold for classification problem
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train ='{\"Not applicable\"}'", conn)
         elif industry == 'new':
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code < 100 ", conn)
+            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE combine_industry = TRUE ", conn)
         elif industry == 'no':
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code = 0 ", conn)
+            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE icb_code = 0 ", conn)
         else:
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code > 100", conn)
     engine.dispose()
@@ -118,6 +118,10 @@ def yoy_to_median(yoy, industry, classify):
             else:
                 part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                                    (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
+
+        elif industry == 'no':  # when using general model
+            part_yoy = yoy.loc[yoy['period_end'] == bins_df.iloc[i]['testing_period']]
+
         else:  # industry(2) sampling
             part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                                (yoy['icb_industry'] == bins_df.iloc[i]['icb_code'])]
@@ -304,12 +308,28 @@ def main(industry=False, ibes_act = False, classify=False):
     print('save to file name: ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
     writer.save()
 
+def combine():
+    ''' combine average of different trial to save csv for comparison'''
+
+    os.chdir('results_lgbm/compare_with_ibes')
+
+    com = []
+    for root, dirs, files in os.walk(".", topdown=False):
+        for f in files:
+            if ('ibes5_mae_ibes_' in f) and ('.xlsx' in f):
+                s = pd.read_excel(f, 'average', index_col='Unnamed: 0')[0]
+                s.name = f.replace('ibes5_mae_ibes_', '').replace('.xlsx','')
+                print(s)
+                com.append(s)
+
+    pd.concat(com, axis=1).T.to_csv('ibes5_mae_ibes_all.csv')
+
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    for k in [True, False]:
-        main(industry='no', ibes_act=k, classify=False)  # industry: [True, False, 'new', 'no']
+    main(industry='no', ibes_act=True, classify=False)  # industry: [True, False, 'new', 'no']
 
+    combine()
 
 

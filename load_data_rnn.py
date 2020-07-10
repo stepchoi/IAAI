@@ -247,13 +247,18 @@ class load_data:
 if __name__ == '__main__':
 
     icb_code = 301010
-    testing_period = dt.datetime(2013,3,31)
+    testing_period = dt.datetime(2013, 3, 31)
     qcut_q = 10
 
     data = load_data()
     data.split_icb(icb_code)
-    train_x, train_y, test_x, test_y, cv = data.split_train_test(testing_period, qcut_q, y_type='ni')
+    train_x, train_y, X_test, Y_test, cv = data.split_train_test(testing_period, qcut_q, y_type='ni')
 
     for train_index, test_index in cv:
-        print(len(train_index), len(test_index))
+        X_train = train_x[train_index]
+        Y_train = train_y[train_index]
+        X_valid = train_x[test_index]
+        Y_valid = train_y[test_index]
+
+        print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
