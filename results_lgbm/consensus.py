@@ -78,6 +78,10 @@ def yoy_to_median(yoy, industry, classify):
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code < 100", conn)
         elif classify == True:  # select qcut threshold for classification problem
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train ='{\"Not applicable\"}'", conn)
+        elif industry == 'new':
+            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code < 100 ", conn)
+        elif industry == 'no':
+            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code = 0 ", conn)
         else:
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code > 100", conn)
     engine.dispose()
@@ -254,9 +258,11 @@ def main(industry=False, ibes_act = False, classify=False):
     ''' main function: clean ibes + calculate mae '''
 
     # DB TABLE results_lightgbm column Name -> distinguish training versions {industry:{classify}}
-    name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'}}
+    name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'},
+                 'no': {False: 'entire'},  'new': {False: 'new industry'}}
     r_name = name_list[industry][classify]
     print('name: ', r_name)
+
 
     try:    # STEP1: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
@@ -303,7 +309,7 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     for k in [True, False]:
-        main(industry=True, ibes_act=k, classify=False)  # change to csv name
+        main(industry='no', ibes_act=k, classify=False)  # industry: [True, False, 'new', 'no']
 
 
 
