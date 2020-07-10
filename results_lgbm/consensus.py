@@ -160,10 +160,8 @@ def act_lgbm_ibes(detail_stock, yoy_med):
     # pivot prediction for lgbm with fwd & lgbm without fwd
     detail_stock = pd.merge(detail_stock.loc[detail_stock['exclude_fwd'] == True],
                             detail_stock.loc[detail_stock['exclude_fwd'] == False],
-                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number','name'],
+                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'],
                             how='outer', suffixes=('_ex_fwd', '_in_fwd'))
-
-    print(detail_stock.shape, detail_stock.columns)
 
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code','identifier','testing_period','cv_number'], keep='last')
 
@@ -258,7 +256,7 @@ def main(industry=False, ibes_act = False, classify=False):
     # DB TABLE results_lightgbm column Name -> distinguish training versions {industry:{classify}}
     name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'}}
     r_name = name_list[industry][classify]
-    print(r_name)
+    print('name: ', r_name)
 
     try:    # STEP1: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
@@ -268,12 +266,8 @@ def main(industry=False, ibes_act = False, classify=False):
         yoy = eps_to_yoy().merge_and_calc()
         yoy.to_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv', index=False)
 
-    try:    # STEP2: convert ibes YoY to qcut / median
-        yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv')
-        print('local version run - 2. ibes_median ')
-    except:
-        yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
-        yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv', index=False)
+    # STEP2: convert ibes YoY to qcut / median
+    yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
 
     try:    # STEP3: download lightgbm results for stocks
         detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
@@ -283,21 +277,22 @@ def main(industry=False, ibes_act = False, classify=False):
         detail_stock = download_result_stock(r_name)
         detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name), index=False)
 
-    try:    # STEP4: combine lightgbm and ibes results
-        yoy_merge = pd.read_csv('results_lgbm/compare_with_ibes/ibes4_yoy_merge.csv')   # delete this file for stock results update
-        print('local version run - 4. yoy_merge')
-    except:
-        yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)
-        yoy_merge.to_csv('results_lgbm/compare_with_ibes/ibes4_yoy_merge.csv', index=False)
+    # STEP4: combine lightgbm and ibes results
+    yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)
 
-    df = calc_score(yoy_merge, industry, ibes_act, classify)  # STEP5: calculate MAE
+    # STEP5: calculate MAE
+    df = calc_score(yoy_merge, industry, ibes_act, classify)
 
+    # STEP6: save to EXCEL
     ttm = {True:'ibes', False: 'ws'}
     writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
 
-    df.to_excel(writer, 'all', index=False)
-    df.groupby('icb_code').mean().reset_index().to_excel(writer, 'by sector', index=False)
-    df.groupby('testing_period').mean().reset_index().to_excel(writer, 'by time', index=False)
+    df.to_excel(writer, 'all', index=False)         # all results
+
+    df_sector = df.groupby('icb_code').mean().reset_index()     # results: average of sectors
+    label_ind_name(df_sector).to_excel(writer, 'by sector', index=False)
+
+    df.groupby('testing_period').mean().reset_index().to_excel(writer, 'by time', index=False)  # results: average of testing_period
     df.mean().to_excel(writer, 'average')
 
     print('save to file name: ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
@@ -307,8 +302,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(industry=False, ibes_act=True, classify=False)  # change to csv name
-    exit(0)
+    for k in [True, False]:
+        main(industry=True, ibes_act=k, classify=False)  # change to csv name
 
 
 

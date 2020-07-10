@@ -48,6 +48,8 @@ if __name__ == '__main__':
     worldscope_identifier = get_worldscope_identifier()
     result = result.merge(worldscope_identifier, how='left', left_on=["ticker"], right_on=["member_ric"])
 
+    # result[['identifier', 'period_end','close']].to_csv('preprocess/stock_data.csv', index=False)
+
     result = result[["identifier", "period_end", "stock_return_1Qa", "stock_return_3Qb"]]
     result[[ "stock_return_1Qa", "stock_return_3Qb"]] = result[[ "stock_return_1Qa", "stock_return_3Qb"]].astype(float)
 
