@@ -5,6 +5,8 @@ from sklearn.metrics import mean_absolute_error, accuracy_score
 from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
 from miscel import date_type, check_dup
+from collections import Counter
+
 
 class eps_to_yoy:
     ''' 1. calculate    1. IBES forward NET INCOME =
@@ -133,7 +135,7 @@ def download_result_stock(r_name):
     with engine.connect() as conn:
 
         # read DB TABLE results_lightgbm data for given "name"
-        result_all = pd.read_sql("SELECT name, trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
+        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
                      "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
         trial_lgbm = set(result_all['trial_lgbm'])
 
@@ -158,16 +160,15 @@ def act_lgbm_ibes(detail_stock, yoy_med):
     # pivot prediction for lgbm with fwd & lgbm without fwd
     detail_stock = pd.merge(detail_stock.loc[detail_stock['exclude_fwd'] == True],
                             detail_stock.loc[detail_stock['exclude_fwd'] == False],
-                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number'],
+                            on=['identifier', 'qcut_q', 'icb_code', 'testing_period', 'cv_number','name'],
                             how='outer', suffixes=('_ex_fwd', '_in_fwd'))
 
-    # use average for cross listing & multiple cross-validation
-    detail_stock = detail_stock.groupby(['name', 'identifier', 'testing_period']).mean()[['icb_code', 'pred_ex_fwd',
-                                                                                          'pred_in_fwd']].reset_index(drop=False)
-
-    check_dup(detail_stock, index_col=['name', 'identifier','trial_lgbm'], ex=False)
-
     print(detail_stock.shape, detail_stock.columns)
+
+    detail_stock = detail_stock.drop_duplicates(subset=['icb_code','identifier','testing_period','cv_number'], keep='last')
+
+    # use median for cross listing & multiple cross-validation
+    detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period']).median()[['pred_ex_fwd','pred_in_fwd']].reset_index(drop=False)
 
     # merge (stock prediction) with (ibes consensus median)
     yoy_merge=detail_stock.merge(yoy_med, left_on=['identifier','testing_period'], right_on=['identifier','period_end'])
@@ -201,7 +202,6 @@ def calc_score(yoy_merge, industry, ibes_act, classify):
             dict['ibes'] = accuracy_score(df['y_ibes_qcut'], df['y_ni_qcut'])
 
         dict['lgbm_ex_fwd'] = accuracy_score(df['pred_ex_fwd'], df['y_ni_qcut'])
-        dict['lgbm_in_fwd'] = accuracy_score(df['pred_in_fwd'], df['y_ni_qcut'])
         dict['len'] = len(df)
         return dict
 
@@ -213,26 +213,26 @@ def calc_score(yoy_merge, industry, ibes_act, classify):
             for i in set(yoy_merge['icb_code']):
                 part_i = part_p.loc[part_p['icb_code']==i]
 
-                try:    # calculate aggregate mae for all 5 cv groups
+                if len(part_i) > 0:    # calculate aggregate mae for all 5 cv groups
                     if classify == True:
                         mae['{}_{}_all'.format(p, i)] = part_accu(part_i, ibes_act)
                     else:
                         mae['{}_{}_all'.format(p, i)] = part_mae(part_i, ibes_act)
-                except:
-                    print('not available', p, i)
+                else:
+                    print('not available (len = 0)', p, i)
                     continue
 
         else:
             for i in set(yoy_merge['icb_industry']):
                 part_i = part_p.loc[part_p['icb_industry'] == i]
 
-                try:  # calculate aggregate mae for all 5 cv groups
+                if len(part_i) > 0:    # calculate aggregate mae for all 5 cv groups
                     if classify == True:
                         mae['{}_{}_all'.format(p, i)] = part_accu(part_i, ibes_act)
                     else:
                         mae['{}_{}_all'.format(p, i)] = part_mae(part_i, ibes_act)
-                except:
-                    print('not available', p, i)
+                else:
+                    print('not available (len = 0)', p, i)
                     continue
 
     df = pd.DataFrame(mae).T.reset_index()
@@ -240,7 +240,11 @@ def calc_score(yoy_merge, industry, ibes_act, classify):
     df[['testing_period', 'icb_code', 'cv_number']] = df['index'].str.split('_', expand=True)
     df = df.filter(['icb_code','testing_period', 'cv_number','ibes','lgbm_ex_fwd','lgbm_in_fwd','len'])
 
-    # label sector name for each icb_code
+    return df
+
+def label_ind_name(df):
+    '''label sector name for each icb_code '''
+
     with engine.connect() as conn:
         ind_name = pd.read_sql('SELECT * FROM industry_group', conn)
     engine.dispose()
@@ -271,7 +275,6 @@ def main(industry=False, ibes_act = False, classify=False):
         yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
         yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv', index=False)
 
-
     try:    # STEP3: download lightgbm results for stocks
         detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
@@ -289,15 +292,22 @@ def main(industry=False, ibes_act = False, classify=False):
 
     df = calc_score(yoy_merge, industry, ibes_act, classify)  # STEP5: calculate MAE
 
-    name = {True:{True:'ibesttm_industry', False:'ibesttm_sector'}, False: {True:'wsttm_industry', False:'wsttm_sector'}}
-    print('save to file name: ibes5_mae_{}'.format(name[ibes_act][industry]))
-    df.to_csv('results_lgbm/compare_with_ibes/ibes5_mae_{}.csv'.format(name[ibes_act][industry]), index=False)
+    ttm = {True:'ibes', False: 'ws'}
+    writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
+
+    df.to_excel(writer, 'all', index=False)
+    df.groupby('icb_code').mean().reset_index().to_excel(writer, 'by sector', index=False)
+    df.groupby('testing_period').mean().reset_index().to_excel(writer, 'by time', index=False)
+    df.mean().to_excel(writer, 'average')
+
+    print('save to file name: ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
+    writer.save()
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(industry=False, ibes_act=False, classify=True)  # change to csv name
+    main(industry=False, ibes_act=True, classify=False)  # change to csv name
     exit(0)
 
 

@@ -6,6 +6,7 @@ def check_dup(df, index_col=['identifier','period_end'], ex=True):
     dup = df.duplicated(subset=index_col, keep=False)
     df_dup = df.loc[dup].sort_values(index_col)
     df_dup.to_csv('#check_dup.csv', index=False)
+    print(df_dup)
 
     if ex == True:
         print('exit from check_dup')
