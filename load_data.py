@@ -38,7 +38,7 @@ class add_macro():
         ratios['market'] = ratios['index_ric'].replace(['0#.CSI300', '0#.N225', '0#.SPX', '0#.HSLI'], ['CH','JP','US','HK'])
         return ratios.drop(['index_ric'], axis=1)
 
-    def map_macros(self):
+    def map_macros(self, ratios):
         ''' map macros to ratios TABLE '''
 
         with engine.connect():
@@ -102,10 +102,13 @@ class load_data:
         # print(main.describe().T[['max','min']])
 
     def split_industry(self, icb_industry, combine_ind=True):
-        if combine_ind == True:
-            self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+        if icb_industry != None:
+            if combine_ind == True:
+                self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
 
-        self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
+            self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
+        else:
+            self.sector = self.main
 
     def split_train_test(self, testing_period, exclude_fwd):
         ''' split training / testing set based on testing period '''
