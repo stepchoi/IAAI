@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 import datetime as dt
 
 def download(update=0, r_name = None):
@@ -131,9 +131,9 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'industry'
+    r_name = 'new industry'
 
-    results = download(0, r_name=r_name)
+    results = download(1, r_name=r_name)
     plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)

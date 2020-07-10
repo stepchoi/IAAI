@@ -102,7 +102,7 @@ class load_data:
         # print(main.describe().T[['max','min']])
 
     def split_industry(self, icb_industry, combine_ind=True):
-        if icb_industry != None:
+        if icb_industry != 0:
             if combine_ind == True:
                 self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
 
