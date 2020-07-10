@@ -167,7 +167,7 @@ def calc_fwd(ws):
 
     return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic','y_ibes']]
 
-def full_period(df, index_col, date_format=None):
+def full_period(df, index_col='identifier', date_format=None):
     ''' add NaN for missing records to facilitate time_series ratios calculation (worldscope & stock_return)'''
 
     start = dt.datetime(1998, 3, 31)

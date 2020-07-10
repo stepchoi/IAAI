@@ -3,60 +3,62 @@ import numpy as np
 import pandas as pd
 # from matplotlib import pyplot as plt
 import datetime as dt
+from miscel import date_type, check_dup
 
-def download(update=0):
-    ''' donwload results from results_feature_importance '''
+def download_result_features(r_name):
+    ''' 3. download from DB TABLE results_lightgbm_stock '''
 
-    if update==0:   # update if newer results is downloaded
-        importance = pd.read_csv('results_lgbm/feature_importance/feature_importance.csv')
-        print('local version run - importance')
-
-    elif update==1:
-        with engine.connect() as conn:
-            importance = pd.read_sql('SELECT * FROM results_feature_importance', con=conn)
-        engine.dispose()
-
-        importance.to_csv('results_lgbm/feature_importance/feature_importance.csv', index=False)
-
-    return importance
-
-def map_info(importance):
-    ''' mapping training details to feature importance based on trial_lgbm'''
-
-    name = 'restart - without fwd'  # labels for training rounds
-    trial_lgbm = set(importance['trial_lgbm'])
-    # print(trial_lgbm)
+    print('----------------> update stock results from DB ')
 
     with engine.connect() as conn:
-        query = text("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                     "FROM results_lightgbm WHERE name='{}' AND (trial_lgbm IN :trial_lgbm)".format(name))
+
+        # read DB TABLE results_lightgbm data for given "name"
+        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
+                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
+        trial_lgbm = set(result_all['trial_lgbm'])
+
+        # read corresponding part of DB TABLE results_lightgbm_stock
+        query = text('SELECT * FROM results_feature_importance WHERE (trial_lgbm IN :trial_lgbm)')
         query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
-        info = pd.read_sql(query, conn)
+        result_stock = pd.read_sql(query, conn)
+
     engine.dispose()
 
-    importance_info = importance.merge(info, on=['trial_lgbm'], how='inner')
-    # print(importance_info)
+    return result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
 
-    importance_info.to_csv('results_lgbm/feature_importance/feature_importance_info.csv', index=False)
-
-    return importance_info
 
 def group_icb(df):
     ''' groupby icb_code and find sum'''
-    # print(df)
-    print(df.groupby(['icb_code','importance_type']).sum())
 
-    df.groupby(['importance_type']).mean().T.to_csv('results_lgbm/feature_importance/feature_importance_sum_sum.csv')
+    df = df.loc[df['exclude_fwd']==False]
+    df = df.drop(['trial_lgbm', 'qcut_q', 'testing_period', 'cv_number', 'mae_test', 'exclude_fwd'], axis=1)
 
-    df.groupby(['icb_code','importance_type']).sum().T.to_csv('results_lgbm/feature_importance/feature_importance_sum.csv')
+    def org_by_type(importance_type):
+        df_type = df.loc[(df['importance_type']==importance_type)].groupby(['icb_code']).mean().T
+        df_type['all'] = df_type.sum(1)
+        return df_type.sort_values('all', ascending=False)
+
+    writer = pd.ExcelWriter('results_lgbm/feature_importance/{}_describe.xlsx'.format(r_name))
+
+    for t in ['gain', 'split']:
+        org_by_type(t).to_excel(writer, t)
+
+    writer.save()
+
 
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    importance = download(1)
-    importance_info = map_info(importance)
+    r_name = 'complete fwd'
 
-    # importance_info = pd.read_csv('results_lgbm/feature_importance/feature_importance_info.csv')
-    group_icb(importance_info)
+    try:    # STEP1: download lightgbm results for feature importance
+        importance = pd.read_csv('results_lgbm/feature_importance/{}_total.csv'.format(r_name))
+        importance = date_type(importance, date_col='testing_period')
+        print('local version run - total_{}'.format(r_name))
+    except:
+        importance = download_result_features(r_name)
+        importance.to_csv('results_lgbm/feature_importance/{}_total.csv'.format(r_name), index=False)
+
+    group_icb(importance)

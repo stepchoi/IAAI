@@ -66,17 +66,22 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self):
+    def __init__(self, main = []):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
-        try:
-            self.main = pd.read_csv('preprocess/main.csv')
-            self.main['period_end'] = pd.to_datetime(self.main['period_end'], format='%Y-%m-%d')
-            print('local version run - main')
-        except:
-            self.main = add_macro().map_macros()
-            # self.main.to_csv('preprocess/main.csv', index=False)
+        if len(main) == 0:    # for LightGBM
+
+            try:
+                self.main = pd.read_csv('preprocess/main.csv')
+                self.main['period_end'] = pd.to_datetime(self.main['period_end'], format='%Y-%m-%d')
+                print('local version run - main')
+            except:
+                self.main = add_macro().map_macros()
+                # self.main.to_csv('preprocess/main.csv', index=False)
+
+        else:               # for RNN
+            self.main = main
 
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
 
@@ -124,17 +129,19 @@ class load_data:
         def divide_set(df):
             ''' split x, y from main '''
 
+            y_col = [x for x in df.columns if x[:2]=='y_']
+
             if exclude_fwd == False:
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ibes',
-                             'y_ni', 'y_rev'], axis=1)
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry'] + y_col , axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'y_ni','y_ibes',
-                             'y_rev','fwd_ey','fwd_roic'], axis=1)
+                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'fwd_ey','fwd_roic'] + y_col , axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
             x = x.values
-            y = {'ni': df['y_ni'].values, 'rev': df['y_rev'].values, 'ibes': df['y_ibes'].values}
+            for col in y_col:
+                y = {col[2:]: df[col].values}
+
             return x, y
 
         # keep non-qcut y for calculation
@@ -233,8 +240,6 @@ if __name__ == '__main__':
     chron_valid = False
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
-    valid_method = 'shuffle'
-    valid_no = 10
 
     data = load_data()
     # data.split_icb(icb_code)
