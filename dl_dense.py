@@ -12,13 +12,15 @@ from sqlalchemy import create_engine
 
 from load_data_lgbm import load_data
 
-def RNN_train():
+from keras import backend as K
+K.tensorflow_backend._get_available_gpus()
+
+def dense_train():
 
     model = models.Sequential()
-    model.add(Dense(64, activation='tanh', input_shape=(X_train.shape[1], X_train.shape[2])))
+    model.add(Dense(32, activation='tanh'))
     model.add(Dense(32, activation='tanh'))
     model.add(Dense(1))
-    model.summary()
 
     model.compile(optimizer='adam', loss='mae')
 
@@ -30,11 +32,14 @@ def RNN_train():
 
 
     model.fit(X_train, Y_train, epochs=20, batch_size=128, validation_data=(X_valid, Y_valid), verbose=1)
+    model.summary()
 
 
-    loss_train, train_mae = model.evaluate(X_train, Y_train, batch_size=128, verbose=1)
-    loss_valid, valid_mae = model.evaluate(X_valid, Y_valid, batch_size=128, verbose=1)
-    loss_valid, test_mae = model.evaluate(X_test, Y_test, batch_size=128, verbose=1)
+    train_mae = model.evaluate(X_train, Y_train,  verbose=1)
+    valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
+    test_mae = model.evaluate(X_test, Y_test, verbose=1)
+
+    print(train_mae, valid_mae, test_mae)
 
     return train_mae, valid_mae, test_mae
 
@@ -69,15 +74,15 @@ if __name__ == "__main__":
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid)
 
-    X_test = sample_set['test_x']
+    X_test =  np.nan_to_num(sample_set['test_x'], nan=0)
     Y_test = sample_set['test_y']
 
     for train_index, test_index in cv:
-        X_train = sample_set['train_x'][train_index]
+        X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
         Y_train = sample_set['train_y'][train_index]
-        X_valid = sample_set['train_x'][test_index]
+        X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
         Y_valid = sample_set['train_y'][test_index]
 
         print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-        RNN_train()
+        dense_train()
