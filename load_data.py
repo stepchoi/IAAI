@@ -38,7 +38,7 @@ class add_macro():
         ratios['market'] = ratios['index_ric'].replace(['0#.CSI300', '0#.N225', '0#.SPX', '0#.HSLI'], ['CH','JP','US','HK'])
         return ratios.drop(['index_ric'], axis=1)
 
-    def map_macros(self, ratios):
+    def map_macros(self):
         ''' map macros to ratios TABLE '''
 
         with engine.connect():
@@ -108,6 +108,7 @@ class load_data:
 
             self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
         else:
+            print('--- train on all samples ---')
             self.sector = self.main
 
     def split_train_test(self, testing_period, exclude_fwd):
