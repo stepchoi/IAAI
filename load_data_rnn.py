@@ -87,7 +87,7 @@ def read_data():
             ibes = pd.read_sql('SELECT * FROM ibes_data', conn)
             stock = pd.read_sql('SELECT * FROM stock_data', conn)
             macro = pd.read_sql('SELECT * FROM macro_data', conn)
-            y = pd.read_sql('SELECT identifier, period_end, y_ibes, y_ni FROM clean_ratio', conn)
+            y = pd.read_sql('SELECT identifier, period_end, y_ibes, y_ni FROM clean_ratios', conn)
         engine.dispose()
 
     ibes_stock = pd.merge(date_type(ibes), date_type(stock), on=['identifier','period_end'])
