@@ -253,7 +253,7 @@ if __name__ == "__main__":
     use_median = True       # default setting
     chron_valid = False     # default setting
 
-    db_last_param, sql_result = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 

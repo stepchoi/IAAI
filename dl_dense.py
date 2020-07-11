@@ -93,7 +93,7 @@ def HPOT(space):
     hpot['all_results'] = []
 
     trials = Trials()
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=100, trials=trials)
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
 
     with engine.connect() as conn:
         pd.DataFrame(hpot['all_results']).to_sql('results_dense_new', con=conn, index=False, if_exists='append')
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
     sample_no = 25
-    db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
