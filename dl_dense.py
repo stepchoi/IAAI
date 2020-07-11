@@ -17,11 +17,11 @@ space = {
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
     'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
 
-    'neurons_layer_1': hp.choice('neurons_layer_1', [4, 8, 16]),
-    'neurons_layer_2': hp.choice('neurons_layer_2', [4, 8, 16]),
-    'neurons_layer_3': hp.choice('neurons_layer_3', [4, 8, 16]),
+    'neurons_layer_1': hp.choice('neurons_layer_1', [8, 16, 32, 64]),
+    'neurons_layer_2': hp.choice('neurons_layer_2', [8, 16, 32, 64]),
+    'neurons_layer_3': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
 
-    'batch_size': hp.choice('batch_size', [512, 1024, 2048]),
+    'batch_size': hp.choice('batch_size', [32, 64, 128, 256, 512]),
     # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
 
 }
@@ -46,7 +46,7 @@ def dense_train(space):
 
     ## add regularization?
 
-    model.fit(X_train, Y_train, epochs=20, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
 
@@ -58,8 +58,9 @@ def dense_train(space):
 
     return train_mae, valid_mae, test_mae
 
-def f(space):
+def eval(space):
 
+    print(space)
     train_mae, valid_mae, test_mae = dense_train(space)
 
     result = {'mae_train': train_mae,
@@ -73,16 +74,15 @@ def f(space):
     sql_result.update(space)
 
     with engine.connect() as conn:
-        pd.DataFrame(sql_result).to_sql('results_dense', con=conn, if_exists='append')
+        pd.DataFrame(sql_result, index=[0]).to_sql('results_dense', con=conn, if_exists='append')
     engine.dispose()
 
-    return result
+    return result['mae_valid']
 
 def HPOT(space):
 
-
     trials = Trials()
-    best = fmin(fn=f, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=100, trials=trials)
     return best
 
 # def history_log():
@@ -129,4 +129,4 @@ if __name__ == "__main__":
 
         print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-        dense_train(space)
+        HPOT(space)
