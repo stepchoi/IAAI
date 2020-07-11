@@ -116,8 +116,6 @@ def HPOT(space):
 
 
 if __name__ == "__main__":
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-    engine = create_engine(db_string)
 
     sql_result = {}
     hpot = {}

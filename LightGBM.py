@@ -36,6 +36,8 @@ space = {
     'num_threads': 12  # for the best speed, set this to the number of real CPU cores
 }
 
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
 
 def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
@@ -209,7 +211,7 @@ def importance_to_sql(gbm):
 
     return df
 
-def read_db_last():
+def read_db_last(sql_result):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
     with engine.connect() as conn:
@@ -223,7 +225,7 @@ def read_db_last():
     sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
     sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
 
-    return db_last_param
+    return db_last_param, sql_result
 
 if __name__ == "__main__":
 
@@ -251,7 +253,7 @@ if __name__ == "__main__":
     use_median = True       # default setting
     chron_valid = False     # default setting
 
-    db_last_param = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last()  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
