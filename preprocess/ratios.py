@@ -158,6 +158,10 @@ def calc_fwd(ws):
 
     ibes_ws = fill_missing_ibse(ibes_ws)                                        # calculate IBES TTM as Y
     ibes_ws = full_period(ibes_ws, 'identifier')
+
+
+
+
     ibes_ws['y_ibes'] = (ibes_ws['eps1tr12'].shift(-4) - ibes_ws['eps1tr12']) / ibes_ws['fn_8001'] * ibes_ws['fn_5192']
     ibes_ws.loc[ibes_ws.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan
 

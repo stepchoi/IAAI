@@ -211,11 +211,11 @@ def importance_to_sql(gbm):
 
     return df
 
-def read_db_last(sql_result):
+def read_db_last(sql_result, results_table = 'results_lightgbm'):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
     with engine.connect() as conn:
-        db_last = pd.read_sql("SELECT * FROM results_lightgbm order by finish_timing desc LIMIT 1", conn)
+        db_last = pd.read_sql("SELECT * FROM {} order by finish_timing desc LIMIT 1".format(results_table), conn)
     engine.dispose()
 
     db_last_param = db_last[['exclude_fwd','icb_code','testing_period']].to_dict('index')[0]

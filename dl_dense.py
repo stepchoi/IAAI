@@ -96,7 +96,7 @@ def HPOT(space):
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_dense_new', con=conn, index=False, if_exists='append')
+        pd.DataFrame(hpot['all_results']).to_sql('results_dense', con=conn, index=False, if_exists='append')
         hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
