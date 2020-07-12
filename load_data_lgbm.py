@@ -7,6 +7,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GroupShuffleSplit
 from collections import Counter
+from results_lgbm.consensus import eps_to_yoy
+from miscel import date_type
 import gc
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -66,22 +68,26 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, main = []):
+    def __init__(self):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
-        if len(main) == 0:    # for LightGBM
 
-            try:
-                self.main = pd.read_csv('preprocess/main.csv')
-                self.main['period_end'] = pd.to_datetime(self.main['period_end'], format='%Y-%m-%d')
-                print('local version run - main')
-            except:
-                self.main = add_macro().map_macros()
-                # self.main.to_csv('preprocess/main.csv', index=False)
+        try:
+            self.main = pd.read_csv('preprocess/main.csv')
+            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv',
+                                         usecols=['identifier','period_end','y_ibes'])
+            print('local version run - main / consensus')
+        except:
+            self.main = add_macro().map_macros()
+            self.main.to_csv('preprocess/main.csv', index=False)
+            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_ibes'])
+            # self.main.to_csv('preprocess/main.csv', index=False)
 
-        else:               # for RNN
-            self.main = main
+        self.main = date_type(self.main)
+        self.consensus = date_type(self.consensus)
+        self.consensus.columns = ['identifier', 'period_end', 'ibes_qcut_as_x']
+        self.main = self.main.merge(self.consensus, on =['identifier','period_end'])
 
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
 
@@ -93,7 +99,7 @@ class load_data:
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
 
-    def split_icb(self, icb_code):
+    def split_sector(self, icb_code):
         ''' split samples from specific sectors (icb_code) '''
 
         indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
@@ -116,7 +122,7 @@ class load_data:
             print('--- train on all samples ---')
             self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -138,7 +144,9 @@ class load_data:
             if exclude_fwd == False:
                 x = df.drop(id_col + y_col + ws_ni_col , axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(id_col + y_col + ws_ni_col + fwd_col + fwd_eps_col, axis=1)
+                x = df.drop(id_col + y_col + fwd_eps_col + fwd_col, axis=1)
+                if ibes_qcut_as_x == False:
+                    x = df.drop(['ibes_qcut_as_x'], axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
@@ -160,7 +168,7 @@ class load_data:
         self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
         self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
 
-    def y_qcut(self, qcut_q, use_median, y_type):
+    def y_qcut(self, qcut_q, use_median, y_type, ibes_qcut_as_x):
         ''' qcut y '''
 
         def to_median(use_median):
@@ -169,6 +177,9 @@ class load_data:
             # cut original series into 0, 1, .... (bins * n)
             train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False)
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
+            if ibes_qcut_as_x == True:
+                self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
+                self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
             if use_median == True:
                 # calculate median on train_y for each qcut group
@@ -191,6 +202,7 @@ class load_data:
 
     def split_valid(self, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
+
         if chron_valid == False:    # split validation by stocks
             gkf = GroupShuffleSplit(n_splits=5).split(self.sample_set['train_x'],
                                                       self.sample_set['train_y'],
@@ -204,12 +216,12 @@ class load_data:
 
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False, ibes_qcut_as_x=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x)
         self.standardize_x()
-        self.y_qcut(qcut_q, use_median, y_type)
+        self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
 
         print('sample_set keys: ', self.sample_set.keys())
@@ -245,6 +257,7 @@ if __name__ == '__main__':
     chron_valid = False
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
+    ibes_qcut_as_x = True
 
     data = load_data()
     # data.split_icb(icb_code)
@@ -254,7 +267,8 @@ if __name__ == '__main__':
                                                                       y_type='ni',
                                                                       exclude_fwd=exclude_fwd,
                                                                       use_median=use_median,
-                                                                      chron_valid=chron_valid)
+                                                                      chron_valid=chron_valid,
+                                                                      ibes_qcut_as_x=ibes_qcut_as_x)
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))

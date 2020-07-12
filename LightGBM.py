@@ -252,7 +252,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'entire'                     # name = labeling the experiments
+    sql_result['name'] = 'ibes eps ts'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
     use_median = True       # default setting
@@ -262,7 +262,7 @@ if __name__ == "__main__":
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    # ALTER 1: change for classification problem
+    ## ALTER 1: change for classification problem
     # use_median = False
     # sql_result['qcut_q'] = 3
     # space['num_class']= 3,
@@ -272,72 +272,78 @@ if __name__ == "__main__":
     ## ALTER 2: change using chronological last few as validation
     # chron_valid = True
 
-    ''' start roll over exclude_fwd(2) / testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
+    ## ALTER 3: use eps_ts instead of ni_ts
+    exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    sql_result['y_type'] = 'ibes'
 
-    for exclude_fwd in [True, False]:  # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
-        sql_result['exclude_fwd'] = exclude_fwd
+    ##ALTER 4: use qcut ibes
+    # exclude_fwd = False
+    # ibes_qcut_as_x = True
 
-        # for icb_code in indi_models:    # roll over sectors (first 6 icb code)
-        #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
-        #     sql_result['icb_code'] = icb_code
 
-        for icb_code in indi_industry_comb:   # roll over industries (first 2 icb code)
-            data.split_industry(icb_code, combine_ind=True)
-            sql_result['icb_code'] = icb_code
+    ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-            for i in tqdm(range(sample_no)):  # roll over testing period
-                testing_period = period_1 + i * relativedelta(months=3)
-                sql_result['testing_period'] = testing_period
+    # for icb_code in indi_models:    # roll over sectors (first 6 icb code)
+    #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
+    #     sql_result['icb_code'] = icb_code
 
-                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
-                if resume == True:
+    for icb_code in indi_models:   # roll over industries (first 2 icb code)
+        data.split_sector(icb_code)
+        sql_result['icb_code'] = icb_code
 
-                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
-                        'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
-                        resume = False
-                        print('---------> Resume Training', icb_code, testing_period)
-                    else:
-                        print('Not yet resume: params done', icb_code, testing_period)
-                        continue
+        for i in tqdm(range(sample_no)):  # roll over testing period
+            testing_period = period_1 + i * relativedelta(months=3)
+            sql_result['testing_period'] = testing_period
 
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                  sql_result['qcut_q'],
-                                                                                  sql_result['y_type'],
-                                                                                  exclude_fwd=exclude_fwd,
-                                                                                  use_median=use_median,
-                                                                                  chron_valid=chron_valid)
+            # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
+            if resume == True:
 
-                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
+                    'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
+                    resume = False
+                    print('---------> Resume Training', icb_code, testing_period)
+                else:
+                    print('Not yet resume: params done', icb_code, testing_period)
+                    continue
 
-                continue
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                              sql_result['qcut_q'],
+                                                                              sql_result['y_type'],
+                                                                              exclude_fwd=exclude_fwd,
+                                                                              use_median=use_median,
+                                                                              chron_valid=chron_valid)
 
-                cv_number = 1   # represent which cross-validation sets
-                for train_index, valid_index in cv:     # roll over 5 cross validation set
-                    sql_result['cv_number'] = cv_number
+            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-                    # when Resume = False: try split validation set from training set + start hyperopt
-                    try:
-                        sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                        sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                        sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                        sample_set['train_yy'] = sample_set['train_y'][train_index]
+            continue
 
-                        sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                        sql_result['valid_len'] = len(sample_set['valid_x'])
+            cv_number = 1   # represent which cross-validation sets
+            for train_index, valid_index in cv:     # roll over 5 cross validation set
+                sql_result['cv_number'] = cv_number
 
-                        HPOT(space, max_evals=10)   # start hyperopt
-                        cv_number += 1
+                # when Resume = False: try split validation set from training set + start hyperopt
+                try:
+                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                    sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                    except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                        print('ERROR on', icb_code, testing_period, cv_number)
+                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                    sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                        with engine.connect() as conn:
-                            pd.DataFrame({'icb_code': icb_code,
-                                          'testing_period': pd.Timestamp(testing_period),
-                                          'cv_number': cv_number,
-                                          'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
-                                                                                             index=False, if_exists='append')
-                        engine.dispose()
-                        cv_number += 1
-                        continue
+                    HPOT(space, max_evals=10)   # start hyperopt
+                    cv_number += 1
+
+                except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+                    print('ERROR on', icb_code, testing_period, cv_number)
+
+                    with engine.connect() as conn:
+                        pd.DataFrame({'icb_code': icb_code,
+                                      'testing_period': pd.Timestamp(testing_period),
+                                      'cv_number': cv_number,
+                                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
+                                                                                         index=False, if_exists='append')
+                    engine.dispose()
+                    cv_number += 1
+                    continue
 

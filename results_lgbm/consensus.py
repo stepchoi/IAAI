@@ -8,6 +8,9 @@ from miscel import date_type, check_dup
 from collections import Counter
 import os
 
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
+
 class eps_to_yoy:
     ''' 1. calculate    1. IBES forward NET INCOME =
                         IBES forward EPS * common share outstanding used to calculate EPS (both at T0)
@@ -329,9 +332,6 @@ def combine():
     pd.concat(com, axis=1).T.to_csv('ibes5_mae_ibes_all.csv')
 
 if __name__ == "__main__":
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-    engine = create_engine(db_string)
-
     main(industry='no', ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
                                                         #            'new': new industry, 'no': entire]
 
