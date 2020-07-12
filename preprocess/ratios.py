@@ -159,17 +159,21 @@ def calc_fwd(ws):
     ibes_ws = fill_missing_ibse(ibes_ws)                                        # calculate IBES TTM as Y
     ibes_ws = full_period(ibes_ws, 'identifier')
 
-
-
+    # calculate CAGR for y-5 ~ y-3, y-3 ~ y-1, y-1 ~ y0 -> 4Q = 1Y
+    ibes_ws['eps_ts01'] = (ibes_ws['eps1tr12']/ibes_ws['eps1tr12'].shift(4)).sub(1)
+    ibes_ws.loc[ibes_ws.groupby('identifier').head(4).index, 'eps_ts01'] = np.nan # y-1 ~ y0
+    ibes_ws['eps_ts13'] = np.sqrt(ibes_ws['eps1tr12']/ibes_ws['eps1tr12'].shift(8)).sub(1).shift(4)
+    ibes_ws.loc[ibes_ws.groupby('identifier').head(12).index, 'eps_ts13'] = np.nan # y-3 ~ y-1
+    ibes_ws['eps_ts35'] = ibes_ws['eps_ts13'].shift(8)
+    ibes_ws.loc[ibes_ws.groupby('identifier').head(20).index, 'eps_ts35'] = np.nan # y-5 ~ y-3
 
     ibes_ws['y_ibes'] = (ibes_ws['eps1tr12'].shift(-4) - ibes_ws['eps1tr12']) / ibes_ws['fn_8001'] * ibes_ws['fn_5192']
     ibes_ws.loc[ibes_ws.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan
 
-
     ibes_ws['fwd_ey'] = ibes_ws['eps1fd12'] / ibes_ws['fn_5085']
     ibes_ws['fwd_roic'] = (ibes_ws['ebd1fd12'] - ibes_ws['cap1fd12']) / ibes_ws['roic_demon']
 
-    return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic','y_ibes']]
+    return ibes_ws[['identifier','period_end','fwd_ey','fwd_roic','y_ibes', 'eps_ts01', 'eps_ts13', 'eps_ts35']]
 
 def full_period(df, index_col='identifier', date_format=None):
     ''' add NaN for missing records to facilitate time_series ratios calculation (worldscope & stock_return)'''

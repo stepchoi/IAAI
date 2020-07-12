@@ -193,8 +193,12 @@ def calc_score(yoy_merge, industry, ibes_act, classify):
         else:
             dict['ibes'] = mean_absolute_error(df['y_ibes_qcut'], df['y_ni_qcut'])
 
-        dict['lgbm_ex_fwd'] = mean_absolute_error(df['pred_ex_fwd'], df['y_ni_qcut'])
-        dict['lgbm_in_fwd'] = mean_absolute_error(df['pred_in_fwd'], df['y_ni_qcut'])
+        for col in ['_ex_fwd', '_in_fwd']:
+            try:
+                dict['lgbm{}'.format(col)] = mean_absolute_error(df['pred{}'.format(col)], df['y_ni_qcut'])
+            except:
+                dict['lgbm{}'.format(col)] = np.nan
+                continue
         dict['len'] = len(df)
         return dict
 
@@ -328,7 +332,9 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    main(industry='no', ibes_act=True, classify=False)  # industry: [True, False, 'new', 'no']
+    main(industry='no', ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
+                                                        #            'new': new industry, 'no': entire]
+
 
     combine()
 

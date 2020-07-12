@@ -130,11 +130,15 @@ class load_data:
             ''' split x, y from main '''
 
             y_col = [x for x in df.columns if x[:2]=='y_']
+            fwd_col = ['fwd_ey','fwd_roic']
+            fwd_eps_col = ['eps_ts01', 'eps_ts13', 'eps_ts35']
+            ws_ni_col = ['ni_ts01','ni_ts13','ni_ts35']
+            id_col = ['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry']
 
             if exclude_fwd == False:
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry'] + y_col , axis=1)
+                x = df.drop(id_col + y_col + ws_ni_col , axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry', 'fwd_ey','fwd_roic'] + y_col , axis=1)
+                x = df.drop(id_col + y_col + ws_ni_col + fwd_col + fwd_eps_col, axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
