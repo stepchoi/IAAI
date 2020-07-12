@@ -214,16 +214,21 @@ def importance_to_sql(gbm):
 def read_db_last(sql_result, results_table = 'results_lightgbm'):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
-    with engine.connect() as conn:
-        db_last = pd.read_sql("SELECT * FROM {} order by finish_timing desc LIMIT 1".format(results_table), conn)
-    engine.dispose()
+    try:
+        with engine.connect() as conn:
+            db_last = pd.read_sql("SELECT * FROM {} order by finish_timing desc LIMIT 1".format(results_table), conn)
+        engine.dispose()
 
-    db_last_param = db_last[['exclude_fwd','icb_code','testing_period']].to_dict('index')[0]
-    db_last_trial_hpot = int(db_last['trial_hpot'])
-    db_last_trial_lgbm = int(db_last['trial_lgbm'])
+        db_last_param = db_last[['exclude_fwd','icb_code','testing_period']].to_dict('index')[0]
+        db_last_trial_hpot = int(db_last['trial_hpot'])
+        db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
-    sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
-    sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+        sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
+        sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+
+    except:
+        db_last_param = None
+        sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
 
     return db_last_param, sql_result
 
