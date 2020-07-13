@@ -278,7 +278,7 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     ##ALTER 4: use qcut ibes
-    # exclude_fwd = False
+    # exclude_fwd = True
     # ibes_qcut_as_x = True
 
 

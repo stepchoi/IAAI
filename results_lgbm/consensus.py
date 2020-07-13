@@ -89,6 +89,8 @@ def yoy_to_median(yoy, industry, classify):
             bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code > 100", conn)
     engine.dispose()
 
+    bins_df = bins_df.drop_duplicates(['period_end', 'icb_code'])
+
     def to_median(arr, convert, classify):
         ''' convert qcut bins to median of each group '''
 
@@ -272,6 +274,8 @@ def main(industry=False, ibes_act = False, classify=False):
     name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'},
                  'no': {False: 'entire'},  'new': {False: 'new industry'}}
     r_name = name_list[industry][classify]
+
+    r_name = 'ibes eps ts - new'
     print('name: ', r_name)
 
     try:    # STEP1: download ibes_data and organize to YoY
@@ -331,9 +335,20 @@ def combine():
     pd.concat(com, axis=1).T.to_csv('ibes5_mae_ibes_all.csv')
 
 if __name__ == "__main__":
-    main(industry='no', ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
-                                                        #            'new': new industry, 'no': entire]
+    # main(industry=False, ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
+    #                                                     #            'new': new industry, 'no': entire]
+    #
+    # combine()
 
-    combine()
+    with engine.connect() as conn:
+        bins_df = pd.read_sql("SELECT * FROM results_bins", conn)
+    engine.dispose()
+
+    print(bins_df.shape)
+    bins_df = bins_df.drop_duplicates()
+    print(bins_df.shape)
+    bins_df = bins_df.drop_duplicates()
+    print(bins_df.shape)
+
 
 

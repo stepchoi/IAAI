@@ -256,19 +256,20 @@ def count_by_year(main):
 
 if __name__ == '__main__':
 
+    use_median = True
+    chron_valid = False
+
     # these are parameters used to load_data
-    icb_code = 50
+    icb_code = 303010
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
 
-    exclude_fwd = True      #
-    use_median = True
-    chron_valid = False
-    ibes_qcut_as_x = False
+    exclude_fwd = True
+    ibes_qcut_as_x = True
 
     data = load_data()
-    # data.split_icb(icb_code)
-    data.split_industry(icb_code, combine_ind=True)
+    data.split_sector(icb_code)
+    # data.split_industry(icb_code, combine_ind=True)
 
     sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                       y_type='ni',
@@ -276,6 +277,8 @@ if __name__ == '__main__':
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x)
+
+    print(feature_names)
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))
