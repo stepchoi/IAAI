@@ -24,7 +24,7 @@ space = {
     'neurons_layer_2': hp.choice('neurons_layer_2', [8, 16, 32, 64]),
     'neurons_layer_3': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
 
-    'batch_size': hp.choice('batch_size', [64, 128, 512]),
+    'batch_size': hp.choice('batch_size', [64, 128, 512, 2048]),
     # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
 
 }
@@ -172,7 +172,7 @@ if __name__ == "__main__":
                 X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
                 Y_valid = sample_set['train_y'][test_index]
 
-                print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
                 try:
                     HPOT(space)

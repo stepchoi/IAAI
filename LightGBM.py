@@ -232,6 +232,18 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
 
     return db_last_param, sql_result
 
+def pass_error():
+    ''' continue loop when encounter error in trials '''
+
+    print('ERROR on', sql_result)
+
+    with engine.connect() as conn:
+        pd.DataFrame({'icb_code': sql_result['icb_code'],
+                      'testing_period': pd.Timestamp(sql_result['testing_period']),
+                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
+                                                                         index=False, if_exists='append')
+    engine.dispose()
+
 if __name__ == "__main__":
 
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -252,7 +264,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'ibes eps ts - new'                     # name = labeling the experiments
+    sql_result['name'] = 'qcut x'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
     use_median = True       # default setting
@@ -273,13 +285,13 @@ if __name__ == "__main__":
     # chron_valid = True
 
     ## ALTER 3: use eps_ts instead of ni_ts
-    exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
-    ibes_qcut_as_x = False
-    sql_result['y_type'] = 'ibes'
+    # exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    # ibes_qcut_as_x = False
+    # sql_result['y_type'] = 'ibes'
 
     ##ALTER 4: use qcut ibes
-    # exclude_fwd = True
-    # ibes_qcut_as_x = True
+    exclude_fwd = True
+    ibes_qcut_as_x = True
 
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
@@ -307,23 +319,23 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                              sql_result['qcut_q'],
-                                                                              sql_result['y_type'],
-                                                                              exclude_fwd=exclude_fwd,
-                                                                              use_median=use_median,
-                                                                              chron_valid=chron_valid)
+            try:
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
+                                                                                  sql_result['qcut_q'],
+                                                                                  sql_result['y_type'],
+                                                                                  exclude_fwd=exclude_fwd,
+                                                                                  use_median=use_median,
+                                                                                  chron_valid=chron_valid)
 
-            print(feature_names)
+                print(feature_names)
 
-            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-            cv_number = 1   # represent which cross-validation sets
-            for train_index, valid_index in cv:     # roll over 5 cross validation set
-                sql_result['cv_number'] = cv_number
+                cv_number = 1   # represent which cross-validation sets
+                for train_index, valid_index in cv:     # roll over 5 cross validation set
+                    sql_result['cv_number'] = cv_number
 
-                # when Resume = False: try split validation set from training set + start hyperopt
-                try:
+                    # when Resume = False: try split validation set from training set + start hyperopt
                     sample_set['valid_x'] = sample_set['train_x'][valid_index]
                     sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
                     sample_set['valid_y'] = sample_set['train_y'][valid_index]
@@ -335,16 +347,7 @@ if __name__ == "__main__":
                     HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1
 
-                except:     # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                    print('ERROR on', icb_code, testing_period, cv_number)
-
-                    with engine.connect() as conn:
-                        pd.DataFrame({'icb_code': icb_code,
-                                      'testing_period': pd.Timestamp(testing_period),
-                                      'cv_number': cv_number,
-                                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
-                                                                                         index=False, if_exists='append')
-                    engine.dispose()
-                    cv_number += 1
-                    continue
+            except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+                pass_error()
+                continue
 
