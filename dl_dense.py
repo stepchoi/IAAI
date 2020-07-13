@@ -134,11 +134,9 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
-    sql_result['name'] = 'sector'
+    sql_result['name'] = 'entire without'
 
     # these are parameters used to load_data
-    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
     sample_no = 25
@@ -146,9 +144,9 @@ if __name__ == "__main__":
 
     data = load_data()
 
-    for icb_code in indi_models:  # roll over industries (first 2 icb code)
-        data.split_icb(icb_code)
-        sql_result['icb_code'] = icb_code
+    for add_ind_code in [0, 1]: # 1 means add industry code as X
+        data.split_entire(add_ind_code=add_ind_code)
+        sql_result['icb_code'] = add_ind_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
             testing_period = period_1 + i * relativedelta(months=3)
@@ -159,6 +157,8 @@ if __name__ == "__main__":
                                                                               exclude_fwd=exclude_fwd,
                                                                               use_median=use_median,
                                                                               chron_valid=chron_valid)
+
+            print(feature_names)
 
             X_test =  np.nan_to_num(sample_set['test_x'], nan=0)
             Y_test = sample_set['test_y']

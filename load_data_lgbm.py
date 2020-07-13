@@ -113,14 +113,18 @@ class load_data:
         # print(main.describe().T[['max','min']])
 
     def split_industry(self, icb_industry, combine_ind=True):
-        if icb_industry != 0:
-            if combine_ind == True:
-                self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+        if combine_ind == True:
+            self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
 
-            self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
-        else:
-            print('--- train on all samples ---')
-            self.sector = self.main
+        self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
+
+    def split_entire(self, add_ind_code):
+        ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
+
+        if add_ind_code == 1:
+            self.main['icb_industry_x'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+
+        self.sector = self.main
 
     def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x):
         ''' split training / testing set based on testing period '''
@@ -254,11 +258,12 @@ if __name__ == '__main__':
 
     # these are parameters used to load_data
     icb_code = 50
-    exclude_fwd = True
-    use_median = True
-    chron_valid = False
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
+
+    exclude_fwd = True      #
+    use_median = True
+    chron_valid = False
     ibes_qcut_as_x = False
 
     data = load_data()
