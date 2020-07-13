@@ -157,17 +157,10 @@ def HPOT(space, max_evals):
     sql_result['trial_hpot'] += 1
     # return best
 
-def to_sql_bins(cut_bins):
+def to_sql_bins(cut_bins, exist=True):
     ''' write cut_bins & median of each set to DB'''
 
-    with engine.connect() as conn:      # record type of Y
-        exist = pd.read_sql("SELECT * FROM results_bins WHERE qcut_q={} AND icb_code={} AND testing_period='{}' "
-                            "AND y_type='{}'".format(sql_result['qcut_q'], sql_result['icb_code'],
-                                                     str(sql_result['testing_period']), sql_result['y_type']), con=conn)
-    engine.dispose()
-
-    if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
-
+    if exist == True:
         df = pd.DataFrame(columns=['cut_bins','med_train'])
         df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
 
@@ -177,8 +170,7 @@ def to_sql_bins(cut_bins):
         for col in ['qcut_q', 'icb_code', 'testing_period','y_type']:
             df.at[0, col] = sql_result[col]
 
-    # df['combine_industry'] = True
-    # print(df)
+        df['name'] = sql_result['name']
 
         with engine.connect() as conn:      # record type of Y
             df.to_sql('results_bins', con=conn, index=False, if_exists='append')
@@ -240,7 +232,8 @@ def pass_error():
     with engine.connect() as conn:
         pd.DataFrame({'icb_code': sql_result['icb_code'],
                       'testing_period': pd.Timestamp(sql_result['testing_period']),
-                      'qcut_q': sql_result['qcut_q']}, index=[0]).to_sql('results_error', con=conn,
+                      'qcut_q': sql_result['qcut_q'],
+                      'recording_time': dt.datetime.now()}, index=[0],).to_sql('results_error', con=conn,
                                                                          index=False, if_exists='append')
     engine.dispose()
 
@@ -264,7 +257,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'qcut x'                     # name = labeling the experiments
+    sql_result['name'] = 'qcut x - new industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
     use_median = True       # default setting
@@ -300,8 +293,8 @@ if __name__ == "__main__":
     #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
     #     sql_result['icb_code'] = icb_code
 
-    for icb_code in indi_models:   # roll over industries (first 2 icb code)
-        data.split_sector(icb_code)
+    for icb_code in indi_industry_comb:   # roll over industries (first 2 icb code)
+        data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
@@ -325,7 +318,8 @@ if __name__ == "__main__":
                                                                                   sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
                                                                                   use_median=use_median,
-                                                                                  chron_valid=chron_valid)
+                                                                                  chron_valid=chron_valid,
+                                                                                  ibes_qcut_as_x=ibes_qcut_as_x)
 
                 print(feature_names)
 

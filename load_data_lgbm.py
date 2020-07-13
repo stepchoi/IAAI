@@ -260,7 +260,7 @@ if __name__ == '__main__':
     chron_valid = False
 
     # these are parameters used to load_data
-    icb_code = 303010
+    icb_code = 301010
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
 
@@ -279,6 +279,7 @@ if __name__ == '__main__':
                                                                       ibes_qcut_as_x=ibes_qcut_as_x)
 
     print(feature_names)
+    print(ibes_qcut_as_x)
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))

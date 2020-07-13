@@ -18,11 +18,12 @@ from LightGBM import read_db_last
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3]),    # number of layers
+    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4]),    # number of layers
 
     'neurons_layer_1': hp.choice('neurons_layer_1', [8, 16, 32, 64]),
     'neurons_layer_2': hp.choice('neurons_layer_2', [8, 16, 32, 64]),
     'neurons_layer_3': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
+    'neurons_layer_4': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
 
     'batch_size': hp.choice('batch_size', [64, 128, 512, 2048]),
     # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
@@ -134,12 +135,12 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
-    sql_result['name'] = 'entire without'
+    sql_result['name'] = 'new entire'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2018,3,31)
     qcut_q = 10
-    sample_no = 25
+    sample_no = 1
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()

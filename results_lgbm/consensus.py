@@ -275,8 +275,17 @@ def main(industry=False, ibes_act = False, classify=False):
                  'no': {False: 'entire'},  'new': {False: 'new industry'}}
     r_name = name_list[industry][classify]
 
-    r_name = 'ibes eps ts - new'
+    r_name = 'entire'
     print('name: ', r_name)
+
+    try:    # STEP3(move): download lightgbm results for stocks
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
+        detail_stock = date_type(detail_stock, date_col='testing_period')
+        print('local version run - 3. stock_{}'.format(r_name))
+    except:
+        detail_stock = download_result_stock(r_name)
+        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name), index=False)
+    exit(0)
 
     try:    # STEP1: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
@@ -288,14 +297,6 @@ def main(industry=False, ibes_act = False, classify=False):
 
     # STEP2: convert ibes YoY to qcut / median
     yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
-
-    try:    # STEP3: download lightgbm results for stocks
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
-        detail_stock = date_type(detail_stock, date_col='testing_period')
-        print('local version run - 3. stock_{}'.format(r_name))
-    except:
-        detail_stock = download_result_stock(r_name)
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name), index=False)
 
     # STEP4: combine lightgbm and ibes results
     yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)
@@ -335,20 +336,10 @@ def combine():
     pd.concat(com, axis=1).T.to_csv('ibes5_mae_ibes_all.csv')
 
 if __name__ == "__main__":
-    # main(industry=False, ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
-    #                                                     #            'new': new industry, 'no': entire]
-    #
-    # combine()
+    main(industry=False, ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
+                                                        #            'new': new industry, 'no': entire]
 
-    with engine.connect() as conn:
-        bins_df = pd.read_sql("SELECT * FROM results_bins", conn)
-    engine.dispose()
-
-    print(bins_df.shape)
-    bins_df = bins_df.drop_duplicates()
-    print(bins_df.shape)
-    bins_df = bins_df.drop_duplicates()
-    print(bins_df.shape)
+    combine()
 
 
 
