@@ -132,7 +132,7 @@ class load_data:
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         # 2. split x, y for train / test set
-        def divide_set(df):
+        def divide_set(df, ibes_qcut_as_x):
             ''' split x, y from main '''
 
             y_col = [x for x in df.columns if x[:2]=='y_']
@@ -143,10 +143,12 @@ class load_data:
 
             if exclude_fwd == False:
                 x = df.drop(id_col + y_col + ws_ni_col , axis=1)
+                if ibes_qcut_as_x == False:
+                    x = x.drop(['ibes_qcut_as_x'], axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
                 x = df.drop(id_col + y_col + fwd_eps_col + fwd_col, axis=1)
                 if ibes_qcut_as_x == False:
-                    x = df.drop(['ibes_qcut_as_x'], axis=1)
+                    x = x.drop(['ibes_qcut_as_x'], axis=1)
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
@@ -158,8 +160,8 @@ class load_data:
             return x, y
 
         # keep non-qcut y for calculation
-        self.sample_set['train_x'], self.sample_set['train_y'] = divide_set(self.train)
-        self.sample_set['test_x'], self.sample_set['test_y'] = divide_set(self.test)
+        self.sample_set['train_x'], self.sample_set['train_y'] = divide_set(self.train, ibes_qcut_as_x)
+        self.sample_set['test_x'], self.sample_set['test_y'] = divide_set(self.test, ibes_qcut_as_x)
 
     def standardize_x(self):
         ''' tandardize x with train_x fit '''
@@ -257,7 +259,7 @@ if __name__ == '__main__':
     chron_valid = False
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
-    ibes_qcut_as_x = True
+    ibes_qcut_as_x = False
 
     data = load_data()
     # data.split_icb(icb_code)

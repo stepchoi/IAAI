@@ -13,12 +13,12 @@ from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
-from LightGBM import pred_to_sql, read_db_last
+from LightGBM import read_db_last
 
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
+    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3]),    # number of layers
 
     'neurons_layer_1': hp.choice('neurons_layer_1', [8, 16, 32, 64]),
     'neurons_layer_2': hp.choice('neurons_layer_2', [8, 16, 32, 64]),
@@ -73,17 +73,17 @@ def eval(space):
     print(result)
     sql_result.update(space)
     sql_result.update(result)
+    sql_result['finish_timing'] = dt.datetime.now()
 
     hpot['all_results'].append(sql_result.copy())
-    sql_result['finish_timing'] = dt.datetime.now()
 
     print('sql_result_before writing: ', sql_result)
 
-    if result['mae_valid'] > hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
+    if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
 
-    sql_result['trial_rnn'] += 1
+    sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
 
@@ -94,6 +94,8 @@ def HPOT(space):
 
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
+
+    print(pd.DataFrame(hpot['all_results']), hpot['best_stock_df'])
 
     with engine.connect() as conn:
         pd.DataFrame(hpot['all_results']).to_sql('results_dense', con=conn, index=False, if_exists='append')
@@ -114,6 +116,16 @@ def HPOT(space):
 
 # try functional API?
 
+def pred_to_sql(Y_test_pred):
+    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
+
+    df = pd.DataFrame()
+    df['identifier'] = test_id
+    df['pred'] = Y_test_pred
+    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    # print('stock-wise prediction: ', df)
+
+    return df
 
 if __name__ == "__main__":
 
@@ -130,7 +142,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
     sample_no = 25
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
@@ -151,7 +163,10 @@ if __name__ == "__main__":
             X_test =  np.nan_to_num(sample_set['test_x'], nan=0)
             Y_test = sample_set['test_y']
 
+            cv_number = 1
             for train_index, test_index in cv:
+                sql_result['cv_number'] = cv_number
+
                 X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
                 Y_train = sample_set['train_y'][train_index]
                 X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
@@ -161,7 +176,9 @@ if __name__ == "__main__":
 
                 try:
                     HPOT(space)
+                    cv_number += 1
                 except:
+                    cv_number += 1
                     continue
 
 

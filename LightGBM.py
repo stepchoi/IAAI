@@ -166,25 +166,25 @@ def to_sql_bins(cut_bins):
                                                      str(sql_result['testing_period']), sql_result['y_type']), con=conn)
     engine.dispose()
 
-    # if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
+    if len(exist) < 1: # if db has not records med_train / cut_bin for trial yet
 
-    df = pd.DataFrame(columns=['cut_bins','med_train'])
-    df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
+        df = pd.DataFrame(columns=['cut_bins','med_train'])
+        df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
 
-    for k in cut_bins.keys():     # record cut_bins & median
-        df.at[0, k] = cut_bins[k]
+        for k in cut_bins.keys():     # record cut_bins & median
+            df.at[0, k] = cut_bins[k]
 
-    for col in ['qcut_q', 'icb_code', 'testing_period','y_type']:
-        df.at[0, col] = sql_result[col]
+        for col in ['qcut_q', 'icb_code', 'testing_period','y_type']:
+            df.at[0, col] = sql_result[col]
 
-    df['combine_industry'] = True
-    print(df)
+    # df['combine_industry'] = True
+    # print(df)
 
-    with engine.connect() as conn:      # record type of Y
-        df.to_sql('results_bins', con=conn, index=False, if_exists='append')
-    engine.dispose()
-    # else:
-    #     print('Already recorded in DB TABLE results_bins')
+        with engine.connect() as conn:      # record type of Y
+            df.to_sql('results_bins', con=conn, index=False, if_exists='append')
+        engine.dispose()
+    else:
+        print('Already recorded in DB TABLE results_bins')
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     # parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'ibes eps ts'                     # name = labeling the experiments
+    sql_result['name'] = 'ibes eps ts - new'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
     use_median = True       # default setting
@@ -274,6 +274,7 @@ if __name__ == "__main__":
 
     ## ALTER 3: use eps_ts instead of ni_ts
     exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    ibes_qcut_as_x = False
     sql_result['y_type'] = 'ibes'
 
     ##ALTER 4: use qcut ibes
@@ -313,9 +314,9 @@ if __name__ == "__main__":
                                                                               use_median=use_median,
                                                                               chron_valid=chron_valid)
 
-            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            print(feature_names)
 
-            continue
+            to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
             cv_number = 1   # represent which cross-validation sets
             for train_index, valid_index in cv:     # roll over 5 cross validation set

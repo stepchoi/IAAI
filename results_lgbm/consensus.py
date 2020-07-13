@@ -274,7 +274,6 @@ def main(industry=False, ibes_act = False, classify=False):
     r_name = name_list[industry][classify]
     print('name: ', r_name)
 
-
     try:    # STEP1: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
         yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
@@ -334,7 +333,6 @@ def combine():
 if __name__ == "__main__":
     main(industry='no', ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
                                                         #            'new': new industry, 'no': entire]
-
 
     combine()
 
