@@ -75,7 +75,7 @@ class load_data:
 
         try:
             self.main = pd.read_csv('preprocess/main.csv')
-            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv',
+            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv',
                                          usecols=['identifier','period_end','y_ibes'])
             print('local version run - main / consensus')
         except:
@@ -186,6 +186,13 @@ class load_data:
             if ibes_qcut_as_x == True:
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
+
+                d = pd.DataFrame(self.sample_set['train_x'], columns = self.feature_names)
+                d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
+                d.to_csv('##load_data_qcut.csv', index=False)
+                exit(0)
+
+
 
             if use_median == True:
                 # calculate median on train_y for each qcut group

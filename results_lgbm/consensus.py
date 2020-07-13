@@ -11,6 +11,29 @@ import os
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+def download_add_detail(r_name, table_name):
+    ''' download from DB TABLE results_lightgbm_stock '''
+
+    print('----------------> update stock results from DB TABLE {}'.format(table_name))
+
+    with engine.connect() as conn:
+
+        # read DB TABLE results_lightgbm data for given "name"
+        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
+                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
+        trial_lgbm = set(result_all['trial_lgbm'])
+
+        # read corresponding part of DB TABLE results_lightgbm_stock
+        query = text('SELECT * FROM {} WHERE (trial_lgbm IN :trial_lgbm)'.format(table_name))
+        query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
+        result_stock = pd.read_sql(query, conn)
+
+    engine.dispose()
+
+    detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
+
+    return detail_stock
+
 class eps_to_yoy:
     ''' 1. calculate    1. IBES forward NET INCOME =
                         IBES forward EPS * common share outstanding used to calculate EPS (both at T0)
@@ -73,25 +96,19 @@ class eps_to_yoy:
 
         return df.merge(icb.drop_duplicates(), on=['identifier'], how='left')   # remove dup due to cross listing
 
-def yoy_to_median(yoy, industry, classify):
+def yoy_to_median(yoy, r_name):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
 
-    with engine.connect() as conn:  # read for results bins for sampling each sector / industry
-        if industry == True:    # select qcut for industry (2) regression problem
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code < 100", conn)
-        elif classify == True:  # select qcut threshold for classification problem
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train ='{\"Not applicable\"}'", conn)
-        elif industry == 'new':
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE combine_industry = TRUE ", conn)
-        elif industry == 'no':
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE icb_code = 0 ", conn)
-        else:
-            bins_df = pd.read_sql("SELECT * FROM results_bins WHERE med_train !='{\"Not applicable\"}' AND icb_code > 100", conn)
+    try:
+        bins_df = pd.read_csv('results_bins.csv')
+    with engine.connect() as conn:
+        bins_df = pd.read_sql('SELECT * from results_bins', conn)
     engine.dispose()
 
-    bins_df = bins_df.drop_duplicates(['period_end', 'icb_code'])
+    # remove duplicated records
+    bins_df = bins_df.drop_duplicates(['qcut_q', 'icb_code', 'testing_period', 'y_type', 'combine_industry'], keep='first')
 
-    def to_median(arr, convert, classify):
+    def to_median(arr, convert):
         ''' convert qcut bins to median of each group '''
 
         cut_bins = convert['cut_bins'].strip('{}').split(',')   # convert string {1, 2, 3....} to list
@@ -103,68 +120,49 @@ def yoy_to_median(yoy, industry, classify):
 
         arr_q = pd.cut(arr, bins=cut_bins, labels=False)  # cut original series into 0, 1, .... (bins * n)
 
-        if classify == False:
-            med_test = [float(x) for x in med_test]
-            arr_q = arr_q.replace(range(int(convert['qcut_q'])), med_test).values  # replace 0, 1, ... into median
+        if r_name != 'classification':
+            try:
+                med_test = [float(x) for x in med_test]
+                arr_q = arr_q.replace(range(int(convert['qcut_q'])), med_test).values  # replace 0, 1, ... into median
+            except:
+                print('fail: ', med_test)
 
         return arr_q  # return converted Y and median of all groups
 
     yoy_list = []
+    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+                   501010, 201020, 502030, 401010]
+    indi_industry_new = [10, 20, 30, 35, 40, 45, 50, 60, 65]
+
     for i in tqdm(range(len(bins_df))):   # roll over all cut_bins used by LightGBM -> convert to median
 
-        if industry == False:   # sector(6) sampling
 
-            if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
-                indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-                               501010, 201020, 502030, 401010]
-                part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                                   (~yoy['icb_sector'].isin(indi_models))]
+        if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
+            part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
+                               (~yoy['icb_sector'].isin(indi_models))]
 
-            else:
-                part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                                   (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
+        elif bins_df.iloc[i]['icb_code'] in (indi_models + indi_industry_new):
+            part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
+                               (yoy['icb_sector'] == bins_df.iloc[i]['icb_code'])]
 
-        elif industry == 'no':  # when using general model
+        elif bins_df.iloc[i]['icb_code'] in [0, 1]:  # when using general model
             part_yoy = yoy.loc[yoy['period_end'] == bins_df.iloc[i]['testing_period']]
 
-        else:  # industry(2) sampling
-            part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                               (yoy['icb_industry'] == bins_df.iloc[i]['icb_code'])]
+        else:
+            print('fail: ', bins_df.iloc[i]['icb_code'])
+            exit(1)
 
         # qcut (and convert to median if applicable) for y_ibes, y_ni, y_ibes_act
-        part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i], classify=classify)
-        part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i], classify=classify)
-        part_yoy['y_ibes_act_qcut'] = to_median(part_yoy['y_ibes_act'], convert=bins_df.iloc[i], classify=classify)
+        part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], convert=bins_df.iloc[i])
+        part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], convert=bins_df.iloc[i])
+        part_yoy['y_ibes_act_qcut'] = to_median(part_yoy['y_ibes_act'], convert=bins_df.iloc[i])
 
         yoy_list.append(part_yoy)
 
     return pd.concat(yoy_list, axis=0)
 
-def download_result_stock(r_name):
-    ''' 3. download from DB TABLE results_lightgbm_stock '''
-
-    print('----------------> update stock results from DB ')
-
-    with engine.connect() as conn:
-
-        # read DB TABLE results_lightgbm data for given "name"
-        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
-        trial_lgbm = set(result_all['trial_lgbm'])
-
-        # read corresponding part of DB TABLE results_lightgbm_stock
-        query = text('SELECT * FROM results_lightgbm_stock WHERE (trial_lgbm IN :trial_lgbm)')
-        query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
-        result_stock = pd.read_sql(query, conn)
-
-    engine.dispose()
-
-    detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
-
-    return detail_stock
-
 def act_lgbm_ibes(detail_stock, yoy_med):
-    ''' 4. combine all prediction together '''
+    ''' combine all prediction together '''
 
     # convert datetime
     yoy_med = date_type(yoy_med)
@@ -187,7 +185,7 @@ def act_lgbm_ibes(detail_stock, yoy_med):
     return yoy_merge
 
 def calc_score(yoy_merge, industry, ibes_act, classify):
-    ''' 5. calculate mae for each testing_period, icb_code, (cv_number) '''
+    ''' calculate mae for each testing_period, icb_code, (cv_number) '''
 
     def part_mae(df, ibes_act):
         ''' calculate different mae for groups of sample '''
@@ -267,46 +265,38 @@ def label_ind_name(df):
     df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
     return df.drop(['industry_group_code'], axis=1)
 
-def main(industry=False, ibes_act = False, classify=False):
+def main(r_name):
     ''' main function: clean ibes + calculate mae '''
 
-    # DB TABLE results_lightgbm column Name -> distinguish training versions {industry:{classify}}
-    name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'},
-                 'no': {False: 'entire'},  'new': {False: 'new industry'}}
-    r_name = name_list[industry][classify]
+    # STEP 1: download Data
 
-    r_name = 'entire'
-    print('name: ', r_name)
-
-    try:    # STEP3(move): download lightgbm results for stocks
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name))
+    try:  # Download 1: download lightgbm results for stocks
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
-        print('local version run - 3. stock_{}'.format(r_name))
+        print('local version run - stock_{}'.format(r_name))
     except:
-        detail_stock = download_result_stock(r_name)
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_stock_{}.csv'.format(r_name), index=False)
-    exit(0)
+        detail_stock = download_add_detail(r_name,'results_lightgbm_stock')
+        detail_stock.to_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(r_name), index=False)
 
-    try:    # STEP1: download ibes_data and organize to YoY
-        yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
-        yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
-        print('local version run - 1. ibes_yoy ')
+    try:    # Download 2: download ibes_data and organize to YoY
+        yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
+        yoy = date_type(yoy)
+        print('local version run - ibes_yoy ')
     except:
         yoy = eps_to_yoy().merge_and_calc()
-        yoy.to_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv', index=False)
+        yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
 
-    # STEP2: convert ibes YoY to qcut / median
-    yoy_med = yoy_to_median(yoy, industry, classify)  # Update every time for new cut_bins
+    yoy_med = yoy_to_median(yoy, r_name)                    # STEP2: convert ibes YoY to qcut / median
 
-    # STEP4: combine lightgbm and ibes results
-    yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)
+    yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)        # STEP3: combine lightgbm and ibes results
+    yoy_merge.to_csv('## consensus.csv', index=False)
+    exit(0)
 
-    # STEP5: calculate MAE
-    df = calc_score(yoy_merge, industry, ibes_act, classify)
+    df = calc_score(yoy_merge, r_name)                      # STEP4: calculate MAE / accuracy
 
     # STEP6: save to EXCEL
     ttm = {True:'ibes', False: 'ws'}
-    writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
+    writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(r_name))
 
     df.to_excel(writer, 'all', index=False)         # all results
 
@@ -316,7 +306,7 @@ def main(industry=False, ibes_act = False, classify=False):
     df.groupby('testing_period').mean().reset_index().to_excel(writer, 'by time', index=False)  # results: average of testing_period
     df.mean().to_excel(writer, 'average')
 
-    print('save to file name: ibes5_mae_{}_{}.xlsx'.format(ttm[ibes_act],r_name))
+    print('save to file name: mae_{}.xlsx'.format(r_name))
     writer.save()
 
 def combine():
@@ -327,17 +317,23 @@ def combine():
     com = []
     for root, dirs, files in os.walk(".", topdown=False):
         for f in files:
-            if ('ibes5_mae_ibes_' in f) and ('.xlsx' in f):
+            if ('mae_' in f) and ('.xlsx' in f):
                 s = pd.read_excel(f, 'average', index_col='Unnamed: 0')[0]
                 s.name = f.replace('ibes5_mae_ibes_', '').replace('.xlsx','')
                 print(s)
                 com.append(s)
 
-    pd.concat(com, axis=1).T.to_csv('ibes5_mae_ibes_all.csv')
+    pd.concat(com, axis=1).T.to_csv('# mae_compare_all.csv')
 
 if __name__ == "__main__":
-    main(industry=False, ibes_act=True, classify=False)  # industry: [True: industry, False: complete fwd,
-                                                        #            'new': new industry, 'no': entire]
+
+    # DB TABLE results_lightgbm column Name -> distinguish training versions {industry:{classify}}
+    name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'},
+                 'no': {False: 'entire'},  'new': {False: 'new industry'}}
+
+    r_name = 'entire'       #  complete fwd (by sector), industry, classification, new industry, entire
+
+    main(r_name)
 
     combine()
 
