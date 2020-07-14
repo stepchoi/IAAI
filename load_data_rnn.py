@@ -192,7 +192,8 @@ class load_data:
         train_y = train_y[~np.isnan(train_y[:, 0])]
         test_x = test_x[~np.isnan(test_y[:, 0])]
         test_y = test_y[~np.isnan(test_y[:, 0])]
-                ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
+
+        ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
 
         group_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &
                                    (self.sector['period_end'] < testing_period)].dropna(subset=['y_{}'.format(y_type)])['identifier']

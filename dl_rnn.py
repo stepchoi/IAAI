@@ -18,19 +18,18 @@ import matplotlib.pyplot as plt
 
 space = {
 
-    # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_GRU_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
-    'num_dense_layer': hp.choice('num_Dense_layer', [0]),  # number of layers
+    'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),    # number of layers
+    # 'num_dense_layer': hp.choice('num_Dense_layer', [0]),  # number of layers
 
-    'GRU_1': hp.choice('GRU_1', [8, 16, 32, 64]),
+    'gru_1': hp.choice('gru_1', [8, 16, 32, 64]),
     'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
     'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0, 0.2, 0.4]),
 
-    'GRU_2': hp.choice('GRU_2', [8, 16, 32, 64]),
+    'gru_2': hp.choice('gru_2', [8, 16, 32, 64]),
     'dropout_2': hp.choice('dropout_2', [0, 0.2, 0.4]),
     'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0, 0.2, 0.4]),
 
-    'GRU_3': hp.choice('GRU_3', [16, 32, 64, 128]),
+    'gru_3': hp.choice('gru_3', [16, 32, 64, 128]),
     'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
     'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0, 0.2, 0.4]),
 
@@ -48,10 +47,10 @@ def dense_train(space):
     print(params)
 
     model = models.Sequential()
-    for i in range(params['num_GRU_layer']):
-        model.add(GRU(params['neurons_layer_{}'.format(i+1)], activation=params['activation'],
+    for i in range(params['num_gru_layer']):
+        model.add(GRU(params['gru_{}'.format(i+1)], activation=params['activation'],
                       dropout=params['dropout_{}'.format(i+1)], recurrent_dropout=params['recurrent_dropout_{}'.format(i+1)],
-                      return_sequences=True))
+                      return_sequences=not(i==params['num_gru_layer']-1), input_shape=(X_train.shape[1], X_train.shape[2]), ))
 
     # model.add(Flatten())
     #
