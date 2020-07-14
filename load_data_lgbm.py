@@ -98,15 +98,6 @@ class load_data:
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
 
-        # print(self.main.isnull().sum())
-        # print(self.main.shape)
-        # df = self.main[['identifier', 'period_end', 'icb_sector','y_ibes']].set_index(['identifier', 'period_end', 'icb_sector'])
-        # print(df)
-        # df = df.stack(-1)
-        # print(df)
-        # exit(0)
-
-
     def split_sector(self, icb_code):
         ''' split samples from specific sectors (icb_code) '''
 
@@ -164,6 +155,7 @@ class load_data:
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
+            print('x_col: ', x.columns)
             x = x.values
             y = {}
             for col in y_col:
@@ -178,9 +170,9 @@ class load_data:
     def standardize_x(self):
         ''' tandardize x with train_x fit '''
 
-        scaler = StandardScaler().fit(self.sample_set['train_x'])
-        self.sample_set['train_x'] = scaler.transform(self.sample_set['train_x'])
-        self.sample_set['test_x'] = scaler.transform(self.sample_set['test_x']) # can work without test set
+        scaler = StandardScaler().fit(self.sample_set['train_x'][:,:-1])
+        self.sample_set['train_x'][:,:-1] = scaler.transform(self.sample_set['train_x'][:,:-1])
+        self.sample_set['test_x'][:,:-1] = scaler.transform(self.sample_set['test_x'][:,:-1]) # can work without test set
 
     def y_qcut(self, qcut_q, use_median, y_type, ibes_qcut_as_x):
         ''' qcut y '''
@@ -190,14 +182,18 @@ class load_data:
 
             # cut original series into 0, 1, .... (bins * n)
             train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False)
+            cut_bins[0], cut_bins[-1] = [-np.inf, np.inf]
+
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
+
             if ibes_qcut_as_x == True:
+
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
                 # d = pd.DataFrame(self.sample_set['train_x'][:,-1], columns = ['ibes_qcut_as_x'])
                 # d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
-                # d.to_csv('##load_data_qcut.csv', index=False)
+                # d.to_csv('##load_data_qcut_train.csv', index=False)
                 # exit(0)
 
             if use_median == True:
@@ -276,7 +272,7 @@ if __name__ == '__main__':
     icb_code = 301010
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
-    y_type = 'ibes'
+    y_type = 'ni'
 
     exclude_fwd = True
     ibes_qcut_as_x = True
@@ -293,7 +289,6 @@ if __name__ == '__main__':
                                                                       ibes_qcut_as_x=ibes_qcut_as_x)
 
     print(feature_names)
-    print(ibes_qcut_as_x)
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))

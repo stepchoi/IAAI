@@ -28,6 +28,13 @@ def date_type(df, date_col='period_end'):
     return df
 
 
-
 if __name__ == '__main__':
-    pass
+    x = pd.read_csv('##load_data_qcut_train.csv', usecols=['period_end','identifier','ibes_qcut_as_x'])
+    # x = pd.read_csv('#check_sector.csv', usecols=['period_end','identifier','ibes_qcut_as_x'])
+    print(date_type(x).dtypes)
+    y = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
+    print(date_type(y).dtypes)
+    m = pd.merge(date_type(x), date_type(y), on=['period_end','identifier'], how='left')
+    print(m.isnull().sum())
+    m.to_csv('#check_cut1.csv', index=False)
+
