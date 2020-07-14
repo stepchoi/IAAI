@@ -202,7 +202,7 @@ class load_data:
 
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
 
-        return train_x, train_y, test_x, test_y, cv, test_2dx_info['identifier']
+        return train_x, train_y, test_x, test_y, cv, test_2dx_info.dropna(['y_{}'.format(y_type)])['identifier']
 
     def standardize_x(self, train_x, test_x):
         ''' tandardize x with train_x fit '''
