@@ -100,13 +100,26 @@ def yoy_to_median(yoy, r_name):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
 
     try:
-        bins_df = pd.read_csv('results_bins.csv')
-    with engine.connect() as conn:
-        bins_df = pd.read_sql('SELECT * from results_bins', conn)
-    engine.dispose()
+        bins_df = pd.read_csv('results_lgbm/results_bins.csv')
+        print('local version run - results_bins ')
+    except:
+        with engine.connect() as conn:
+            bins_df = pd.read_sql('SELECT * from results_bins', conn)
+            bins_df.to_csv('results_lgbm/results_bins.csv', index=False)
+        engine.dispose()
 
     # remove duplicated records
-    bins_df = bins_df.drop_duplicates(['qcut_q', 'icb_code', 'testing_period', 'y_type', 'combine_industry'], keep='first')
+    subset = ['cut_bins', 'med_train', 'qcut_q', 'icb_code', 'testing_period']
+    bins_df = bins_df.sort_values(subset).drop_duplicates(subset, keep='last')
+
+    if r_name == 'classification':
+        bins_df = bins_df.loc[bins_df['med_train']=="{\"Not applicable\"}"]   # classification will not have median conversion
+    else:
+        bins_df = bins_df.loc[bins_df['med_train'] !="{\"Not applicable\"}"]
+
+    print(r_name, bins_df.shape)
+    bins_df.to_csv('##.csv', index=False)
+    exit(0)
 
     def to_median(arr, convert):
         ''' convert qcut bins to median of each group '''
@@ -138,8 +151,9 @@ def yoy_to_median(yoy, r_name):
 
 
         if bins_df.iloc[i]['icb_code'] == 999999:   # represent miscellaneous model
-            part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
-                               (~yoy['icb_sector'].isin(indi_models))]
+            part_yoy = yoy.loc[
+                                (yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
+                                (~yoy['icb_sector'].isin(indi_models))]
 
         elif bins_df.iloc[i]['icb_code'] in (indi_models + indi_industry_new):
             part_yoy = yoy.loc[(yoy['period_end'] == bins_df.iloc[i]['testing_period']) &

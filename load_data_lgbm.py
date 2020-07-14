@@ -114,7 +114,7 @@ class load_data:
 
     def split_industry(self, icb_industry, combine_ind=True):
         if combine_ind == True:
-            self.main['icb_industry'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+            self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
 
         self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
@@ -122,7 +122,7 @@ class load_data:
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
 
         if add_ind_code == 1:
-            self.main['icb_industry_x'] = self.main['icb_industry'].replace([15, 55], [10, 50])
+            self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
 
         self.sector = self.main
 
