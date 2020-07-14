@@ -75,12 +75,12 @@ class load_data:
 
         try:
             self.main = pd.read_csv('preprocess/main.csv')
-            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus','y_ibes'])
+            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus'])
             print('local version run - main / consensus')
         except:
             self.main = add_macro().map_macros()
             self.main.to_csv('preprocess/main.csv', index=False)
-            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus','y_ibes'])
+            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus'])
             # self.main.to_csv('preprocess/main.csv', index=False)
 
         self.main = date_type(self.main)
@@ -195,12 +195,10 @@ class load_data:
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
-                d = pd.DataFrame(self.sample_set['train_x'][:,-1], columns = ['ibes_qcut_as_x'])
-                d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
-                d.to_csv('##load_data_qcut.csv', index=False)
-                exit(0)
-
-
+                # d = pd.DataFrame(self.sample_set['train_x'][:,-1], columns = ['ibes_qcut_as_x'])
+                # d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
+                # d.to_csv('##load_data_qcut.csv', index=False)
+                # exit(0)
 
             if use_median == True:
                 # calculate median on train_y for each qcut group

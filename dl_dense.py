@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4]),    # number of layers
+    'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
 
     'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
     'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
@@ -53,7 +53,7 @@ def dense_train(space):
 
     ## add regularization?
 
-    history = model.fit(X_train, Y_train, epochs=1000, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
@@ -78,14 +78,17 @@ def eval(space):
     sql_result.update(result)
     sql_result['finish_timing'] = dt.datetime.now()
 
-    hpot['all_results'].append(sql_result.copy())
+    with engine.connect() as conn:
+        pd.DataFrame(sql_result, index=[0]).to_sql('results_dense', con=conn, index=False, if_exists='append')
+    engine.dispose()
 
     print('sql_result_before writing: ', sql_result)
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-        hpot['best_histroy'] = history
+
+    plot_history(history)  # plot history
 
     sql_result['trial_lgbm'] += 1
 
@@ -99,14 +102,11 @@ def HPOT(space, max_evals = 10):
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
-    print(pd.DataFrame(hpot['all_results']), hpot['best_stock_df'])
+    print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_dense', con=conn, index=False, if_exists='append')
         hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
-
-    plot_history(hpot['best_histroy'])  # plot history
 
     sql_result['trial_hpot'] += 1
 
@@ -116,17 +116,17 @@ def plot_history(history):
     ''' plot the training loss history '''
 
     history_dict = history.history
-    epochs = range(1, len(history_dict)+1)
+    epochs = range(10, len(history_dict['loss'])+1)
 
-    plt.plot(epochs, history_dict['loss'], 'bo', label='training loss')
-    plt.plot(epochs, history_dict['val_loss'], 'b', label='validation loss')
+    plt.plot(epochs, history_dict['loss'][9:], 'bo', label='training loss')
+    plt.plot(epochs, history_dict['val_loss'][9:], 'b', label='validation loss')
     plt.title('dense - training and validation loss')
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_lgbm/params_tuning/plot_dense_loss.png')
-
+    plt.savefig('results_dense/plot_dense_{}.png'.format(sql_result['trial_lgbm']))
+    plt.close()
 # try functional API?
 
 def pred_to_sql(Y_test_pred):
@@ -186,7 +186,7 @@ if __name__ == "__main__":
                 Y_valid = sample_set['train_y'][test_index]
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-
                 HPOT(space, 20)
+                exit(0)
 
 

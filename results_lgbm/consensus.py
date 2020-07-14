@@ -355,7 +355,9 @@ def combine():
 if __name__ == "__main__":
 
     for r_name in ['qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new']:   #  complete fwd (by sector), industry, new industry, entire
-        yoy_merge = download(r_name).merge_stock_ibes()
+        print('name: ', r_name)
+        yoy_merge = download(r_name) #.merge_stock_ibes()
+        continue
         calc_mae_write(yoy_merge)
     exit(0)
 
