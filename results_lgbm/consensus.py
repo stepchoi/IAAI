@@ -342,14 +342,27 @@ def combine():
 
     sector = []
     industry = []
-    time = []
     average = []
     for root, dirs, files in os.walk(".", topdown=False):
         for f in files:
-            if ('mae_' in f) and ('.xlsx' in f):
+            if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
+                print(f)
                 average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
+                s = pd.read_excel(f, 'by_sector', index_col='Unnamed: 0')["('lgbm', 'in_fwd')"]
+                s.set_name = f[4:-5]
+                sector.append(s)
+                i = pd.read_excel(f, 'by_industry', index_col='Unnamed: 0')["('lgbm', 'in_fwd')"]
+                i.set_name = f[4:-5]
+                industry.append(i)
 
-    pd.concat(average, axis=0).to_csv('#compare_all_mae.csv')
+    writer = pd.ExcelWriter('#compare_all.xlsx')
+
+    pd.concat(average, axis=0).to_excel(writer, 'average')
+    pd.concat(sector, axis=1).to_excel(writer, 'sector')
+    pd.concat(industry, axis=1).to_excel(writer, 'industry')
+
+    print('save to file name: #compare_all.xlsx')
+    writer.save()
 
 if __name__ == "__main__":
 
