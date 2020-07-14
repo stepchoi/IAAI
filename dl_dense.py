@@ -22,10 +22,14 @@ space = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4]),    # number of layers
 
     'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
+    'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
     'neurons_layer_2': hp.choice('neurons_layer_2', [16, 32, 64, 128]),
+    'dropout_2': hp.choice('dropout_2', [0, 0.2, 0.4]),
     'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
+    'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
+
+    'activation': hp.choice('activation', ['relu','tanh']),
     'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
-    # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
 
 }
 
@@ -39,7 +43,7 @@ def dense_train(space):
 
     model = models.Sequential()
     for i in range(params['num_Dense_layer']):
-        model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation='tanh'))
+        model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation=params['activation']))
     model.add(Dense(1))
 
     model.compile(optimizer='adam', loss='mae')
