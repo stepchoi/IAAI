@@ -353,15 +353,10 @@ def combine():
     pd.concat(com, axis=1).T.to_csv('# mae_compare_all.csv')
 
 if __name__ == "__main__":
- 
-    r_name = 'entire'       #  complete fwd (by sector), industry, new industry, entire
 
-    # yoy_merge = download(r_name).merge_stock_ibes()
-    #
-    # yoy_merge.to_csv('yoy_merge.csv', index=False)
-    yoy_merge = pd.read_csv('yoy_merge.csv')
-
-    calc_mae_write(yoy_merge)
+    for r_name in ['qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new']:   #  complete fwd (by sector), industry, new industry, entire
+        yoy_merge = download(r_name).merge_stock_ibes()
+        calc_mae_write(yoy_merge)
     exit(0)
 
     combine()
