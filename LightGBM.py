@@ -242,7 +242,7 @@ if __name__ == "__main__":
     # training / testing sets split par
     indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
-    indi_industry_new = [10, 20, 30, 35, 40, 45, 50, 60, 65]
+    indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
 
@@ -273,14 +273,14 @@ if __name__ == "__main__":
     ## ALTER 2: change using chronological last few as validation
     # chron_valid = True
 
-    ## ALTER 3: use eps_ts instead of ni_ts
-    # exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
-    # ibes_qcut_as_x = False
-    # sql_result['y_type'] = 'ibes'
+    # ALTER 3: use eps_ts instead of ni_ts
+    exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    ibes_qcut_as_x = False
+    sql_result['y_type'] = 'ibes'
 
     ##ALTER 4: use qcut ibes
-    exclude_fwd = True
-    ibes_qcut_as_x = True
+    # exclude_fwd = True
+    # ibes_qcut_as_x = True
 
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''

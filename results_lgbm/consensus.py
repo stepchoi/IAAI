@@ -202,6 +202,7 @@ class download:
 
         # convert datetime
         self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
+        self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
         self.detail_stock = self.detail_stock.drop_duplicates(
             subset=['icb_code', 'identifier', 'testing_period', 'cv_number', 'exclude_fwd','y_type'], keep='last')
@@ -223,13 +224,14 @@ class calc_mae_write():
         ''' calculate all MAE and save to local xlsx '''
 
         self.merge = yoy_merge
+        self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
 
         self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(r_name))
 
         self.by_sector().to_excel(self.writer, 'by_sector')
         self.by_industry().to_excel(self.writer, 'by_industry')
         self.by_time().to_excel(self.writer, 'by_time')
-        self.average().to_excel(self.writer, 'average', index=False)
+        self.average().to_excel(self.writer, 'average')
 
         print('save to file name: mae_{}.xlsx'.format(r_name))
         self.writer.save()
@@ -241,8 +243,7 @@ class calc_mae_write():
         for name, g in self.merge.groupby(['icb_sector','exclude_fwd']):
             sector_dict[name] = self.part_mae(g)
 
-        df = pd.DataFrame(sector_dict).T.unstack().iloc[:,[0,2,3,5]]
-        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+        df = pd.DataFrame(sector_dict).T.unstack()
 
         def label_icb_name(df):
             '''label sector name for each icb_sector '''
@@ -266,8 +267,7 @@ class calc_mae_write():
         for name, g in self.merge.groupby(['icb_industry', 'exclude_fwd']):
             industry_dict[name] = self.part_mae(g)
 
-        df = pd.DataFrame(industry_dict).T.unstack().iloc[:, [0, 2, 3, 5]]
-        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+        df = pd.DataFrame(industry_dict).T.unstack()
 
         def label_icb_name(df):
             '''label sector name for each icb_industry '''
@@ -291,9 +291,7 @@ class calc_mae_write():
         for name, g in self.merge.groupby(['testing_period', 'exclude_fwd']):
             industry_dict[name] = self.part_mae(g)
 
-        df = pd.DataFrame(industry_dict).T.unstack().iloc[:, [0, 2, 3, 5]]
-        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
-
+        df = pd.DataFrame(industry_dict).T.unstack()
         print(df)
 
         return df
@@ -306,9 +304,10 @@ class calc_mae_write():
         for name, g in self.merge.groupby(['exclude_fwd']):
             industry_dict[name] = self.part_mae(g)
 
-        df = pd.DataFrame(industry_dict).unstack().to_frame().T
-        df = df.iloc[:, [0, 1, 4, 5]]
-        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+        df = pd.DataFrame(industry_dict).unstack().to_frame().reset_index()
+        df['index'] = df['level_1'] + ['_']*len(df) + df['level_0']
+        df = df.set_index('index')[0].to_frame().T
+        df.index = [r_name]
 
         print(df)
 
@@ -330,9 +329,9 @@ def label_sector(df):
         icb = pd.read_sql("SELECT icb_sector, identifier FROM dl_value_universe WHERE identifier IS NOT NULL", conn)
     engine.dispose()
 
-    icb['icb_sector'] = icb['icb_sector'].mask(~icb['icb_sector'].isin(indi_sector), 999999)
     icb['icb_industry'] = icb.dropna(how='any')['icb_sector'].astype(str).str[:2].astype(int)
     icb['icb_industry'] = icb['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
+    icb['icb_sector'] = icb['icb_sector'].mask(~icb['icb_sector'].isin(indi_sector), 999999)
 
     return df.merge(icb.drop_duplicates(), on=['identifier'], how='left')   # remove dup due to cross listing
 
@@ -341,25 +340,24 @@ def combine():
 
     os.chdir('results_lgbm/compare_with_ibes')
 
-    com = []
+    sector = []
+    industry = []
+    time = []
+    average = []
     for root, dirs, files in os.walk(".", topdown=False):
         for f in files:
             if ('mae_' in f) and ('.xlsx' in f):
-                s = pd.read_excel(f, 'average', index_col='Unnamed: 0')[0]
-                s.name = f.replace('ibes5_mae_ibes_', '').replace('.xlsx','')
-                print(s)
-                com.append(s)
+                average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
 
-    pd.concat(com, axis=1).T.to_csv('# mae_compare_all.csv')
+    pd.concat(average, axis=0).to_csv('#compare_all_mae.csv')
 
 if __name__ == "__main__":
 
-    for r_name in ['qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new']:   #  complete fwd (by sector), industry, new industry, entire
-        print('name: ', r_name)
-        yoy_merge = download(r_name) #.merge_stock_ibes()
-        continue
-        calc_mae_write(yoy_merge)
-    exit(0)
+
+    # for r_name in ['entire', 'qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new']:   #  complete fwd (by sector), industry, new industry, entire
+    #     yoy_merge = download(r_name).merge_stock_ibes()
+    #     calc_mae_write(yoy_merge)
+    # exit(0)
 
     combine()
 
