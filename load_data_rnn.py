@@ -179,20 +179,21 @@ class load_data:
 
             df = train_2dx_info.fillna(0)       # fill nan with 0
             train_3dx_all = df.set_index(['period_end', 'identifier'])[x_col].to_xarray().to_array().transpose()
-            print(train_3dx_all.indexes)
 
             arr = []
             for i in period_range:
                 arr.append(train_3dx_all[:,i:(20+i),:].values)
+                id = train_3dx_all[:,i:(20+i),:].indexes['identifier']
 
-            return np.concatenate(arr, axis=0)
+            return np.concatenate(arr, axis=0), id
 
-        train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
-        test_x = to_3d(test_2dx_info, [0])
+        train_x, train_id = to_3d(train_2dx_info, range(40))  # convert to 3d array
+        test_x, test_id = to_3d(test_2dx_info, [0])
 
         train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
         train_y = train_y[~np.isnan(train_y[:, 0])]
         test_x = test_x[~np.isnan(test_y[:, 0])]
+        test_id = np.array(test_id)[~np.isnan(test_y[:, 0])]
         test_y = test_y[~np.isnan(test_y[:, 0])]
 
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
@@ -202,7 +203,7 @@ class load_data:
 
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
 
-        return train_x, train_y, test_x, test_y, cv, test_2dx_info.dropna(['y_{}'.format(y_type)])['identifier']
+        return train_x, train_y, test_x, test_y, cv, test_id
 
     def standardize_x(self, train_x, test_x):
         ''' tandardize x with train_x fit '''
@@ -244,6 +245,8 @@ if __name__ == '__main__':
     data = load_data()
     data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, qcut_q, y_type='ni')
+
+    # print('test_id: ', len(test_id), test_id)
 
     for train_index, test_index in cv:
         X_train = train_x[train_index]
