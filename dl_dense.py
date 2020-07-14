@@ -24,7 +24,7 @@ space = {
     'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
     'neurons_layer_2': hp.choice('neurons_layer_2', [16, 32, 64, 128]),
     'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
-    'batch_size': hp.choice('batch_size', [64, 128, 512, 2048]),
+    'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
     # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
 
 }
