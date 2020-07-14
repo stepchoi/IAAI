@@ -1,5 +1,10 @@
 import numpy as np
 import pandas as pd
+from sqlalchemy import create_engine
+
+
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
 
 # Debug def
 def check_dup(df, index_col=['identifier','period_end'], ex=True):
@@ -21,6 +26,8 @@ def date_type(df, date_col='period_end'):
         df[date_col] = pd.to_datetime(df[date_col], format='%Y-%m-%d')
 
     return df
+
+
 
 if __name__ == '__main__':
     pass

@@ -124,12 +124,12 @@ def main(update=0):
     ''' main function: clean ibes + calculate mae '''
 
     try:    # STEP1: download ibes_data and organize to YoY
-        yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv')
+        yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
         yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
         print('local version run - 1. ibes_yoy ')
     except:
         yoy = eps_to_yoy().merge_and_calc()
-        yoy.to_csv('results_lgbm/compare_with_ibes/ibes1_yoy.csv', index=False)
+        yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
 
     try:    # STEP2: convert ibes YoY to qcut / median
         yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv')
