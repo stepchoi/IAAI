@@ -12,7 +12,7 @@ db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.
 engine = create_engine(db_string)
 
 indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-               501010, 201020, 502030, 401010]
+               501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
 def download_add_detail(r_name, table_name):
@@ -88,6 +88,9 @@ class eps_to_yoy:
 
         self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
 
+        for name, g in self.ibes.groupby('icb_sector'):
+            print(name, len(g))
+
         return self.ibes
 
 def yoy_to_median(yoy):
@@ -124,7 +127,7 @@ def yoy_to_median(yoy):
 
         part_yoy = yoy.copy()
 
-        if bins_df.iloc[i]['icb_code'] in [0, 1, 999999]:   # represent miscellaneous model
+        if bins_df.iloc[i]['icb_code'] in [0, 1]:   # represent miscellaneous model
             part_yoy['icb_code'] = bins_df.iloc[i]['icb_code']
 
         elif bins_df.iloc[i]['icb_code'] in indi_sector:
@@ -201,33 +204,115 @@ class download:
         self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
 
         self.detail_stock = self.detail_stock.drop_duplicates(
-            subset=['icb_code', 'identifier', 'testing_period', 'cv_number', 'exclude_fwd'], keep='last')
+            subset=['icb_code', 'identifier', 'testing_period', 'cv_number', 'exclude_fwd','y_type'], keep='last')
 
         # use median for cross listing & multiple cross-validation
-        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd']).median()['pred'].reset_index(drop=False)
+        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd', 'y_type']).median()['pred'].reset_index(drop=False)
 
         # merge (stock prediction) with (ibes consensus median)
-        yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type'],
-                                            right_on=['identifier', 'period_end', 'y_type'],
+        yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
+                                            right_on=['identifier', 'period_end','y_type', 'icb_code'],
                                             suffixes=('_lgbm', '_ibes'))
 
-        return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'exclude_fwd', 'pred', 'icb_code_ibes',
+        return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'exclude_fwd', 'pred', 'icb_code',
                                        'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']])
 
-class merge_calc_mae():
+class calc_mae_write():
 
     def __init__(self, yoy_merge):
+        ''' calculate all MAE and save to local xlsx '''
+
         self.merge = yoy_merge
-        pass
+
+        self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(r_name))
+
+        self.by_sector().to_excel(self.writer, 'by_sector')
+        self.by_industry().to_excel(self.writer, 'by_industry')
+        self.by_time().to_excel(self.writer, 'by_time')
+        self.average().to_excel(self.writer, 'average', index=False)
+
+        print('save to file name: mae_{}.xlsx'.format(r_name))
+        self.writer.save()
 
     def by_sector(self):
+        ''' calculate equivalent per sector MAE '''
 
-        sector = self.merge.loc[self.merge['icb_code_ibes'] > 100]      # select ibes results converted using cut_bins from sector-wise training sets
-        print(sector.columns)
-        for name, g in sector.groupby(['icb_sector','fwd_']):
-            print(name, len(g))
-            check_dup(g, ['identifier', 'period_end'])
-        exit(0)
+        sector_dict = {}
+        for name, g in self.merge.groupby(['icb_sector','exclude_fwd']):
+            sector_dict[name] = self.part_mae(g)
+
+        df = pd.DataFrame(sector_dict).T.unstack().iloc[:,[0,2,3,5]]
+        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+
+        def label_icb_name(df):
+            '''label sector name for each icb_sector '''
+
+            with engine.connect() as conn:
+                ind_name = pd.read_sql('SELECT * FROM industry_group', conn).set_index(['industry_group_code'])
+            engine.dispose()
+            ind_name.index = ind_name.index.astype(int)
+
+            df = df.merge(ind_name, left_index=True, right_index=True, how='left')
+            print(df)
+
+            return df
+
+        return label_icb_name(df)
+
+    def by_industry(self):
+        ''' calculate equivalent per industry(new) MAE '''
+
+        industry_dict = {}
+        for name, g in self.merge.groupby(['icb_industry', 'exclude_fwd']):
+            industry_dict[name] = self.part_mae(g)
+
+        df = pd.DataFrame(industry_dict).T.unstack().iloc[:, [0, 2, 3, 5]]
+        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+
+        def label_icb_name(df):
+            '''label sector name for each icb_industry '''
+
+            with engine.connect() as conn:
+                ind_name = pd.read_sql('SELECT * FROM industry_group_2', conn).set_index(['icb_industry'])
+            engine.dispose()
+
+            df = df.merge(ind_name, left_index=True, right_index=True, how='left')
+            print(df)
+
+            return df
+
+        return label_icb_name(df)
+
+    def by_time(self):
+        ''' calculate equivalent per testing_period MAE '''
+
+        industry_dict = {}
+
+        for name, g in self.merge.groupby(['testing_period', 'exclude_fwd']):
+            industry_dict[name] = self.part_mae(g)
+
+        df = pd.DataFrame(industry_dict).T.unstack().iloc[:, [0, 2, 3, 5]]
+        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+
+        print(df)
+
+        return df
+
+    def average(self):
+        ''' calculate total MAE '''
+
+        industry_dict = {}
+
+        for name, g in self.merge.groupby(['exclude_fwd']):
+            industry_dict[name] = self.part_mae(g)
+
+        df = pd.DataFrame(industry_dict).unstack().to_frame().T
+        df = df.iloc[:, [0, 1, 4, 5]]
+        df.columns = ['ibes', 'lgbm_in_fwd', 'lgbm_ex_fwd', 'len']
+
+        print(df)
+
+        return df
 
     def part_mae(self, df):
         ''' calculate different mae for groups of sample '''
@@ -237,45 +322,6 @@ class merge_calc_mae():
         dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ni_qcut'])
         dict['len'] = len(df)
         return dict
-
-
-
-# def
-def calc_score(yoy_merge):
-    ''' calculate mae for each testing_period, icb_code, (cv_number) '''
-
-
-
-    mae = {}
-    for p in set(yoy_merge['testing_period']):
-        part_p = yoy_merge.loc[yoy_merge['testing_period']==p]
-
-        if industry == False:
-            for i in set(yoy_merge['icb_code']):
-                part_i = part_p.loc[part_p['icb_code']==i]
-
-                if len(part_i) > 0:    # calculate aggregate mae for all 5 cv groups
-                    mae['{}_{}_all'.format(p, i)] = part_mae(part_i)
-                else:
-                    print('not available (len = 0)', p, i)
-                    continue
-
-        else:
-            for i in set(yoy_merge['icb_industry']):
-                part_i = part_p.loc[part_p['icb_industry'] == i]
-
-                if len(part_i) > 0:    # calculate aggregate mae for all 5 cv groups
-                    mae['{}_{}_all'.format(p, i)] = part_mae(part_i, ibes_act)
-                else:
-                    print('not available (len = 0)', p, i)
-                    continue
-
-    df = pd.DataFrame(mae).T.reset_index()
-
-    df[['testing_period', 'icb_code', 'cv_number']] = df['index'].str.split('_', expand=True)
-    df = df.filter(['icb_code','testing_period', 'cv_number','ibes','lgbm_ex_fwd','lgbm_in_fwd','len'])
-
-    return df
 
 def label_sector(df):
     ''' find sector(6) / industry(2) for each identifier '''
@@ -289,40 +335,6 @@ def label_sector(df):
     icb['icb_industry'] = icb['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
 
     return df.merge(icb.drop_duplicates(), on=['identifier'], how='left')   # remove dup due to cross listing
-
-def label_icb_name(df):
-    '''label sector name for each icb_code '''
-
-    with engine.connect() as conn:
-        ind_name = pd.read_sql('SELECT * FROM industry_group', conn)
-    engine.dispose()
-
-    df = df.merge(ind_name, left_on=['icb_code'], right_on=['industry_group_code'], how='left')
-    return df.drop(['industry_group_code'], axis=1)
-
-
-
-    # def
-    # yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)        # STEP3: combine lightgbm and ibes results
-    # yoy_merge.to_csv('## consensus.csv', index=False)
-    # exit(0)
-    #
-    # df = calc_score(yoy_merge, r_name)                      # STEP4: calculate MAE / accuracy
-    #
-    # # STEP6: save to EXCEL
-    # ttm = {True:'ibes', False: 'ws'}
-    # writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(r_name))
-    #
-    # df.to_excel(writer, 'all', index=False)         # all results
-    #
-    # df_sector = df.groupby('icb_code').mean().reset_index()     # results: average of sector
-    # label_ind_name(df_sector).to_excel(writer, 'by sector', index=False)
-    #
-    # df.groupby('testing_period').mean().reset_index().to_excel(writer, 'by time', index=False)  # results: average of testing_period
-    # df.mean().to_excel(writer, 'average')
-    #
-    # print('save to file name: mae_{}.xlsx'.format(r_name))
-    # writer.save()
 
 def combine():
     ''' combine average of different trial to save csv for comparison'''
@@ -344,9 +356,12 @@ if __name__ == "__main__":
  
     r_name = 'entire'       #  complete fwd (by sector), industry, new industry, entire
 
-    yoy_merge = download(r_name).merge_stock_ibes()
+    # yoy_merge = download(r_name).merge_stock_ibes()
+    #
+    # yoy_merge.to_csv('yoy_merge.csv', index=False)
+    yoy_merge = pd.read_csv('yoy_merge.csv')
 
-    merge_calc_mae(yoy_merge).by_sector()
+    calc_mae_write(yoy_merge)
     exit(0)
 
     combine()
