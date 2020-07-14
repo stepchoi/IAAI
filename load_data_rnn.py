@@ -141,30 +141,34 @@ class load_data:
     def split_entire(self, add_ind_code):
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
 
+        self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
+
         if add_ind_code == 1:
             self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
 
         self.sector = self.main
-
-    def split_indus
 
     def split_train_test(self, testing_period, qcut_q, y_type):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
         start_train_y = testing_period - relativedelta(years=10)  # train df = 40 quarters
+        self.sector = full_period(self.sector)
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)
+
         print(train_y.shape, test_y.shape)
 
         # 2. split and standardize train / test X
-        x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'y_{}'.format(y_type)})
+        x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
+                                                           'icb_industry', 'y_{}'.format(y_type)})
 
         start_train = testing_period - relativedelta(years=15) # train df = 40 quarters
         start_test = testing_period - relativedelta(years=5) # train df = 40 quarters
+
         train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)]
         test_2dx_info = self.sector.loc[(start_test < self.sector['period_end']) & (self.sector['period_end'] <= testing_period)]
 
@@ -175,7 +179,6 @@ class load_data:
 
             df = train_2dx_info.fillna(0)       # fill nan with 0
             train_3dx_all = df.set_index(['period_end', 'identifier']).drop(['y_{}'.format(y_type)], axis=1).to_xarray().to_array().transpose()
-
             arr = []
             for i in period_range:
                 arr.append(train_3dx_all[:,i:(20+i),:].values)
@@ -185,14 +188,11 @@ class load_data:
         train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
         test_x = to_3d(test_2dx_info, [0])
 
-        train_x = train_x[~np.isnan(train_y[:,0])]         # remove y = nan
-        train_y = train_y[~np.isnan(train_y[:,0])]
-        test_x = test_x[~np.isnan(test_y[:,0])]
-        test_y = test_y[~np.isnan(test_y[:,0])]
-
-        print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
-
-        ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
+        train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
+        train_y = train_y[~np.isnan(train_y[:, 0])]
+        test_x = test_x[~np.isnan(test_y[:, 0])]
+        test_y = test_y[~np.isnan(test_y[:, 0])]
+                ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
 
         group_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &
                                    (self.sector['period_end'] < testing_period)].dropna(subset=['y_{}'.format(y_type)])['identifier']
@@ -200,8 +200,6 @@ class load_data:
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
 
         return train_x, train_y, test_x, test_y, cv, test_2dx_info['identifier']
-
-
 
     def standardize_x(self, train_x, test_x):
         ''' tandardize x with train_x fit '''
@@ -242,7 +240,7 @@ if __name__ == '__main__':
 
     data = load_data()
     data.split_entire(add_ind_code)
-    train_x, train_y, X_test, Y_test, cv = data.split_train_test(testing_period, qcut_q, y_type='ni')
+    train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, qcut_q, y_type='ni')
 
     for train_index, test_index in cv:
         X_train = train_x[train_index]
