@@ -187,11 +187,9 @@ class load_data:
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
-                d = pd.DataFrame(self.sample_set['train_x'], columns = self.feature_names)
-                d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
-                d.to_csv('##load_data_qcut.csv', index=False)
-                exit(0)
-
+                # d = pd.DataFrame(self.sample_set['train_x'], columns = self.feature_names)
+                # d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
+                # d.to_csv('##load_data_qcut.csv', index=False)
 
 
             if use_median == True:

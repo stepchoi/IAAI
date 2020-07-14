@@ -101,9 +101,10 @@ def yoy_to_median(yoy, r_name):
 
     try:
         bins_df = pd.read_csv('results_bins.csv')
-    with engine.connect() as conn:
-        bins_df = pd.read_sql('SELECT * from results_bins', conn)
-    engine.dispose()
+    except:
+        with engine.connect() as conn:
+            bins_df = pd.read_sql('SELECT * from results_bins', conn)
+        engine.dispose()
 
     # remove duplicated records
     bins_df = bins_df.drop_duplicates(['qcut_q', 'icb_code', 'testing_period', 'y_type', 'combine_industry'], keep='first')
@@ -277,6 +278,7 @@ def main(r_name):
     except:
         detail_stock = download_add_detail(r_name,'results_lightgbm_stock')
         detail_stock.to_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(r_name), index=False)
+    exit(0)
 
     try:    # Download 2: download ibes_data and organize to YoY
         yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
@@ -331,7 +333,7 @@ if __name__ == "__main__":
     name_list = {True: {False:'industry'}, False:{True:'classification', False: 'complete fwd'},
                  'no': {False: 'entire'},  'new': {False: 'new industry'}}
 
-    r_name = 'entire'       #  complete fwd (by sector), industry, classification, new industry, entire
+    r_name = 'qcut x - new industry'       #  complete fwd (by sector), industry, classification, new industry, entire
 
     main(r_name)
 

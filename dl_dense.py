@@ -20,11 +20,9 @@ space = {
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
     'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4]),    # number of layers
 
-    'neurons_layer_1': hp.choice('neurons_layer_1', [8, 16, 32, 64]),
-    'neurons_layer_2': hp.choice('neurons_layer_2', [8, 16, 32, 64]),
-    'neurons_layer_3': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
-    'neurons_layer_4': hp.choice('neurons_layer_3', [8, 16, 32, 64]),
-
+    'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
+    'neurons_layer_2': hp.choice('neurons_layer_2', [16, 32, 64, 128]),
+    'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
     'batch_size': hp.choice('batch_size', [64, 128, 512, 2048]),
     # 'dropout': hp.choice('dropout', [0, 0.2, 0.4])
 
@@ -50,9 +48,8 @@ def dense_train(space):
 
     ## add regularization?
 
-    model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=1000, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
-
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
     valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
@@ -145,7 +142,7 @@ if __name__ == "__main__":
 
     data = load_data()
 
-    for add_ind_code in [0, 1]: # 1 means add industry code as X
+    for add_ind_code in [0]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
@@ -175,11 +172,6 @@ if __name__ == "__main__":
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-                try:
-                    HPOT(space)
-                    cv_number += 1
-                except:
-                    cv_number += 1
-                    continue
+                HPOT(space)
 
 

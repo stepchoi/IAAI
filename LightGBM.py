@@ -157,10 +157,11 @@ def HPOT(space, max_evals):
     sql_result['trial_hpot'] += 1
     # return best
 
-def to_sql_bins(cut_bins, exist=True):
+def to_sql_bins(cut_bins, write=True):
     ''' write cut_bins & median of each set to DB'''
 
-    if exist == True:
+    if write == False:
+
         df = pd.DataFrame(columns=['cut_bins','med_train'])
         df[['cut_bins','med_train']] = df[['cut_bins','med_train']].astype('object')
 
@@ -323,7 +324,7 @@ if __name__ == "__main__":
 
                 print(feature_names)
 
-                to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
                 cv_number = 1   # represent which cross-validation sets
                 for train_index, valid_index in cv:     # roll over 5 cross validation set
