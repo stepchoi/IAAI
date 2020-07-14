@@ -23,12 +23,6 @@ ws_col = ['cap1fd12', 'ebd1fd12', 'eps1fd12', 'close', 'fn_18100', 'fn_18158', '
               'fn_18309', 'fn_18310', 'fn_18311', 'fn_18312', 'fn_18313', 'fn_2001', 'fn_2101', 'fn_2201', 'fn_2501',
               'fn_2999', 'fn_3101', 'fn_3255', 'fn_3501', 'fn_5085', 'fn_8001']
 
-'''
-1. read DB TABLE
-2. fill 0
-3. pivot 3D array
-'''
-
 class add_macro:
 
     def __init__(self, ratios, macros):
@@ -144,19 +138,15 @@ class load_data:
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
 
-    def split_icb(self, icb_code):
-        ''' split samples from specific sectors (icb_code) '''
+    def split_entire(self, add_ind_code):
+        ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
 
-        indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-                          501010, 201020, 502030, 401010]
+        if add_ind_code == 1:
+            self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
 
-        if icb_code in indi_model_icb:
-            self.sector = full_period(self.main.loc[self.main['icb_sector'] == icb_code])
-        else:
-            self.sector = full_period(self.main.loc[~self.main['icb_sector'].isin(indi_model_icb)])
-            print('This is miscellaneous model')
+        self.sector = self.main
 
-        self.sector = self.sector.drop(['icb_sector', 'market'], axis=1)
+    def split_indus
 
     def split_train_test(self, testing_period, qcut_q, y_type):
         ''' split training / testing set based on testing period '''
@@ -209,7 +199,7 @@ class load_data:
 
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
 
-        return train_x, train_y, test_x, test_y, cv
+        return train_x, train_y, test_x, test_y, cv, test_2dx_info['identifier']
 
 
 
@@ -246,12 +236,12 @@ class load_data:
 
 if __name__ == '__main__':
 
-    icb_code = 301010
+    add_ind_code = 1
     testing_period = dt.datetime(2013, 3, 31)
     qcut_q = 10
 
     data = load_data()
-    data.split_icb(icb_code)
+    data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv = data.split_train_test(testing_period, qcut_q, y_type='ni')
 
     for train_index, test_index in cv:

@@ -12,21 +12,27 @@ from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
-from load_data_lgbm import load_data
+from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
+    'num_GRU_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
+    'num_dense_layer': hp.choice('num_Dense_layer', [0]),  # number of layers
 
-    'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
+    'GRU_1': hp.choice('GRU_1', [8, 16, 32, 64]),
     'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
-    'neurons_layer_2': hp.choice('neurons_layer_2', [16, 32, 64, 128]),
+    'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0, 0.2, 0.4]),
+
+    'GRU_2': hp.choice('GRU_2', [8, 16, 32, 64]),
     'dropout_2': hp.choice('dropout_2', [0, 0.2, 0.4]),
-    'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
+    'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0, 0.2, 0.4]),
+
+    'GRU_3': hp.choice('GRU_3', [16, 32, 64, 128]),
     'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
+    'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0, 0.2, 0.4]),
 
     'activation': hp.choice('activation', ['relu','tanh']),
     'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
@@ -42,10 +48,17 @@ def dense_train(space):
     print(params)
 
     model = models.Sequential()
-    for i in range(params['num_Dense_layer']):
-        model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation=params['activation']))
-        if params['dropout_{}'.format(i+1)] > 0:
-            model.add(Dropout(params['dropout_{}'.format(i+1)]))
+    for i in range(params['num_GRU_layer']):
+        model.add(GRU(params['neurons_layer_{}'.format(i+1)], activation=params['activation'],
+                      dropout=params['dropout_{}'.format(i+1)], recurrent_dropout=params['recurrent_dropout_{}'.format(i+1)],
+                      return_sequences=True))
+
+    # model.add(Flatten())
+    #
+    # if params['num_dense_layer'] != 0:
+    #     for i in range(params['num_dense_layer']):
+    #         model.add(Dense(params['neurons_layer_{}'.format(i + 1)], activation=params['activation']))
+
     model.add(Dense(1))
 
     model.compile(optimizer='adam', loss='mae')
@@ -76,7 +89,7 @@ def eval(space):
     sql_result['finish_timing'] = dt.datetime.now()
 
     with engine.connect() as conn:
-        pd.DataFrame(sql_result, index=[0]).to_sql('results_dense', con=conn, index=False, if_exists='append')
+        pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn', con=conn, index=False, if_exists='append')
     engine.dispose()
 
     print('sql_result_before writing: ', sql_result)
@@ -102,7 +115,7 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
+        hpot['best_stock_df'].to_sql('results_rnn_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
     sql_result['trial_hpot'] += 1
@@ -122,9 +135,8 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_dense_{}.png'.format(sql_result['trial_lgbm']))
+    plt.savefig('results_dense/plot_rnn_{}.png'.format(sql_result['trial_lgbm']))
     plt.close()
-# try functional API?
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
@@ -144,11 +156,11 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
-    sql_result['name'] = 'with dropout'
+    sql_result['name'] = 'new entire'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2018,3,31)
-    qcut_q = 10
+    sql_result['qcut_q'] = 10
     sample_no = 1
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
@@ -162,28 +174,18 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                              y_type='ni',
-                                                                              exclude_fwd=exclude_fwd,
-                                                                              use_median=use_median,
-                                                                              chron_valid=chron_valid)
-
-            print(feature_names)
-
-            X_test =  np.nan_to_num(sample_set['test_x'], nan=0)
-            Y_test = sample_set['test_y']
+            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, sql_result['qcut_q'], y_type='ni')
 
             cv_number = 1
             for train_index, test_index in cv:
-                sql_result['cv_number'] = cv_number
+                X_train = train_x[train_index]
+                Y_train = train_y[train_index]
+                X_valid = train_x[test_index]
+                Y_valid = train_y[test_index]
 
-                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                Y_train = sample_set['train_y'][train_index]
-                X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                Y_valid = sample_set['train_y'][test_index]
+                print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                HPOT(space, 20)
+                HPOT(space, 10)
                 exit(0)
 
 
