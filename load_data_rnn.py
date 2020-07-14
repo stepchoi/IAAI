@@ -178,7 +178,9 @@ class load_data:
             ''' convert 2d DF -> 3d array'''
 
             df = train_2dx_info.fillna(0)       # fill nan with 0
-            train_3dx_all = df.set_index(['period_end', 'identifier']).drop(['y_{}'.format(y_type)], axis=1).to_xarray().to_array().transpose()
+            train_3dx_all = df.set_index(['period_end', 'identifier'])[x_col].to_xarray().to_array().transpose()
+            print(train_3dx_all.indexes)
+
             arr = []
             for i in period_range:
                 arr.append(train_3dx_all[:,i:(20+i),:].values)
