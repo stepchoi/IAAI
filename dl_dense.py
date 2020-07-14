@@ -91,13 +91,13 @@ def eval(space):
 
     return result['mae_valid']
 
-def HPOT(space):
+def HPOT(space, max_evals = 10):
 
     hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
     hpot['all_results'] = []
 
     trials = Trials()
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=10, trials=trials)
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
     print(pd.DataFrame(hpot['all_results']), hpot['best_stock_df'])
 
@@ -187,6 +187,6 @@ if __name__ == "__main__":
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-                HPOT(space)
+                HPOT(space, 20)
 
 
