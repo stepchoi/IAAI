@@ -5,6 +5,16 @@ from sklearn.metrics import accuracy_score, mean_absolute_error
 from tqdm import tqdm
 from results_lgbm.consensus import eps_to_yoy
 
+''' classification'''
+
+if r_name == 'classification':
+    bins_df = bins_df.loc[
+        bins_df['med_train'] == "{\"Not applicable\"}"]  # classification will not have median conversion
+else:
+    bins_df = bins_df.loc[bins_df['med_train'] != "{\"Not applicable\"}"]
+
+    ''' _______________________-----------------------------------______________________________'''
+
 def qcut_yoy(yoy):
     ''' convert yoy in qcut format to medians with med_train from training set'''
 

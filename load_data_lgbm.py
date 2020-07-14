@@ -75,13 +75,12 @@ class load_data:
 
         try:
             self.main = pd.read_csv('preprocess/main.csv')
-            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv',
-                                         usecols=['identifier','period_end','y_ibes'])
+            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus','y_ibes'])
             print('local version run - main / consensus')
         except:
             self.main = add_macro().map_macros()
             self.main.to_csv('preprocess/main.csv', index=False)
-            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_ibes'])
+            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus','y_ibes'])
             # self.main.to_csv('preprocess/main.csv', index=False)
 
         self.main = date_type(self.main)
@@ -99,20 +98,29 @@ class load_data:
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
 
+        # print(self.main.isnull().sum())
+        # print(self.main.shape)
+        # df = self.main[['identifier', 'period_end', 'icb_sector','y_ibes']].set_index(['identifier', 'period_end', 'icb_sector'])
+        # print(df)
+        # df = df.stack(-1)
+        # print(df)
+        # exit(0)
+
+
     def split_sector(self, icb_code):
         ''' split samples from specific sectors (icb_code) '''
 
-        indi_model_icb = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+        indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                           501010, 201020, 502030, 401010]
 
-        if icb_code in indi_model_icb:
+        if icb_code in indi_sectors:
             self.sector = self.main.loc[self.main['icb_sector'] == icb_code]
         else:
-            self.sector = self.main.loc[~self.main['icb_sector'].isin(indi_model_icb)]
+            self.sector = self.main.loc[~self.main['icb_sector'].isin(indi_sectors)]
             print('This is miscellaneous model')
-        # print(main.describe().T[['max','min']])
 
     def split_industry(self, icb_industry, combine_ind=True):
+
         if combine_ind == True:
             self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
 
@@ -187,9 +195,11 @@ class load_data:
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
-                # d = pd.DataFrame(self.sample_set['train_x'], columns = self.feature_names)
-                # d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
-                # d.to_csv('##load_data_qcut.csv', index=False)
+                d = pd.DataFrame(self.sample_set['train_x'][:,-1], columns = ['ibes_qcut_as_x'])
+                d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
+                d.to_csv('##load_data_qcut.csv', index=False)
+                exit(0)
+
 
 
             if use_median == True:
@@ -268,6 +278,7 @@ if __name__ == '__main__':
     icb_code = 301010
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
+    y_type = 'ibes'
 
     exclude_fwd = True
     ibes_qcut_as_x = True
@@ -277,7 +288,7 @@ if __name__ == '__main__':
     # data.split_industry(icb_code, combine_ind=True)
 
     sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                      y_type='ni',
+                                                                      y_type=y_type,
                                                                       exclude_fwd=exclude_fwd,
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,

@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from load_data_lgbm import load_data
 from LightGBM import read_db_last
+import matplotlib.pyplot as plt
 
 space = {
 
@@ -56,11 +57,11 @@ def dense_train(space):
     test_mae = model.evaluate(X_test, Y_test, verbose=1)
     Y_test_pred = model.predict(X_test)
 
-    return train_mae, valid_mae, test_mae, Y_test_pred
+    return train_mae, valid_mae, test_mae, Y_test_pred, history
 
 def eval(space):
 
-    train_mae, valid_mae, test_mae, Y_test_pred = dense_train(space)
+    train_mae, valid_mae, test_mae, Y_test_pred, history = dense_train(space)
 
     result = {'mae_train': train_mae,
               'mae_valid': valid_mae,
@@ -80,6 +81,7 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
+        hpot['best_histroy'] = history
 
     sql_result['trial_lgbm'] += 1
 
@@ -100,17 +102,26 @@ def HPOT(space):
         hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
+    plot_history(hpot['best_histroy'])  # plot history
+
     sql_result['trial_hpot'] += 1
 
     return best
 
-# def history_log():
-#     num_epoch = 200
-#     all_mae_histories = []
-#     mae_history = history.history['val_mean_absolute_error']
-#     all_mae_histories.append(mae_history)
+def plot_history(history):
+    ''' plot the training loss history '''
 
+    history_dict = history.history
+    epochs = range(1, len(history_dict)+1)
 
+    plt.plot(epochs, history_dict['loss'], 'bo', label='training loss')
+    plt.plot(epochs, history_dict['val_loss'], 'b', label='validation loss')
+    plt.title('dense - training and validation loss')
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.legend()
+
+    plt.savefig('results_lgbm/params_tuning/plot_dense_loss.png')
 
 # try functional API?
 
@@ -146,7 +157,7 @@ if __name__ == "__main__":
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
+        for i in tqdm(range(1)):  # roll over testing period
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 

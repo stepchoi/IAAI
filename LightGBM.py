@@ -91,9 +91,9 @@ def eval(space):
 
     if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
-        hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
+        hpot['best_stock_df'] = to_sql_prediction(Y_test_pred)
         # hpot['best_model'] = gbm
-        hpot['best_importance'] = importance_to_sql(gbm)
+        hpot['best_importance'] = to_sql_importance(gbm)
 
     sql_result['trial_lgbm'] += 1
 
@@ -175,8 +175,7 @@ def to_sql_bins(cut_bins, write=True):
             df.to_sql('results_bins_new', con=conn, index=False, if_exists='append')
         engine.dispose()
 
-
-def pred_to_sql(Y_test_pred):
+def to_sql_prediction(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
 
     df = pd.DataFrame()
@@ -187,7 +186,7 @@ def pred_to_sql(Y_test_pred):
 
     return df
 
-def importance_to_sql(gbm):
+def to_sql_importance(gbm):
     ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
 
     df = pd.DataFrame()
