@@ -171,13 +171,10 @@ def to_sql_bins(cut_bins, write=True):
         for col in ['qcut_q', 'icb_code', 'testing_period','y_type']:
             df.at[0, col] = sql_result[col]
 
-        df['name'] = sql_result['name']
-
         with engine.connect() as conn:      # record type of Y
-            df.to_sql('results_bins', con=conn, index=False, if_exists='append')
+            df.to_sql('results_bins_new', con=conn, index=False, if_exists='append')
         engine.dispose()
-    else:
-        print('Already recorded in DB TABLE results_bins')
+
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
@@ -249,7 +246,6 @@ if __name__ == "__main__":
     indi_industry_new = [10, 20, 30, 35, 40, 45, 50, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
-    ''' 502060 is problematic on 2014-9-30, cv 5'''
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
