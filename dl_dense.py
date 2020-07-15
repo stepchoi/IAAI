@@ -6,7 +6,7 @@ import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from keras import models, callbacks
-from keras.layers import Dense, GRU, Dropout, Flatten
+from keras.layers import Dense, GRU, Dropout, Flatten, LeakyReLU
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -28,7 +28,8 @@ space = {
     'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
     'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
 
-    'activation': hp.choice('activation', ['relu','tanh']),
+    'activation': hp.choice('activation', ['relu','tanh','leakyrelu']),
+    # 'leakyrelu_alpha': hp.choice('dropout_1', [0.05, 0.1]),
     'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
 
 }
@@ -42,10 +43,16 @@ def dense_train(space):
     print(params)
 
     model = models.Sequential()
-    for i in range(params['num_Dense_layer']):
-        model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation=params['activation']))
-        if params['dropout_{}'.format(i+1)] > 0:
-            model.add(Dropout(params['dropout_{}'.format(i+1)]))
+    if params['activation'] == 'leakyrelu':
+        for i in range(params['num_Dense_layer']):
+            model.add(Dense(params['neurons_layer_{}'.format(i + 1)], LeakyReLU(alpha=0.1)))
+            if params['dropout_{}'.format(i+1)] > 0:
+                model.add(Dropout(params['dropout_{}'.format(i+1)]))
+    else:
+        for i in range(params['num_Dense_layer']):
+            model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation=params['activation']))
+            if params['dropout_{}'.format(i+1)] > 0:
+                model.add(Dropout(params['dropout_{}'.format(i+1)]))
     model.add(Dense(1))
 
     model.compile(optimizer='adam', loss='mae')

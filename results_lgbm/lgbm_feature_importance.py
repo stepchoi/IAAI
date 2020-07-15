@@ -5,7 +5,7 @@ import pandas as pd
 import datetime as dt
 from miscel import date_type, check_dup
 
-def download_result_features(r_name):
+def download_result_features(r_name, table_name='results_lightgbm'):
     ''' 3. download from DB TABLE results_lightgbm_stock '''
 
     print('----------------> update stock results from DB ')
@@ -14,7 +14,7 @@ def download_result_features(r_name):
 
         # read DB TABLE results_lightgbm data for given "name"
         result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd "
-                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
+                     "FROM {} WHERE name='{}'".format(table_name, r_name), conn)
         trial_lgbm = set(result_all['trial_lgbm'])
 
         # read corresponding part of DB TABLE results_lightgbm_stock
@@ -45,13 +45,12 @@ def group_icb(df):
 
     writer.save()
 
-
-
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'complete fwd'
+    r_name = 'with dropout'
+    table_name = 'results_dense'
 
     try:    # STEP1: download lightgbm results for feature importance
         importance = pd.read_csv('results_lgbm/feature_importance/{}_total.csv'.format(r_name))
