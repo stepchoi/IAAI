@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
-
+from miscel import write_db
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -9,7 +9,7 @@ engine = create_engine(db_string)
 def new_results_lightgbm():
 
     try:
-        result_all = pd.read_csv('result_all.csv')
+        result_all = pd.read_csv('result_all.csv', low_memory=False)
         print('local version run - result_all')
 
     except:
@@ -21,41 +21,54 @@ def new_results_lightgbm():
 
         result_all.to_csv('result_all.csv', index=False)
 
-    print(result_all)
+    # print(result_all)
 
     rename = pd.read_excel('preprocess/ratio_calculation.xlsx','DB_name')
 
     # 1. reset trial_lgbm to sequential list
-    last_correct_num = result_all.loc[result_all['name']!='ibes qcut x - new industry', 'trial_lgbm'].to_list()[-1]
-    mask = result_all['name']=='ibes qcut x - new industry'
+    mask = result_all['name'].isin(['new qcut x - new industry', 'ibes qcut x - new industry'])
+    last_correct_num = result_all.loc[~mask, 'trial_lgbm'].max()
+    # print(last_correct_num)
 
     wrong_num = result_all.loc[mask, 'trial_lgbm'].to_list()
-    right_num = [x + last_correct_num + 1 for x in wrong_num]
-
+    right_num = [last_correct_num + x + 1 for x in range(len(wrong_num))]
     result_all.loc[mask, 'trial_lgbm'] = result_all.loc[mask, 'trial_lgbm'].replace(wrong_num, right_num)
-    print(result_all.loc[mask, 'trial_lgbm'])
+    # print(len(wrong_num), wrong_num, len(right_num), right_num)
 
     # 2. rename
     result_all['name'] = result_all['name'].replace(rename['old_name'].to_list(), rename['new_name'].to_list())
 
-def new_results_lightgbm_stock():
+    write_db(result_all, 'results_lightgbm')
 
+    return last_correct_num, wrong_num, right_num
+
+def new_stock():
+
+    last_correct_num, wrong_num, right_num = new_results_lightgbm()
+
+    # 3. reset stock records number
     try:
-        result_all = pd.read_csv('results_all_stock.csv')
+        stock = pd.read_csv('results_all_stock.csv', low_memory=False)
         print('local version run - results_all_stock')
 
     except:
         print('-----------------> downloading data from DB TABLE results_all_stock')
 
         with engine.connect() as conn:
-            result_all = pd.read_sql('SELECT * FROM results_all_stock', conn)
+            stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
         engine.dispose()
 
-        result_all.to_csv('results_all_stock.csv', index=False)
+        stock.to_csv('results_all_stock.csv', index=False)
 
-    print(result_all)
+    first_wrong_stock_index = stock.loc[stock['trial_lgbm']==240681].index.to_list()[0]
+    # print(first_wrong_stock_index)
+
+    stock[first_wrong_stock_index:] = stock[first_wrong_stock_index:].replace(wrong_num, right_num)
+
+    write_db(stock, 'results_lightgbm_stock')
 
 if __name__ == '__main__':
-    new_results_lightgbm_stock()
+
+    new_stock()
 
 
