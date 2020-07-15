@@ -41,17 +41,20 @@ space = {
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-def dense_train(space):
+def rnn_train(space):
+    ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
     params = space.copy()
     print(params)
 
     model = models.Sequential()
+
     for i in range(params['num_gru_layer']):
         model.add(GRU(params['gru_{}'.format(i+1)], activation=params['activation'],
                       dropout=params['dropout_{}'.format(i+1)], recurrent_dropout=params['recurrent_dropout_{}'.format(i+1)],
                       return_sequences=not(i==params['num_gru_layer']-1), input_shape=(X_train.shape[1], X_train.shape[2]), ))
 
+    ''' Use GRU + dense? '''
     # model.add(Flatten())
     #
     # if params['num_dense_layer'] != 0:
@@ -75,8 +78,9 @@ def dense_train(space):
     return train_mae, valid_mae, test_mae, Y_test_pred, history
 
 def eval(space):
+    ''' train & evaluate each of the rnn model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = dense_train(space)
+    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)
 
     result = {'mae_train': train_mae,
               'mae_valid': valid_mae,
@@ -89,7 +93,7 @@ def eval(space):
     sql_result.update(result)
     sql_result['finish_timing'] = dt.datetime.now()
 
-    with engine.connect() as conn:
+    with engine.connect() as conn:  # save training results
         pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn', con=conn, index=False, if_exists='append')
     engine.dispose()
 
@@ -99,13 +103,14 @@ def eval(space):
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
 
-    plot_history(history)  # plot history
+    plot_history(history)  # plot history (epoch -> training / validation loss) find optimal epoch needed
 
     sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
 
 def HPOT(space, max_evals = 10):
+    ''' use hyperopt on each set '''
 
     hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
     hpot['all_results'] = []
@@ -187,6 +192,5 @@ if __name__ == "__main__":
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
                 HPOT(space, 10)
-                exit(0)
 
 

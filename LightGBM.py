@@ -71,7 +71,7 @@ def lgbm_train(space):
     return Y_train_pred, Y_valid_pred, Y_test_pred, gbm
 
 def eval(space):
-    ''' train & evaluate LightGBM on given space by hyperopt trails '''
+    ''' train & evaluate LightGBM on given space by hyperopt trials '''
 
     Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
     Y_test = sample_set['test_y']

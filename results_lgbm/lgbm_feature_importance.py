@@ -30,12 +30,13 @@ def download_result_features(r_name, table_name='results_lightgbm'):
 def group_icb(df):
     ''' groupby icb_code and find sum'''
 
-    df = df.loc[df['exclude_fwd']==False]
+    # df = df.loc[df['exclude_fwd']==False]
     df = df.drop(['trial_lgbm', 'qcut_q', 'testing_period', 'cv_number', 'mae_test', 'exclude_fwd'], axis=1)
 
     def org_by_type(importance_type):
         df_type = df.loc[(df['importance_type']==importance_type)].groupby(['icb_code']).mean().T
         df_type['all'] = df_type.sum(1)
+        print(df_type)
         return df_type.sort_values('all', ascending=False)
 
     writer = pd.ExcelWriter('results_lgbm/feature_importance/{}_describe.xlsx'.format(r_name))
@@ -49,8 +50,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'with dropout'
-    table_name = 'results_dense'
+    r_name = 'ibes eps ts - new industry'
+    # table_name = 'results_dense'
 
     try:    # STEP1: download lightgbm results for feature importance
         importance = pd.read_csv('results_lgbm/feature_importance/{}_total.csv'.format(r_name))

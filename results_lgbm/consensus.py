@@ -245,20 +245,7 @@ class calc_mae_write():
 
         df = pd.DataFrame(sector_dict).T.unstack()
 
-        def label_icb_name(df):
-            '''label sector name for each icb_sector '''
-
-            with engine.connect() as conn:
-                ind_name = pd.read_sql('SELECT * FROM industry_group', conn).set_index(['industry_group_code'])
-            engine.dispose()
-            ind_name.index = ind_name.index.astype(int)
-
-            df = df.merge(ind_name, left_index=True, right_index=True, how='left')
-            print(df)
-
-            return df
-
-        return label_icb_name(df)
+        return label_sector_name(df)
 
     def by_industry(self):
         ''' calculate equivalent per industry(new) MAE '''
@@ -269,19 +256,7 @@ class calc_mae_write():
 
         df = pd.DataFrame(industry_dict).T.unstack()
 
-        def label_icb_name(df):
-            '''label sector name for each icb_industry '''
-
-            with engine.connect() as conn:
-                ind_name = pd.read_sql('SELECT * FROM industry_group_2', conn).set_index(['icb_industry'])
-            engine.dispose()
-
-            df = df.merge(ind_name, left_index=True, right_index=True, how='left')
-            print(df)
-
-            return df
-
-        return label_icb_name(df)
+        return label_industry_name(df)
 
     def by_time(self):
         ''' calculate equivalent per testing_period MAE '''
@@ -335,6 +310,31 @@ def label_sector(df):
 
     return df.merge(icb.drop_duplicates(), on=['identifier'], how='left')   # remove dup due to cross listing
 
+def label_sector_name(df):
+    ''' label sector name for each icb_sector '''
+
+    with engine.connect() as conn:
+        ind_name = pd.read_sql('SELECT * FROM industry_group', conn).set_index(['industry_group_code'])
+    engine.dispose()
+
+    ind_name.index = ind_name.index.astype(int)
+    df = df.merge(ind_name, left_index=True, right_index=True, how='left')
+    print(df)
+
+    return df
+
+def label_industry_name(df):
+    '''label sector name for each icb_industry '''
+
+    with engine.connect() as conn:
+        ind_name = pd.read_sql('SELECT * FROM industry_group_2', conn).set_index(['icb_industry'])
+    engine.dispose()
+
+    df = df.merge(ind_name, left_index=True, right_index=True, how='left')
+    print(df)
+
+    return df
+
 def combine():
     ''' combine average of different trial to save csv for comparison'''
 
@@ -358,8 +358,8 @@ def combine():
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
     pd.concat(average, axis=0).to_excel(writer, 'average')
-    pd.concat(sector, axis=1).to_excel(writer, 'by_sector_lgbm_in')
-    pd.concat(industry, axis=1).to_excel(writer, 'by_industry_lgbm_in')
+    label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
+    label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
 
     print('save to file name: #compare_all.xlsx')
     writer.save()
@@ -367,10 +367,10 @@ def combine():
 if __name__ == "__main__":
 
 
-    # for r_name in ['entire', 'qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new']:   #  complete fwd (by sector), industry, new industry, entire
-    # r_name = 'new qcut x - new industry'
-    # yoy_merge = download(r_name).merge_stock_ibes()
-    # calc_mae_write(yoy_merge)
+    # for r_name in ['entire', 'qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new', 'new qcut x - new industry']:   #  complete fwd (by sector), industry, new industry, entire
+    r_name = 'new qcut x - new industry'
+    yoy_merge = download(r_name).merge_stock_ibes()
+    calc_mae_write(yoy_merge)
     # exit(0)
 
     combine()
