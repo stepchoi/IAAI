@@ -53,7 +53,7 @@ def plot_boxplot(df, table_name='results_lightgbm', r_name=None):
 
     if table_name == 'results_lightgbm':
         params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
-                 'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves, name, exclude_fwd'.rsplit(', ')
+                 'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves'.rsplit(', ')
     elif table_name == 'results_dense':
         params = ['batch_size', 'neurons_layer_1', 'neurons_layer_2', 'neurons_layer_3', 'num_Dense_layer',
                   'neurons_layer_4', 'activation','dropout_1', 'dropout_2', 'dropout_3']
@@ -110,7 +110,7 @@ def plot_boxplot(df, table_name='results_lightgbm', r_name=None):
             for patch in bp['boxes']:
                 patch.set(facecolor=fill_color)
 
-            ax.set(ylim=(0.0075, 0.02))
+            ax.set(ylim=(0.005, 0.015))
 
         draw_plot(ax_test, data_test, label, 'red', 'tan')
         draw_plot(ax_all, data_test, label, 'red', 'tan')
@@ -149,11 +149,11 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'with dropout'
-    table_name = 'results_dense'
+    r_name = 'ibes eps ts - new industry'
+    # table_name = 'results_dense'
 
-    results = download(table_name=table_name, r_name=r_name)
-    plot_boxplot(results, table_name=table_name, r_name=r_name)
+    results = download(r_name=r_name)
+    plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)
     # compare_valid()
