@@ -38,14 +38,15 @@ db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.
 engine = create_engine(db_string)
 
 def dense_train(space):
+    ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
     params = space.copy()
     print(params)
 
     model = models.Sequential()
-    if params['activation'] == 'leakyrelu':
+    if params['activation'] == 'leakyrelu':     # try leaky relu
         for i in range(params['num_Dense_layer']):
-            model.add(Dense(params['neurons_layer_{}'.format(i + 1)], LeakyReLU(alpha=0.1)))
+            model.add(Dense(params['neurons_layer_{}'.format(i + 1)], LeakyReLU(alpha=0.1)))    # add layers accoridng to num_Dense_layer
             if params['dropout_{}'.format(i+1)] > 0:
                 model.add(Dropout(params['dropout_{}'.format(i+1)]))
     else:
@@ -68,6 +69,7 @@ def dense_train(space):
     return train_mae, valid_mae, test_mae, Y_test_pred, history
 
 def eval(space):
+    ''' train & evaluate each of the dense model '''
 
     train_mae, valid_mae, test_mae, Y_test_pred, history = dense_train(space)
 
@@ -99,6 +101,7 @@ def eval(space):
     return result['mae_valid']
 
 def HPOT(space, max_evals = 10):
+    ''' use hyperopt on each set '''
 
     hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
     hpot['all_results'] = []
