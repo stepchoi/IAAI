@@ -41,17 +41,17 @@ def new_results_lightgbm():
 def new_results_lightgbm_stock():
 
     try:
-        result_all = pd.read_csv('result_all_stock.csv')
-        print('local version run - result_all')
+        result_all = pd.read_csv('results_all_stock.csv')
+        print('local version run - results_all_stock')
 
     except:
-        print('-----------------> downloading data from DB TABLE results_lightgbm')
+        print('-----------------> downloading data from DB TABLE results_all_stock')
 
         with engine.connect() as conn:
-            result_all = pd.read_sql('SELECT * FROM result_all_stock', conn)
+            result_all = pd.read_sql('SELECT * FROM results_all_stock', conn)
         engine.dispose()
 
-        result_all.to_csv('result_all_stock.csv', index=False)
+        result_all.to_csv('results_all_stock.csv', index=False)
 
     print(result_all)
 
