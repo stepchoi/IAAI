@@ -23,7 +23,7 @@ def new_results_lightgbm():
 
     # print(result_all)
 
-    rename = pd.read_excel('preprocess/ratio_calculation.xlsx','DB_name')
+    rename = pd.read_excel('ratio_calculation.xlsx','DB_name')
 
     # 1. reset trial_lgbm to sequential list
     mask = result_all['name'].isin(['new qcut x - new industry', 'ibes qcut x - new industry'])
@@ -38,13 +38,15 @@ def new_results_lightgbm():
     # 2. rename
     result_all['name'] = result_all['name'].replace(rename['old_name'].to_list(), rename['new_name'].to_list())
 
-    write_db(result_all, 'results_lightgbm')
+    result_all.to_csv('results_lightgbm_new.csv', index=False)
+    #
+    # write_db(result_all, 'results_lightgbm_new')
 
     return last_correct_num, wrong_num, right_num
 
 def new_stock():
 
-    last_correct_num, wrong_num, right_num = new_results_lightgbm()
+    # last_correct_num, wrong_num, right_num = new_results_lightgbm()
 
     # 3. reset stock records number
     try:
@@ -60,12 +62,17 @@ def new_stock():
 
         stock.to_csv('results_all_stock.csv', index=False)
 
+    print(stock.shape)
+    exit(0)
+
     first_wrong_stock_index = stock.loc[stock['trial_lgbm']==240681].index.to_list()[0]
     # print(first_wrong_stock_index)
 
     stock[first_wrong_stock_index:] = stock[first_wrong_stock_index:].replace(wrong_num, right_num)
 
-    write_db(stock, 'results_lightgbm_stock')
+    stock.to_csv('results_lightgbm_stock_new.csv', index=False)
+
+    # write_db(stock, 'results_lightgbm_stock_new')
 
 if __name__ == '__main__':
 

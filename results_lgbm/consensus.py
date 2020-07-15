@@ -368,8 +368,10 @@ if __name__ == "__main__":
 
 
     # for r_name in ['entire', 'qcut x - new industry', 'new industry', 'complete fwd', 'ibes eps ts - new', 'new qcut x - new industry']:   #  complete fwd (by sector), industry, new industry, entire
-    r_name = 'new qcut x - new industry'
-    yoy_merge = download(r_name).merge_stock_ibes()
+    for r_name in ['ibes_new industry_qcut x','ibes_sector', 'ibes_new industry', 'ni_entire', 'ni_new industry',
+                   'ni_new industry_qcut x','ni_sector','ni_sector_qcut x']:
+        yoy_merge = download(r_name) #.merge_stock_ibes()
+        continue
     calc_mae_write(yoy_merge)
     # exit(0)
 

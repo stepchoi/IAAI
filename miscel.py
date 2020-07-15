@@ -30,15 +30,15 @@ def date_type(df, date_col='period_end'):
 def write_db(df, table_name):
     ''' write to db by chucksize 10000 and and pregress bar to keep track '''
 
-    def chunker(seq, size=10000):
+    def chunker(seq, size=1000):
         return (seq[pos:pos + size] for pos in np.arange(0, len(seq), size))
 
     with engine.connect() as conn:
         with tqdm(total=len(df)) as pbar:
-            for i, cdf in enumerate(chunker(df, 10000)):
+            for i, cdf in enumerate(chunker(df, 1000)):
                 replace = "replace" if i == 0 else "append"
-                df.to_sql(table_name, con=conn, index=False, if_exists=replace, chunksize=10000)
-                pbar.update(10000)
+                df.to_sql(table_name, con=conn, index=False, if_exists=replace, chunksize=1000, method='multi')
+                pbar.update(1000)
     engine.dispose()
 
 if __name__ == '__main__':
