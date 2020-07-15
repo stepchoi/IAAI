@@ -22,19 +22,19 @@ space = {
     # 'num_dense_layer': hp.choice('num_Dense_layer', [0]),  # number of layers
 
     'gru_1': hp.choice('gru_1', [8, 16, 32, 64]),
-    'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
-    'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0, 0.2, 0.4]),
+    'dropout_1': hp.choice('dropout_1', [0]),
+    'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0]),
 
     'gru_2': hp.choice('gru_2', [8, 16, 32, 64]),
-    'dropout_2': hp.choice('dropout_2', [0, 0.2, 0.4]),
-    'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0, 0.2, 0.4]),
+    'dropout_2': hp.choice('dropout_2', [0]),
+    'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0]),
 
     'gru_3': hp.choice('gru_3', [16, 32, 64, 128]),
-    'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
-    'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0, 0.2, 0.4]),
+    'dropout_3': hp.choice('dropout_3', [0]),
+    'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0]),
 
-    'activation': hp.choice('activation', ['relu','tanh']),
-    'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
+    'activation': hp.choice('activation', ['tanh']),
+    'batch_size': hp.choice('batch_size', [64, 128, 512, 1024]),
 
 }
 
@@ -60,9 +60,11 @@ def dense_train(space):
 
     model.add(Dense(1))
 
+    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
+
     model.compile(optimizer='adam', loss='mae')
 
-    history = model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)

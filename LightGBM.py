@@ -205,7 +205,7 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
 
     try:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} order by finish_timing desc LIMIT 1".format(results_table), conn)
+            db_last = pd.read_sql("SELECT * FROM {} WHERE name =  order by finish_timing desc LIMIT 1".format(results_table), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     # training / testing sets split par
     indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
-    indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+    indi_industry_new = [51, 60, 65] # 11, 20, 30, 35, 40, 45,
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
 
@@ -278,7 +278,10 @@ if __name__ == "__main__":
     ibes_qcut_as_x = False
     sql_result['y_type'] = 'ibes'
 
-    ##ALTER 4: use qcut ibes
+    ''' restart from 51 '''
+
+
+    # #ALTER 4: use qcut ibes
     # exclude_fwd = True
     # ibes_qcut_as_x = True
 
