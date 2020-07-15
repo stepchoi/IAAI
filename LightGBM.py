@@ -123,8 +123,8 @@ def eval_classify(space):
 
     if result['mae_valid'] > hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
-        hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-        hpot['best_importance'] = importance_to_sql(gbm)
+        hpot['best_stock_df'] = to_sql_prediction(Y_test_pred)
+        hpot['best_importance'] = to_sql_importance(gbm)
 
     sql_result['trial_lgbm'] += 1
 
@@ -205,8 +205,8 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
 
     try:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} WHERE name = '{}' order by finish_timing desc "
-                                  "LIMIT 1".format(results_table, sql_result['name']), conn)
+            db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc "
+                                  "LIMIT 1".format(results_table), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
@@ -243,7 +243,7 @@ if __name__ == "__main__":
     # training / testing sets split par
     indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
-    indi_industry_new = [51, 60, 65] # 11, 20, 30, 35, 40, 45,
+    indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
 
@@ -251,32 +251,33 @@ if __name__ == "__main__":
     sql_result = {}     # data write to DB TABLE lightgbm_results
     hpot = {}           # storing data for best trials in each Hyperopt
 
-    # parser
+    # default parser
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['name'] = 'ibes eps ts - new industry'                     # name = labeling the experiments
     sql_result['qcut_q'] = 10                           # number of Y classes
     sql_result['y_type'] = 'ni'
+    sql_result['name'] = None
     use_median = True       # default setting
     chron_valid = False     # default setting
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    ## ALTER 1: change for classification problem
-    # use_median = False
-    # sql_result['qcut_q'] = 3
-    # space['num_class']= 3,
-    # space['objective'] = 'multiclass'
-    # space['metric'] = 'multi_error'
+    # ALTER 1: change for classification problem
+    use_median = False
+    sql_result['qcut_q'] = 3
+    space['num_class']= 3,
+    space['objective'] = 'multiclass'
+    space['metric'] = 'multi_error'
 
     ## ALTER 2: change using chronological last few as validation
     # chron_valid = True
+    # sql_result['name'] =                                               # name = labeling the experiments
 
     # ALTER 3: use eps_ts instead of ni_ts
-    exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    exclude_fwd = False                             # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
     ibes_qcut_as_x = False
     sql_result['y_type'] = 'ibes'
-    sql_result['name'] = 'ibes eps ts - new industry'                     # name = labeling the experiments
+    sql_result['name'] = 'classification_ibes_new industry'                # name = labeling the experiments
 
     # #ALTER 4: use qcut ibes
     # exclude_fwd = True
@@ -285,6 +286,9 @@ if __name__ == "__main__":
 
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
+
+    if sql_result['name'] == None:
+        exit(1)
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
