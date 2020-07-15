@@ -30,7 +30,7 @@ space = {
 
     'activation': hp.choice('activation', ['relu','tanh','leakyrelu']),
     # 'leakyrelu_alpha': hp.choice('dropout_1', [0.05, 0.1]),
-    'batch_size': hp.choice('batch_size', [32, 64, 128, 512]),
+    'batch_size': hp.choice('batch_size', [32, 64, 128, 512, 1024]),
 
 }
 
