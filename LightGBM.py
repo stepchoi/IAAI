@@ -205,7 +205,8 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
 
     try:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} WHERE name =  order by finish_timing desc LIMIT 1".format(results_table), conn)
+            db_last = pd.read_sql("SELECT * FROM {} WHERE name = '{}' order by finish_timing desc "
+                                  "LIMIT 1".format(results_table, sql_result['name']), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
@@ -259,8 +260,6 @@ if __name__ == "__main__":
     use_median = True       # default setting
     chron_valid = False     # default setting
 
-    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
-
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     ## ALTER 1: change for classification problem
@@ -277,20 +276,17 @@ if __name__ == "__main__":
     exclude_fwd = False             # False # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
     ibes_qcut_as_x = False
     sql_result['y_type'] = 'ibes'
-
-    ''' restart from 51 '''
-
+    sql_result['name'] = 'ibes eps ts - new industry'                     # name = labeling the experiments
 
     # #ALTER 4: use qcut ibes
     # exclude_fwd = True
     # ibes_qcut_as_x = True
+    # sql_result['name'] = 'new qcut x - new industry'                     # name = labeling the experiments
 
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    # for icb_code in indi_models:    # roll over sectors (first 6 icb code)
-    #     data.split_icb(icb_code)    # create load_data.sector = samples from specific sectors - within data(CLASS)
-    #     sql_result['icb_code'] = icb_code
+    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
         data.split_industry(icb_code, combine_ind=True)
@@ -303,8 +299,7 @@ if __name__ == "__main__":
             # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
             if resume == True:
 
-                if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period),
-                    'exclude_fwd': exclude_fwd} == db_last_param:  # if current loop = last records
+                if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
                     resume = False
                     print('---------> Resume Training', icb_code, testing_period)
                 else:
