@@ -151,12 +151,12 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
-    sql_result['name'] = 'with dropout'
+    sql_result['name'] = 'try leaky'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2018,3,31)
+    period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
-    sample_no = 1
+    sample_no = 25
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
@@ -190,7 +190,7 @@ if __name__ == "__main__":
                 Y_valid = sample_set['train_y'][test_index]
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                HPOT(space, 20)
+                HPOT(space, 10)
                 exit(0)
 
 
