@@ -21,23 +21,12 @@ space = {
     'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3, ]),  # number of dense layers BEFORE GRU
-    'num_nodes': hp.choice('num_nodes', [16, 32, 64 ]),  #nodes per layer BEFORE GRU
+    'num_nodes': hp.choice('num_nodes', [16, 32]),  #nodes per layer BEFORE GRU
 
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),    # number of layers
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),
     'gru_nodes': hp.choice('gru_nodes', [4, 8]), # start with possible 4 nodes -- 8, 8, 16 combination possible
 
-    'gru_1': hp.choice('gru_1', [8, 16]),
-    'dropout_1': hp.choice('dropout_1', [0]),
-    'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0]),
-
-    'gru_2': hp.choice('gru_2', [16, 32]),
-    'dropout_2': hp.choice('dropout_2', [0]),
-    'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0]),
-
-    'gru_3': hp.choice('gru_3', [32, 64]),
-    'dropout_3': hp.choice('dropout_3', [0]),
-    'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0]),
 
     'activation': hp.choice('activation', ['tanh']),
     'batch_size': hp.choice('batch_size', [64, 128, 512, 1024]),
