@@ -101,7 +101,7 @@ def rnn_train(space): #functional
         f_x = Dense(1)(f_x)
 
 
-    model = Model([input_img, input_img2], x) # input BOTH images as an ARRAY
+    model = Model([input_img, input_img2], f_x) # input BOTH images as an ARRAY
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
     callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
