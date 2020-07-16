@@ -163,14 +163,14 @@ if __name__ == "__main__":
     use_median = True
     chron_valid = False
     ibes_qcut_as_x = True
-    sql_result['name'] = 'try leaky'
+    sql_result['name'] = '5 layer'
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
     sample_no = 25
-    db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_dense', first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
@@ -178,7 +178,7 @@ if __name__ == "__main__":
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
-        for i in tqdm(range(1)):  # roll over testing period
+        for i in tqdm(range(sample_no)):  # roll over testing period
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 

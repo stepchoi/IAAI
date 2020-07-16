@@ -200,10 +200,10 @@ def to_sql_importance(gbm):
 
     return df
 
-def read_db_last(sql_result, results_table = 'results_lightgbm'):
+def read_db_last(sql_result, results_table = 'results_lightgbm', first=False):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
-    try:
+    if first == False:
         with engine.connect() as conn:
             db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc "
                                   "LIMIT 1".format(results_table), conn)
@@ -216,7 +216,7 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
         sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
         sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
         print(sql_result['trial_lgbm'])
-    except:
+    else:
         db_last_param = None
         sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
 
