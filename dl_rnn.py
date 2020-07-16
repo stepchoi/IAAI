@@ -5,7 +5,7 @@ import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
-from keras import models, callbacks
+from keras import models, callbacks, optimizers
 from keras.layers import Dense, GRU, Dropout, Flatten
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
@@ -17,19 +17,21 @@ from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
 space = {
+    'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),
+    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
 
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),    # number of layers
     # 'num_dense_layer': hp.choice('num_Dense_layer', [0]),  # number of layers
 
-    'gru_1': hp.choice('gru_1', [8, 16, 32, 64]),
+    'gru_1': hp.choice('gru_1', [8, 16]),
     'dropout_1': hp.choice('dropout_1', [0]),
     'recurrent_dropout_1': hp.choice('recurrent_dropout_1', [0]),
 
-    'gru_2': hp.choice('gru_2', [8, 16, 32, 64]),
+    'gru_2': hp.choice('gru_2', [16, 32]),
     'dropout_2': hp.choice('dropout_2', [0]),
     'recurrent_dropout_2': hp.choice('recurrent_dropout_2', [0]),
 
-    'gru_3': hp.choice('gru_3', [16, 32, 64, 128]),
+    'gru_3': hp.choice('gru_3', [32, 64]),
     'dropout_3': hp.choice('dropout_3', [0]),
     'recurrent_dropout_3': hp.choice('recurrent_dropout_3', [0]),
 
@@ -64,8 +66,9 @@ def rnn_train(space):
     model.add(Dense(1))
 
     callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
-
-    model.compile(optimizer='adam', loss='mae')
+    lr_val = 10 ** -int(params['learning_rate'])
+    adam = optimizers.Adam(lr=lr_val)
+    model.compile(adam, loss='mae')
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
