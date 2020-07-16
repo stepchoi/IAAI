@@ -27,7 +27,7 @@ space = {
     'dropout_2': hp.choice('dropout_2', [0.25, 0.5]),
     'neurons_layer_3': hp.choice('neurons_layer_3', [32, 64]),
     'dropout_3': hp.choice('dropout_3', [0.25, 0.5]),
-    'neurons_layer_4': hp.choice('neurons_layer_4', [ 64, 128]),
+    'neurons_layer_4': hp.choice('neurons_layer_4', [64, 128]),
     'dropout_4': hp.choice('dropout_4', [0.25, 0.5]),
     'neurons_layer_5': hp.choice('neurons_layer_5', [64, 128]),
     'dropout_5': hp.choice('dropout_5', [0.25, 0.5]),
