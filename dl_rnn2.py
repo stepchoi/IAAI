@@ -53,7 +53,7 @@ def rnn_train(space): #functional
     print(params)
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
-    #pseudo-code-------------------------------------------------------------------------
+    #pseudo-code---------------------------------------------------------------------------------------------------------
     input_shape = (lookback * ~x_fields)  #prob need to flatten
     input_img = Input(shape=input_shape)
 
@@ -70,27 +70,29 @@ def rnn_train(space): #functional
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = min(params['gru_nodes'] * (2 ** (params['num_gru_layer']) * (i))), 8) # nodes grow at 2X or stay same - at least 8 nodes
+        temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['num_gru_layer']) * (i))), 8) # nodes grow at 2X or stay same - at least 8 nodes
         if i == 0:
         # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
         elif i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
-            g_1_2 = GRU(temp_nodes, **extra)(g_1)
+            g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=gru_drop, **extra)(g_1)
             g_1 = Flatten()(g_1)
 
-        f_x = Concatenate(axis=1)([g_1, g_1_2])
-        f_x = Dense(lookback + 1)(f_x)
-        f_x = Flatten()(f_x)
-        f_x = Dense(1)(f_x)
+    #join the return sequence and forecast state
+    f_x = Concatenate(axis=1)([g_1, g_1_2])
+    f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
+    f_x = Flatten()(f_x)
+    f_x = Dense(1)(f_x)
 
-        # end of pseudo-code-------------------------------------------------------------------------
+    model = Model(input_img, f_x)
+    # end of pseudo-code--------------------------------------------------------------------------------------------------
 
-        callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
+    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
