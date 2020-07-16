@@ -5,7 +5,7 @@ import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
-from keras import models, callbacks
+from keras import models, callbacks, optimizers
 from keras.layers import Dense, GRU, Dropout, Flatten, LeakyReLU
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
@@ -19,18 +19,22 @@ import matplotlib.pyplot as plt
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3]),    # number of layers
+    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4, 5]),  # number of layers ONE layer is TRIVIAL
+    'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),  # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+    'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32]),
+    'dropout_1': hp.choice('dropout_1', [0.25, 0.5]),
+    'neurons_layer_2': hp.choice('neurons_layer_2', [32, 64]),
+    'dropout_2': hp.choice('dropout_2', [0.25, 0.5]),
+    'neurons_layer_3': hp.choice('neurons_layer_3', [32, 64]),
+    'dropout_3': hp.choice('dropout_3', [0.25, 0.5]),
+    'neurons_layer_4': hp.choice('neurons_layer_4', [ 64, 128]),
+    'dropout_4': hp.choice('dropout_4', [0.25, 0.5]),
+    'neurons_layer_5': hp.choice('neurons_layer_5', [64, 128]),
+    'dropout_5': hp.choice('dropout_5', [0.25, 0.5]),
 
-    'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32, 64, 128]),
-    'dropout_1': hp.choice('dropout_1', [0, 0.2, 0.4]),
-    'neurons_layer_2': hp.choice('neurons_layer_2', [16, 32, 64, 128]),
-    'dropout_2': hp.choice('dropout_2', [0, 0.2, 0.4]),
-    'neurons_layer_3': hp.choice('neurons_layer_3', [16, 32, 64, 128]),
-    'dropout_3': hp.choice('dropout_3', [0, 0.2, 0.4]),
-
-    'activation': hp.choice('activation', ['relu','tanh','leakyrelu']),
+    'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
     # 'leakyrelu_alpha': hp.choice('dropout_1', [0.05, 0.1]),
-    'batch_size': hp.choice('batch_size', [32, 64, 128, 512, 1024]),
+    'batch_size': hp.choice('batch_size', [64, 128, 512]), # reduce batch size space
 
 }
 
@@ -58,6 +62,8 @@ def dense_train(space):
     model.add(Dense(1))
 
     callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')
+    lr_val = 10 ** -int(params['learning_rate'])
+    adam = keras.optimizers.Adam(lr=lr_val)
     model.compile(optimizer='adam', loss='mae')
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
