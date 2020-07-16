@@ -21,7 +21,7 @@ space = {
     'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3, ]),  # number of dense layers BEFORE GRU
-    'num_nodes': hp.choice('num_nodes', [32, 64 ]),  #nodes per layer BEFORE GRU
+    'num_nodes': hp.choice('num_nodes', [16, 32, 64 ]),  #nodes per layer BEFORE GRU
 
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),    # number of layers
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),
@@ -54,10 +54,10 @@ def rnn_train(space): #functional
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']
     # dense layers to start -------------------------------
-    d_1 = Dense(num_nodes)(input_img) #first dense layer
+    d_1 = Dense(num_nodes*lookback)(input_img) #first dense layer
 
     for i in range(num_layers - 1): #for second or third dense layers
-        d_1 = Dense(num_nodes)(d_1)
+        d_1 = Dense(num_nodes*lookback)(d_1)
 
     g_1 = Reshape((lookback, num_nodes))(d_1) # reshape for GRU
 
