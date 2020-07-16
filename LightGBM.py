@@ -215,7 +215,7 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
 
         sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
         sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
-
+        print(sql_result['trial_lgbm'])
     except:
         db_last_param = None
         sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
@@ -262,28 +262,33 @@ if __name__ == "__main__":
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    # ALTER 1: change for classification problem
-    use_median = False
-    sql_result['qcut_q'] = 3
-    space['num_class']= 3,
-    space['objective'] = 'multiclass'
-    space['metric'] = 'multi_error'
+    # # ALTER 1: change for classification problem
+    # use_median = False
+    # sql_result['qcut_q'] = 3
+    # space['num_class']= 3,
+    # space['objective'] = 'multiclass'
+    # space['metric'] = 'multi_error'
 
     ## ALTER 2: change using chronological last few as validation
     # chron_valid = True
     # sql_result['name'] =                                               # name = labeling the experiments
 
-    # ALTER 3: use eps_ts instead of ni_ts
-    exclude_fwd = False                             # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
-    ibes_qcut_as_x = False
-    sql_result['y_type'] = 'ibes'
-    sql_result['name'] = 'classification_ibes_new industry'                # name = labeling the experiments
+    # # ALTER 3: use eps_ts instead of ni_ts
+    # exclude_fwd = False                             # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
+    # ibes_qcut_as_x = False
+    # sql_result['y_type'] = 'ibes'
+    # sql_result['name'] = 'classification_ibes_new industry'                # name = labeling the experiments
 
     # #ALTER 4: use qcut ibes
     # exclude_fwd = True
     # ibes_qcut_as_x = True
     # sql_result['name'] = 'new qcut x - new industry'                     # name = labeling the experiments
 
+    ## ALTER 5: use ibes_y + without ibes data
+    exclude_fwd = sql_result['exclude_fwd'] = True
+    ibes_qcut_as_x = False
+    sql_result['y_type'] = 'ibes'
+    sql_result['name'] = 'ibes_entire'                # name = labeling the experiments
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
@@ -292,8 +297,8 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
-        data.split_industry(icb_code, combine_ind=True)
+    for icb_code in [0]:   # roll over industries (first 2 icb code)
+        data.split_entire(icb_code)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period

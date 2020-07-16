@@ -46,7 +46,8 @@ def dense_train(space):
     model = models.Sequential()
     if params['activation'] == 'leakyrelu':     # try leaky relu
         for i in range(params['num_Dense_layer']):
-            model.add(Dense(params['neurons_layer_{}'.format(i + 1)], LeakyReLU(alpha=0.1)))    # add layers accoridng to num_Dense_layer
+            model.add(Dense(params['neurons_layer_{}'.format(i + 1)]))    # add layers accoridng to num_Dense_layer
+            model.add(LeakyReLU(alpha=0.1))
             if params['dropout_{}'.format(i+1)] > 0:
                 model.add(Dropout(params['dropout_{}'.format(i+1)]))
     else:
@@ -56,9 +57,10 @@ def dense_train(space):
                 model.add(Dropout(params['dropout_{}'.format(i+1)]))
     model.add(Dense(1))
 
+    callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')
     model.compile(optimizer='adam', loss='mae')
 
-    history = model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
@@ -154,7 +156,9 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
+    ibes_qcut_as_x = True
     sql_result['name'] = 'try leaky'
+    sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
@@ -173,14 +177,14 @@ if __name__ == "__main__":
             sql_result['testing_period'] = testing_period
 
             sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                              y_type='ni',
+                                                                              y_type=sql_result['y_type'],
                                                                               exclude_fwd=exclude_fwd,
                                                                               use_median=use_median,
                                                                               chron_valid=chron_valid)
 
             print(feature_names)
 
-            X_test =  np.nan_to_num(sample_set['test_x'], nan=0)
+            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
             Y_test = sample_set['test_y']
 
             cv_number = 1
@@ -194,6 +198,5 @@ if __name__ == "__main__":
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
                 HPOT(space, 10)
-                exit(0)
 
 
