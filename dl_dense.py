@@ -63,7 +63,7 @@ def dense_train(space):
 
     callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')
     lr_val = 10 ** -int(params['learning_rate'])
-    adam = keras.optimizers.Adam(lr=lr_val)
+    adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
