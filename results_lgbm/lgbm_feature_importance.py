@@ -32,21 +32,30 @@ def download_result_features(r_name, table_name='results_lightgbm'):
 def group_icb(df):
     ''' groupby icb_code and find sum'''
 
-    # df = df.loc[df['exclude_fwd']==False]
-
     df = df.drop(['trial_lgbm', 'qcut_q', 'testing_period', 'cv_number', 'mae_test', 'exclude_fwd', 'y_type'], axis=1)
-    print(df)
 
-    def org_by_type(importance_type):
-        df_type = df.loc[(df['importance_type']==importance_type)].groupby(['icb_code']).mean().T
-        df_type['all'] = df_type.sum(1)
-        print(df_type)
-        return df_type.sort_values('all', ascending=False)
+    # df['exclude_fwd'] = df['exclude_fwd'].fillna(False)     # 'exclude_fwd' default setting is False
+    # s = df.isnull().sum()[df.isnull().sum()>0]
+
+    ni_col = ['ni_ts01', 'ni_ts13', 'ni_ts35']
+    ibes_col = ['fwd_ey', 'fwd_roic', 'eps_ts01', 'eps_ts13', 'eps_ts35']
+    qcut_col = ['ibes_qcut_as_x']
+
+    def org_by_type(importance_type, null_col):                                     # find the part of records where
+        df_part = df.loc[(df[null_col].isnull().sum(1)==len(null_col))              # columns in null_col all NaN
+                          & (df.drop(null_col, axis=1).isnull().sum(1)==0)          # others columns has no NaN
+                          & (df['importance_type']==importance_type)]               # for specific importance_type
+        df_sum = df_part.groupby(['icb_code']).sum().T
+        df_sum['all'] = df_sum.sum(1)
+
+        return df_sum.sort_values('all', ascending=False)
 
     writer = pd.ExcelWriter('results_lgbm/feature_importance/describe_{}.xlsx'.format(r_name))
 
     for t in ['gain', 'split']:
-        org_by_type(t).to_excel(writer, t)
+        org_by_type(t, ibes_col + qcut_col).to_excel(writer, 'ws_{}'.format(t))
+        org_by_type(t, ni_col + qcut_col).to_excel(writer, 'ibes_{}'.format(t))
+        org_by_type(t, ni_col).to_excel(writer, 'ibes_qcut_{}'.format(t))
 
     writer.save()
 

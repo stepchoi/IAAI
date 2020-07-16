@@ -22,8 +22,10 @@ def new_results_lightgbm():
         result_all.to_csv('result_all.csv', index=False)
 
     # print(result_all)
-
-    rename = pd.read_excel('ratio_calculation.xlsx','DB_name')
+    try:
+        rename = pd.read_excel('preprocess/ratio_calculation.xlsx','DB_name')
+    except:
+        rename = pd.read_excel('ratio_calculation.xlsx','DB_name')
 
     # 1. reset trial_lgbm to sequential list
     mask = result_all['name'].isin(['new qcut x - new industry', 'ibes qcut x - new industry'])
@@ -32,14 +34,14 @@ def new_results_lightgbm():
 
     wrong_num = result_all.loc[mask, 'trial_lgbm'].to_list()
     right_num = [last_correct_num + x + 1 for x in range(len(wrong_num))]
-    result_all.loc[mask, 'trial_lgbm'] = result_all.loc[mask, 'trial_lgbm'].replace(wrong_num, right_num)
-    # print(len(wrong_num), wrong_num, len(right_num), right_num)
-
-    # 2. rename
-    result_all['name'] = result_all['name'].replace(rename['old_name'].to_list(), rename['new_name'].to_list())
-
-    result_all.to_csv('results_lightgbm_new.csv', index=False)
+    # result_all.loc[mask, 'trial_lgbm'] = result_all.loc[mask, 'trial_lgbm'].replace(wrong_num, right_num)
+    # # print(len(wrong_num), wrong_num, len(right_num), right_num)
     #
+    # # 2. rename
+    # result_all['name'] = result_all['name'].replace(rename['old_name'].to_list(), rename['new_name'].to_list())
+
+    # result_all.to_csv('results_lightgbm_new.csv', index=False)
+
     # write_db(result_all, 'results_lightgbm_new')
 
     return last_correct_num, wrong_num, right_num
@@ -75,20 +77,30 @@ def new_stock():
     # write_db(stock, 'results_lightgbm_stock_new')
 
 def new_feature_importance():
+
+    last_correct_num, wrong_num, right_num = new_results_lightgbm()
+    print(wrong_num, right_num)
+
     try:
-        stock = pd.read_csv('results_feature_importance.csv', low_memory=False)
+        feature = pd.read_csv('results_feature_importance.csv', low_memory=False)
         print('local version run - results_feature_importance')
 
     except:
         print('-----------------> downloading data from DB TABLE results_feature_importance')
 
         with engine.connect() as conn:
-            stock = pd.read_sql('SELECT * FROM results_feature_importance', conn)
+            feature = pd.read_sql('SELECT * FROM results_feature_importance', conn)
         engine.dispose()
 
-        stock.to_csv('results_feature_importance.csv', index=False)
+        feature.to_csv('results_feature_importance.csv', index=False)
 
-    print(stock.shape)
+    start = feature.loc[feature['trial_lgbm']==240687].index[0]
+    end = feature.loc[feature['trial_lgbm']==9445].index[-1]+1
+    print(start, end)
+
+    feature[start:end] = feature[start:end].replace(wrong_num, right_num)
+
+    feature.to_csv('results_feature_importance_new.csv', index=False)
 
 if __name__ == '__main__':
 
