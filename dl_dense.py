@@ -21,6 +21,7 @@ space = {
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
     'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4, 5]),  # number of layers ONE layer is TRIVIAL
     'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),  # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+
     'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32]),
     'dropout_1': hp.choice('dropout_1', [0.25, 0.5]),
     'neurons_layer_2': hp.choice('neurons_layer_2', [32, 64]),
@@ -159,6 +160,8 @@ if __name__ == "__main__":
 
     sql_result = {}
     hpot = {}
+
+    # default settings to
     exclude_fwd = False
     use_median = True
     chron_valid = False

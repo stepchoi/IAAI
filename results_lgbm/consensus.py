@@ -34,7 +34,7 @@ def download_add_detail(r_name, table_name):
 
     engine.dispose()
 
-    detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
+    detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')   # map training information to stock data
 
     return detail_stock
 
@@ -210,6 +210,9 @@ class download:
         # use median for cross listing & multiple cross-validation
         self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd', 'y_type']).median()['pred'].reset_index(drop=False)
 
+        self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
+        self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
+
         # merge (stock prediction) with (ibes consensus median)
         yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
                                             right_on=['identifier', 'period_end','y_type', 'icb_code'],
@@ -293,7 +296,10 @@ class calc_mae_write():
 
         dict = {}
         dict['ibes'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
-        dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ni_qcut'])
+        if 'ibes' in r_name:
+            dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ibes_qcut'])
+        elif 'ni' in r_name:
+            dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ni_qcut'])
         dict['len'] = len(df)
         return dict
 
@@ -343,17 +349,30 @@ def combine():
     sector = []
     industry = []
     average = []
-    for root, dirs, files in os.walk(".", topdown=False):
-        for f in files:
-            if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
-                print(f)
-                average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
-                def select(f, name):
-                    s = pd.read_excel(f, name, index_col='Unnamed: 0')["('lgbm', 'in_fwd')"]
-                    s = s.rename(f[4:-5])
-                    return s
-                sector.append(select(f, 'by_sector'))
-                industry.append(select(f, 'by_industry'))
+
+    files = [f for f in os.listdir('.') if os.path.isfile(f)]
+
+    for f in files:
+        if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
+            print(f)
+            average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
+
+            def select(f, name):
+                f_name = f[4:-5]
+
+                new_col = []
+                for col in ["('lgbm', 'in_fwd')", "('lgbm', 'ex_fwd')"]:
+                    try:
+                        s = pd.read_excel(f, name, index_col='Unnamed: 0')[col]
+                        s = s.rename(f_name + '_' + col[-8:-6])
+                        new_col.append(s)
+                    except:
+                        continue
+
+                return pd.concat(new_col, axis=1)
+
+            sector.append(select(f, 'by_sector'))
+            industry.append(select(f, 'by_industry'))
 
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
@@ -369,9 +388,9 @@ if __name__ == "__main__":
 
     # for r_name in ['ibes_new industry_qcut x','ibes_sector', 'ibes_new industry', 'ni_entire', 'ni_new industry',
     #                'ni_new industry_qcut x','ni_sector','ni_sector_qcut x']:
-    r_name = 'ibes_new industry'
-    yoy_merge = download(r_name) #.merge_stock_ibes()
-    calc_mae_write(yoy_merge)
+    # r_name = 'ibes_entire'
+    # yoy_merge = download(r_name).merge_stock_ibes()
+    # calc_mae_write(yoy_merge)
     # exit(0)
 
     combine()

@@ -74,8 +74,24 @@ def new_stock():
 
     # write_db(stock, 'results_lightgbm_stock_new')
 
+def new_feature_importance():
+    try:
+        stock = pd.read_csv('results_lightgbm_stock.csv', low_memory=False)
+        print('local version run - results_lightgbm_stock')
+
+    except:
+        print('-----------------> downloading data from DB TABLE results_lightgbm_stock')
+
+        with engine.connect() as conn:
+            stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
+        engine.dispose()
+
+        stock.to_csv('results_lightgbm_stock.csv', index=False)
+
+    print(stock.shape)
+
 if __name__ == '__main__':
 
-    new_stock()
+    new_feature_importance()
 
 

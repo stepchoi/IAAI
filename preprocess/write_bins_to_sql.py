@@ -13,7 +13,6 @@ engine = create_engine(db_string)
 if __name__ == "__main__":
     ''' re-write cut_bins / med_train to table '''
 
-
     # training / testing sets split par
     indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
@@ -28,7 +27,6 @@ if __name__ == "__main__":
     sql_result['qcut_q'] = 10                           # number of Y classes
     use_median = True       # default setting
     chron_valid = False     # default setting
-
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
@@ -63,6 +61,8 @@ if __name__ == "__main__":
                 except:
                     continue
 
+    print(pd.DataFrame(bins_list))
+    # exit(0)
     with engine.connect() as conn:  # record type of Y
         pd.DataFrame(bins_list).to_sql('results_bins_new', con=conn, index=False, if_exists='append')
     engine.dispose()
