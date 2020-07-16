@@ -76,17 +76,17 @@ def new_stock():
 
 def new_feature_importance():
     try:
-        stock = pd.read_csv('results_lightgbm_stock.csv', low_memory=False)
-        print('local version run - results_lightgbm_stock')
+        stock = pd.read_csv('results_feature_importance.csv', low_memory=False)
+        print('local version run - results_feature_importance')
 
     except:
-        print('-----------------> downloading data from DB TABLE results_lightgbm_stock')
+        print('-----------------> downloading data from DB TABLE results_feature_importance')
 
         with engine.connect() as conn:
-            stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
+            stock = pd.read_sql('SELECT * FROM results_feature_importance', conn)
         engine.dispose()
 
-        stock.to_csv('results_lightgbm_stock.csv', index=False)
+        stock.to_csv('results_feature_importance.csv', index=False)
 
     print(stock.shape)
 
