@@ -20,7 +20,8 @@ space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
     'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4, 5]),  # number of layers ONE layer is TRIVIAL
-    'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),  # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+    'learning_rate': hp.choice('lr', [2, 3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+                                                    # remove lr = 5 & 7 after tuning
 
     'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32]),
     'dropout_1': hp.choice('dropout_1', [0.25, 0.5]),

@@ -37,14 +37,18 @@ engine = create_engine(db_string)
 
 def rnn_train(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
-    #lookback = quarters = 20?
     params = space.copy()
     print(params)
+
+    lookback = 20
+    x_fields = X_train.shape[-1]
+    print(lookback, x_fields)
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
     input_shape = (lookback * ~x_fields)  #prob need to flatten
     input_img = Input(shape=input_shape)
+    # Model.add(Flatten()) ????? p.226
 
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']

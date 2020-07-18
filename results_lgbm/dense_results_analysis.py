@@ -4,7 +4,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
 
-def download(table_name = 'results_lightgbm', r_name = None):
+def download(table_name = 'results_dense', r_name = None):
     ''' donwload results from results_lightgbm '''
 
     try: # update if newer results is downloaded
@@ -12,6 +12,7 @@ def download(table_name = 'results_lightgbm', r_name = None):
         print('local version run - {}_{}.csv'.format(table_name, r_name))
 
     except:
+
         with engine.connect() as conn:
             if r_name != None:
                 results = pd.read_sql("SELECT * FROM {} WHERE name = '{}'".format(table_name, r_name), con=conn)
@@ -45,26 +46,29 @@ def calc_correl(results):
 
     pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
 
-def plot_boxplot(df, table_name='results_lightgbm', r_name=None):
+def plot_boxplot(df, table_name='results_dense', r_name=None):
     ''' plot distribution of mae based on different hyper-parameters'''
 
     if r_name == None:
         r_name = table_name
 
-    if table_name == 'results_lightgbm':
-        params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
-                 'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves'.rsplit(', ')
-    elif table_name == 'results_dense':
-        params = ['batch_size', 'neurons_layer_1', 'neurons_layer_2', 'neurons_layer_3', 'num_Dense_layer',
-                  'neurons_layer_4', 'activation','dropout_1', 'dropout_2', 'dropout_3']
+    print(df.columns)
+
+    params = ['batch_size', 'dropout_1',
+       'dropout_2', 'dropout_3', 'dropout_4', 'dropout_5', 'learning_rate',
+       'neurons_layer_1', 'neurons_layer_2', 'neurons_layer_3',
+       'neurons_layer_4', 'neurons_layer_5', 'num_Dense_layer']
 
     n = round(np.sqrt(len(params)))+1
 
+    print(df)
+
+
     if table_name == 'results_dense':
-        df['activation'] = df['activation'].fillna('tanh')
-        df = df.fillna(0)
         for i in range(1, 4):
-            df.loc[(df['num_Dense_layer']<i),['neurons_layer_{}'.format(i), 'dropout_{}'.format(i)]] = 0
+            df.loc[(df['num_Dense_layer']<i),['neurons_layer_{}'.format(i), 'dropout_{}'.format(i)]] = np.nan
+
+    print(df)
 
     fig_test = plt.figure(figsize=(4*n, 4*n), dpi=120)      # create figure for test only boxplot
     fig_all = plt.figure(figsize=(4*n, 4*n), dpi=120)       # create figure for test & train boxplot
@@ -149,7 +153,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'layer 5'
+    r_name = '5 layer'
+    table_name = 'results_dense'
 
     results = download(r_name=r_name)
     plot_boxplot(results, r_name=r_name)
