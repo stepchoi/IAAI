@@ -73,7 +73,6 @@ def rnn_train(space): #functional
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
-            # g_1 = GRU(temp_nodes, dropout=0, **extra)(g_1)
 
         elif i == 0:
         # extra.update(input_shape=(lookback, number_of_kernels * 2))
@@ -83,23 +82,12 @@ def rnn_train(space): #functional
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
             # g_1 = Flatten()(g_1)
 
-
-    def repeat_and_concatenate(inputs):      # attempt to reconcile the error when concatenate 3d + 2d arrays
-        ''' concatenate return sequence (3D) and forecast state (2D)'''
-        input_3D, input_2D = inputs
-        # Repeat 2D vectors
-        input_2D_repeat = K.tile(K.expand_dims(input_2D, 1), [1, K.shape(input_3D)[1], 1])
-        # Concatenate feature-wise
-        return K.concatenate([input_3D, input_2D_repeat], axis=1)
-
-    # f_x = Lambda(repeat_and_concatenate)([g_1, g_1_2])
-
+    g_1 = Flatten()(g_1)    # convert 3d sequence(?,?,1) -> 2d (?,?)
 
     #join the return sequence and forecast state
-    # f_x = Concatenate(axis=1)([g_1, g_1_2])
+    f_x = Concatenate(axis=1)([g_1, g_1_2])
+    f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
     # f_x = Flatten()(f_x)
-    # f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
-    f_x = g_1_2     # model only use forecast state
     f_x = Dense(1)(f_x)
 
     model = Model(input_img, f_x)
@@ -109,11 +97,10 @@ def rnn_train(space): #functional
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
+
     model.summary()
 
-
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
-
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
     valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
@@ -170,6 +157,7 @@ def HPOT(space, max_evals = 10):
     plot_history(hpot['history'])  # plot training history
 
     sql_result['trial_hpot'] += 1
+    exit(0)
 
     return best
 

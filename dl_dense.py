@@ -69,7 +69,7 @@ def dense_train(space):
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=10, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
     model.summary()
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
@@ -125,7 +125,7 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
-    plot_history(hpot['history'])  # plot training history
+    plot_history(hpot['best_history'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 
