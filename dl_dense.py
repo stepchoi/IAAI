@@ -103,8 +103,7 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-
-    plot_history(history)  # plot history
+        hpot['best_history'] = history
 
     sql_result['trial_lgbm'] += 1
 
@@ -125,6 +124,8 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_dense_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
+    plot_history(hpot['history'])  # plot training history
+
     sql_result['trial_hpot'] += 1
 
     return best
@@ -144,7 +145,6 @@ def plot_history(history):
 
     plt.savefig('results_dense/plot_dense_{}.png'.format(sql_result['trial_lgbm']))
     plt.close()
-# try functional API?
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''

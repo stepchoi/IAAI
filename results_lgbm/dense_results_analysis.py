@@ -8,7 +8,7 @@ def download(table_name = 'results_dense', r_name = None):
     ''' donwload results from results_lightgbm '''
 
     try: # update if newer results is downloaded
-        results = pd.read_csv('results_lgbm/params_tuning/{}_{}.csv'.format(table_name, r_name))
+        results = pd.read_csv('results_lgbm/params_tuning/{}_1{}.csv'.format(table_name, r_name))
         print('local version run - {}_{}.csv'.format(table_name, r_name))
 
     except:

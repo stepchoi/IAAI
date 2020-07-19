@@ -244,7 +244,7 @@ if __name__ == '__main__':
 
     data = load_data()
     data.split_entire(add_ind_code)
-    train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, qcut_q, y_type='ni')
+    train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, qcut_q, y_type='ibes')
 
     # print('test_id: ', len(test_id), test_id)
 

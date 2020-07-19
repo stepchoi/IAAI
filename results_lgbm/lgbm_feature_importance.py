@@ -8,29 +8,29 @@ from miscel import date_type, check_dup
 def download_part(r_name):
 
     try:  # STEP1: download lightgbm results for feature importance
-        importance = pd.read_csv('results_lgbm/feature_importance/total_{}.csv'.format(r_name))
+        importance = pd.read_csv('results_lgbm/feature_importance/total_ibes.csv')
         # importance = date_type(importance, date_col='testing_period')
         print('local version run - total_{}'.format(r_name))
 
     except:
-
-        exit(0)
         importance = download_result_features(r_name)
-        importance.to_csv('results_lgbm/feature_importance/total_{}.csv'.format(r_name), index=False)
+        importance.to_csv('results_lgbm/feature_importance/total_ibes.csv', index=False)
 
     # importance = importance.drop(['trial_lgbm', 'qcut_q', 'testing_period', 'cv_number', 'mae_test', 'exclude_fwd', 'y_type'], axis=1)
 
     return importance
 
-def download_result_features(r_name, table_name='results_lightgbm'):
+def download_result_features(r_name):
     ''' 3. download from DB TABLE results_feature_importance '''
 
-    print('----------------> update stock results from DB: {}'.format(r_name))
+    print('----------------> update stock results from DB')
 
     with engine.connect() as conn:
 
         # read DB TABLE results_lightgbm data for given "name"
-        result_all = pd.read_sql("SELECT trial_lgbm, x_type, y_type,icb_code,mae_test, qcut_q FROM {} WHERE name='{}'".format(table_name, r_name), conn)
+        query_1 = text('SELECT trial_lgbm, x_type, y_type,icb_code FROM results_lightgbm WHERE (name IN :r_name)')
+        query_1 = query_1.bindparams(r_name=tuple(r_name))
+        result_all = pd.read_sql(query_1, conn)
         trial_lgbm = set(result_all['trial_lgbm'])
 
         # read corresponding part of DB TABLE results_lightgbm_stock
@@ -44,7 +44,7 @@ def download_result_features(r_name, table_name='results_lightgbm'):
 
     return result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
 
-def download_complete_describe(importance_type):
+def download_complete_describe(r_name, importance_type):
 
     # read TABLE results_feature_importance
     # feature = pd.read_csv('results_feature_importance_new.csv')
@@ -54,7 +54,7 @@ def download_complete_describe(importance_type):
     # feature_info = info[['trial_lgbm', 'x_type', 'y_type','icb_code',
     #                      'mae_test', 'qcut_q']].merge(feature, on='trial_lgbm').drop_duplicates()
 
-    feature_info = download_part('ibes_new industry_qcut x -re')
+    feature_info = download_part(r_name)
 
     feature_info[['trial_lgbm', 'icb_code']] = feature_info[['trial_lgbm', 'icb_code']].astype(str)
 
@@ -64,7 +64,7 @@ def download_complete_describe(importance_type):
 
     for by_rank in [True, False]:
 
-        writer = pd.ExcelWriter('results_lgbm/feature_importance/describe_{}_{}.xlsx'.format(r_name, rank_name[by_rank]))
+        writer = pd.ExcelWriter('results_lgbm/feature_importance/describe_ibes_{}.xlsx'.format(rank_name[by_rank]))
 
         feature_info['sample_type'] = [len(x) for x in feature_info['icb_code']]
         # print(feature_info['sample_type'])
@@ -72,9 +72,6 @@ def download_complete_describe(importance_type):
         # exit(0)
 
         for name, g in feature_info.groupby(['y_type', 'x_type']):
-            # print(name, g.mean())
-
-            # continue
             org_by_type(g, by_rank).to_excel(writer, '_'.join(name))
         # exit(0)
         writer.save()
@@ -97,9 +94,8 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    # table_name = 'results_dense'
-    r_name = 'ibes'
+    r_name = ['ibes_new industry_qcut x -re', 'ibes_new industry']
 
     # feature = download_part()
-    feature = download_complete_describe(importance_type='split')
+    feature = download_complete_describe(r_name, importance_type='split')
 
