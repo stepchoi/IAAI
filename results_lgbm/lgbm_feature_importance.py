@@ -55,6 +55,7 @@ def download_complete_describe(r_name, importance_type):
     #                      'mae_test', 'qcut_q']].merge(feature, on='trial_lgbm').drop_duplicates()
 
     feature_info = download_part(r_name)
+    feature_info['x_type'] = feature_info['x_type'].fillna('fwdepsqcut')
 
     feature_info[['trial_lgbm', 'icb_code']] = feature_info[['trial_lgbm', 'icb_code']].astype(str)
 
@@ -66,7 +67,7 @@ def download_complete_describe(r_name, importance_type):
 
         writer = pd.ExcelWriter('results_lgbm/feature_importance/describe_ibes_{}.xlsx'.format(rank_name[by_rank]))
 
-        feature_info['sample_type'] = [len(x) for x in feature_info['icb_code']]
+        # feature_info['sample_type'] = [len(x) for x in feature_info['icb_code']]
         # print(feature_info['sample_type'])
         # print(feature_info.groupby(['y_type', 'x_type', 'sample_type','qcut_q']).mean()['mae_test'].reset_index())
         # exit(0)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_new industry_qcut x -re', 'ibes_new industry']
+    r_name = ['ibes_new industry_qcut x -re', 'ibes_new industry -re']
 
     # feature = download_part()
     feature = download_complete_describe(r_name, importance_type='split')

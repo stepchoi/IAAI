@@ -46,11 +46,11 @@ def rnn_train(space): #functional
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
-    # input_shape = (lookback, x_fields)  #prob need to flatten
+    # input_shape = (lookback * x_fields)  #prob need to flatten
     # print(input_shape)
 
-    input_img = Input(shape=(lookback, x_fields))
-    input_img_flat = Flatten()(input_img)
+    input_img = Input(shape=(lookback, x_fields))   # input date: (batch_size, lookback, x_fields)
+    input_img_flat = Flatten()(input_img)           # flatten layer for dense training
 
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']
@@ -73,11 +73,9 @@ def rnn_train(space): #functional
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
-
         elif i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
+            # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
-
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
             # g_1 = Flatten()(g_1)

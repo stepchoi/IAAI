@@ -7,7 +7,7 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from keras import models, callbacks, optimizers
 from keras.models import Model
-from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate
+from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -31,6 +31,8 @@ space = {
     'gru_nodes_mult2': hp.choice('gru_nodes_mult', [0, 1]),
     'gru_nodes2': hp.choice('gru_nodes', [2, 4]),  # start with possible 4 nodes -- 8, 8, 16 combination possible
 
+    'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
+
     'activation': hp.choice('activation', ['tanh']),
     'batch_size': hp.choice('batch_size', [64, 128, 512, 1024]),
 }
@@ -44,15 +46,21 @@ def rnn_train(space): #functional
     params = space.copy()
     print(params)
 
+    lookback = 20                   # lookback = 5Y * 4Q = 20Q
+    x_fields = X_train.shape[-1]    # x_fields differ depending on whether include ibes ratios
+
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
-    input_shape = (lookback * ~x_fields, 1)  #prob need to flatten
-    input_shape2 = (lookback, 1) #JUST EARNINGS %
-    input_img = Input(shape=input_shape)
-    input_img2 = Input(shape=input_shape2) #JUST EARNINGS %
+    input_shape1 = (lookback, x_fields)
+    input_img = Input(shape=input_shape1)           # input date: (batch_size, lookback, x_fields)
+    input_img_flat = Flatten()(input_img)           # flatten layer for dense training
+
+    input_shape2 = (lookback, 1)                    #JUST EARNINGS %
+    input_img2 = Input(shape=input_shape2)          #JUST EARNINGS %
 
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']
+
     # dense layers to start -------------------------------
     d_1 = Dense(num_nodes*lookback)(input_img) #first dense layer
 
@@ -64,18 +72,19 @@ def rnn_train(space): #functional
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['num_gru_layer']) * (i))), 8) # nodes grow at 2X or stay same - at least 8 nodes
-        if i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
-            g_1 = GRU(temp_nodes, **extra)(g_1)
-        elif i == params['num_gru_layer'] - 1:
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
+
+        if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
+        elif i == 0:
+            # extra.update(input_shape=(lookback, number_of_kernels * 2))
+            g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
-            g_1 = GRU(temp_nodes, dropout=gru_drop, **extra)(g_1)
-            g_1 = Flatten()(g_1)
+            g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
+            # g_1 = Flatten()(g_1)
 
 
     #second GRU
@@ -210,7 +219,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2018,3,31)
     sql_result['qcut_q'] = 10
     sample_no = 1
-    db_last_param, sql_result = read_db_last(sql_result, 'results_dense')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn3', first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
@@ -222,14 +231,25 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, sql_result['qcut_q'], y_type='ni')
+            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(sql_result['testing_period'],
+                                                                                         sql_result['qcut_q'],
+                                                                                         y_type='ibes')
+
+            sql_result['x_fields'] = str(x_col)     # record x_fields used to DB TABLE
+
+            eps_index = x_col.index('eps1tr12')     # find index for earnings column
+            train_eps = train_x[:, :, eps_index]    # slice earnings column for training
+            eps_test = X_test[:, :, eps_index]
 
             cv_number = 1
-            for train_index, test_index in cv:
+            for train_index, test_index in cv:      # split train / valid
                 X_train = train_x[train_index]
                 Y_train = train_y[train_index]
                 X_valid = train_x[test_index]
                 Y_valid = train_y[test_index]
+
+                eps_train = train_eps[train_index]  # split train / valid for eps column array
+                eps_valid = train_eps[train_index]
 
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
