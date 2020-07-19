@@ -9,7 +9,7 @@ engine = create_engine(db_string)
 def new_results_lightgbm():
 
     try:
-        result_all = pd.read_csv('result_all.csv', low_memory=False)
+        result_all = pd.read_csv('result_all_new.csv', low_memory=False)
         print('local version run - result_all')
 
     except:
@@ -19,7 +19,8 @@ def new_results_lightgbm():
             result_all = pd.read_sql('SELECT * FROM results_lightgbm', conn)
         engine.dispose()
 
-        result_all.to_csv('result_all.csv', index=False)
+        result_all.to_csv('result_all_new.csv', index=False)
+        exit(0)
 
     # print(result_all)
     try:
@@ -59,7 +60,7 @@ def new_stock():
         print('-----------------> downloading data from DB TABLE results_all_stock')
 
         with engine.connect() as conn:
-            stock = pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
+            stock = pd.read_sql('SELECT * FROM reeeeeeeeeeeeeeeeeeeeeeesults_feaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaature_importaaaaaaaaaaaance', conn)
         engine.dispose()
 
         stock.to_csv('results_all_stock.csv', index=False)

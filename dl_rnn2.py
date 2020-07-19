@@ -4,11 +4,11 @@ import argparse
 import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from keras import models, callbacks, optimizers
 from keras.models import Model
-from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape
-from sklearn.model_selection import train_test_split
+from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda
+import keras.backend as K
+
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
@@ -26,7 +26,7 @@ space = {
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
-    'gru_drop': hp.choice('gru_drop', [0.25, 0.5]),
+    'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
 
     'activation': hp.choice('activation', ['tanh']),
@@ -41,19 +41,22 @@ def rnn_train(space): #functional
     params = space.copy()
     print(params)
 
-    lookback = 20       # lookbback = 5Y * 4Q = 20Q
+    lookback = 20                   # lookback = 5Y * 4Q = 20Q
     x_fields = X_train.shape[-1]    # x_fields differ depending on whether include ibes ratios
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
-    input_shape = (lookback * ~x_fields)  #prob need to flatten
-    input_img = Input(shape=input_shape)
+    # input_shape = (lookback, x_fields)  #prob need to flatten
+    # print(input_shape)
+
+    input_img = Input(shape=(lookback, x_fields))
+    input_img_flat = Flatten()(input_img)
 
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']
 
     # dense layers to start -------------------------------
-    d_1 = Dense(num_nodes*lookback)(input_img) #first dense layer
+    d_1 = Dense(num_nodes*lookback)(input_img_flat) #first dense layer
 
     for i in range(num_layers - 1): #for second or third dense layers
         d_1 = Dense(num_nodes*lookback)(d_1)
@@ -63,13 +66,14 @@ def rnn_train(space): #functional
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['num_gru_layer']) * (i))), 8) # nodes grow at 2X or stay same - at least 8 nodes
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
 
         if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
+            # g_1 = GRU(temp_nodes, dropout=0, **extra)(g_1)
 
         elif i == 0:
         # extra.update(input_shape=(lookback, number_of_kernels * 2))
@@ -77,12 +81,25 @@ def rnn_train(space): #functional
 
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
-            g_1 = Flatten()(g_1)
+            # g_1 = Flatten()(g_1)
+
+
+    def repeat_and_concatenate(inputs):      # attempt to reconcile the error when concatenate 3d + 2d arrays
+        ''' concatenate return sequence (3D) and forecast state (2D)'''
+        input_3D, input_2D = inputs
+        # Repeat 2D vectors
+        input_2D_repeat = K.tile(K.expand_dims(input_2D, 1), [1, K.shape(input_3D)[1], 1])
+        # Concatenate feature-wise
+        return K.concatenate([input_3D, input_2D_repeat], axis=1)
+
+    # f_x = Lambda(repeat_and_concatenate)([g_1, g_1_2])
+
 
     #join the return sequence and forecast state
-    f_x = Concatenate(axis=1)([g_1, g_1_2])
-    f_x = Flatten()(f_x)
-    f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
+    # f_x = Concatenate(axis=1)([g_1, g_1_2])
+    # f_x = Flatten()(f_x)
+    # f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
+    f_x = g_1_2     # model only use forecast state
     f_x = Dense(1)(f_x)
 
     model = Model(input_img, f_x)
@@ -92,9 +109,11 @@ def rnn_train(space): #functional
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
+    model.summary()
+
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
-    model.summary()
+
 
     train_mae = model.evaluate(X_train, Y_train,  verbose=1)
     valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
@@ -140,7 +159,7 @@ def HPOT(space, max_evals = 10):
     hpot['best_mae'] = 1        # record best training (min mae_valid) in each hyperopt
 
     trials = Trials()           # use HPOT for 10 trials find minimal mae_valid
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
 
     print(hpot['best_stock_df'])
 
@@ -194,7 +213,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2018,3,31)
     sql_result['qcut_q'] = 10
     sample_no = 1
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn', first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 

@@ -205,8 +205,7 @@ def read_db_last(sql_result, results_table = 'results_lightgbm', first=False):
 
     if first == False:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc "
-                                  "LIMIT 1".format(results_table), conn)
+            db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc LIMIT 1".format(results_table), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
@@ -215,7 +214,7 @@ def read_db_last(sql_result, results_table = 'results_lightgbm', first=False):
 
         sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
         sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
-        print(sql_result['trial_lgbm'])
+        print('if resume from: ', db_last_param,'; sql last trial_lgbm: ', sql_result['trial_lgbm'])
     else:
         db_last_param = None
         sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
@@ -252,10 +251,10 @@ if __name__ == "__main__":
     hpot = {}           # storing data for best trials in each Hyperopt
 
     # default parser
-    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
     sql_result['qcut_q'] = 10                           # number of Y classes
-    sql_result['y_type'] = 'ni'
+    sql_result['y_type'] = 'ibes'
     sql_result['name'] = None
     use_median = True       # default setting
     chron_valid = False     # default setting
@@ -269,10 +268,6 @@ if __name__ == "__main__":
     # space['objective'] = 'multiclass'
     # space['metric'] = 'multi_error'
 
-    ## ALTER 2: change using chronological last few as validation
-    # chron_valid = True
-    # sql_result['name'] =                                               # name = labeling the experiments
-
     # # ALTER 3: use eps_ts instead of ni_ts
     # exclude_fwd = False                             # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
     # ibes_qcut_as_x = False
@@ -284,21 +279,40 @@ if __name__ == "__main__":
     # ibes_qcut_as_x = True
     # sql_result['name'] = 'new qcut x - new industry'                     # name = labeling the experiments
 
-    ## ALTER 5: use ibes_y + without ibes data
+    # FINAL 1: use ibes_y + without ibes data
     exclude_fwd = sql_result['exclude_fwd'] = True
     ibes_qcut_as_x = False
     sql_result['y_type'] = 'ibes'
-    sql_result['name'] = 'ibes_entire'                # name = labeling the experiments
+    sql_result['name'] = 'ibes_new industry -re'                # name = labeling the experiments
+
+    # ## FINAL 2: use ibes_y + with ibes_data + with qcut x
+    # exclude_fwd = sql_result['exclude_fwd'] = False
+    # ibes_qcut_as_x = True
+    # sql_result['y_type'] = 'ibes'
+    # sql_result['x_type'] = 'ni'
+    # sql_result['name'] = 'ibes_new industry_qcut x -re'
+
+    ## FINAL 3: use ibes_y + with ibes_data + with qcut x
+    # exclude_fwd = sql_result['exclude_fwd'] = False
+    # ibes_qcut_as_x = True
+    # sql_result['y_type'] = 'ibes'
+    # sql_result['x_type'] = 'ni'
+    # sql_result['name'] = 'ibes_new industry_no ni'
+
+
+    # ibes_qcut_as_x = True
+
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    if sql_result['name'] == None:
+    if (sql_result['name'] == None) and (sql_result['x_type'] == None):
         exit(1)
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in [0]:   # roll over industries (first 2 icb code)
-        data.split_entire(icb_code)
+    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
+        # data.split_entire(icb_code)
+        data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
@@ -346,5 +360,6 @@ if __name__ == "__main__":
 
             except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
                 pass_error()
+                cv_number += 1
                 continue
 

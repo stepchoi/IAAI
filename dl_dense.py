@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 space = {
 
     # 'num_GRU_layer': hp.choice('num_GRU_layer', [1, 2, 3]),
-    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 4, 5]),  # number of layers ONE layer is TRIVIAL
+    'num_Dense_layer': hp.choice('num_Dense_layer', [2, 3, 5]),  # number of layers ONE layer is TRIVIAL
     'learning_rate': hp.choice('lr', [2, 3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
 
@@ -36,7 +36,7 @@ space = {
 
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
     # 'leakyrelu_alpha': hp.choice('dropout_1', [0.05, 0.1]),
-    'batch_size': hp.choice('batch_size', [64, 128, 512]), # reduce batch size space
+    'batch_size': hp.choice('batch_size', [64, 128]), # reduce batch size space
 
 }
 
@@ -63,8 +63,9 @@ def dense_train(space):
                 model.add(Dropout(params['dropout_{}'.format(i+1)]))
     model.add(Dense(1))
 
-    callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')
+    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
+
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
@@ -171,10 +172,10 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2015,12,31)
     qcut_q = 10
     sample_no = 25
-    db_last_param, sql_result = read_db_last(sql_result, 'results_dense', first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_dense', first=False)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
@@ -208,5 +209,6 @@ if __name__ == "__main__":
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
                 HPOT(space, 10)
+                cv_number += 1
 
 
