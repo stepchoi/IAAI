@@ -65,10 +65,13 @@ def plot_boxplot(df, table_name='results_dense', r_name=None):
 
 
     if table_name == 'results_dense':
-        for i in range(1, 4):
+        for i in range(1, 6):
             df.loc[(df['num_Dense_layer']<i),['neurons_layer_{}'.format(i), 'dropout_{}'.format(i)]] = np.nan
 
     print(df)
+
+    df.to_csv('results_dense_nan.csv', index=False)
+    exit(0)
 
     fig_test = plt.figure(figsize=(4*n, 4*n), dpi=120)      # create figure for test only boxplot
     fig_all = plt.figure(figsize=(4*n, 4*n), dpi=120)       # create figure for test & train boxplot

@@ -90,25 +90,27 @@ def rnn_train(space): #functional
     #second GRU
     for i in range(params['num_gru_layer2']):
         extra = dict(return_sequences=True)  # need to iterative
-        temp_nodes2 = int(min(params['gru_nodes2'] * (2 ** (params['num_gru_layer']) * (i))),4)  # nodes grow at 2X or stay same - at least 8 nodes
-        if i == 0:
-            # extra.update(input_shape=(lookback, number_of_kernels * 2))
-            g_2 = GRU(temp_nodes2, **extra)(input_img2)
-        elif i == params['num_gru_layer'] - 1:
+        temp_nodes2 = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)), 4)) # nodes grow at 2X or stay same - at least 4 nodes
+        if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
-            g_2_2 = GRU(temp_nodes, **extra)(g_2) # this is the forecast state
+            g_2_2 = GRU(temp_nodes2, **extra)(g_2) # this is the forecast state
             extra = dict(return_sequences=True)
             g_2 = GRU(1, dropout=0, **extra)(g_2)
+        elif i == 0:
+            # extra.update(input_shape=(lookback, number_of_kernels * 2))
+            g_2 = GRU(temp_nodes2, **extra)(input_img2)
         else:
-            g_2 = GRU(temp_nodes, dropout=gru_drop, **extra)(g_2)
+            g_2 = GRU(temp_nodes2, dropout=params['gru_dropout'], **extra)(g_2)
             g_2 = Flatten()(g_2)
+
+        g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
+        g_2 = Flatten()(g_2)
 
         # join the return sequence and forecast state
         f_x = Concatenate(axis=1)([g_1, g_1_2, g_2, g_2_2])
         f_x = Dense(lookback + 1)(f_x)  # nodes = len return sequence +  1 for the forecast state
-        f_x = Flatten()(f_x)
+        # f_x = Flatten()(f_x)
         f_x = Dense(1)(f_x)
-
 
     model = Model([input_img, input_img2], f_x) # input BOTH images as an ARRAY
     # end of pseudo-code--------------------------------------------------------------------------------------------------
@@ -118,43 +120,41 @@ def rnn_train(space): #functional
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit([X_train, eps_train], Y_train, epochs=200, batch_size=params['batch_size'],
+                        validation_data=([X_valid, eps_valid], Y_valid), verbose=1)
     model.summary()
 
-    train_mae = model.evaluate(X_train, Y_train,  verbose=1)
-    valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
-    test_mae = model.evaluate(X_test, Y_test, verbose=1)
-    Y_test_pred = model.predict(X_test)
+    train_mae = model.evaluate([X_train, eps_train], Y_train,  verbose=1)
+    valid_mae = model.evaluate([X_valid, eps_valid], Y_valid, verbose=1)
+    test_mae = model.evaluate([X_test, eps_test], Y_test, verbose=1)
+    Y_test_pred = model.predict([X_test, eps_test])
 
     return train_mae, valid_mae, test_mae, Y_test_pred, history
 
 def eval(space):
     ''' train & evaluate each of the rnn model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)
+    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)     # train model
 
-    result = {'mae_train': train_mae,
+    result = {'mae_train': train_mae,   # save results in dict
               'mae_valid': valid_mae,
               'mae_test': test_mae,
               'status': STATUS_OK}
 
-    print(space)
-    print(result)
-    sql_result.update(space)
+    sql_result.update(space)            # update sql_results (dict written to DB)
     sql_result.update(result)
-    sql_result['finish_timing'] = dt.datetime.now()
-
-    with engine.connect() as conn:  # save training results
-        pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn', con=conn, index=False, if_exists='append')
-    engine.dispose()
+    sql_result['finish_timing'] = dt.datetime.now()     # record training finish time
 
     print('sql_result_before writing: ', sql_result)
+
+    with engine.connect() as conn:  # save training results
+        pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn3', con=conn, index=False, if_exists='append')
+    engine.dispose()
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-
-    plot_history(history)  # plot history (epoch -> training / validation loss) find optimal epoch needed
+        hpot['best_history'] = history
 
     sql_result['trial_lgbm'] += 1
 
@@ -163,17 +163,18 @@ def eval(space):
 def HPOT(space, max_evals = 10):
     ''' use hyperopt on each set '''
 
-    hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
-    hpot['all_results'] = []
+    hpot['best_mae'] = 1        # record best training (min mae_valid) in each hyperopt
 
-    trials = Trials()
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    trials = Trials()           # use HPOT for 10 trials find minimal mae_valid
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
 
     print(hpot['best_stock_df'])
 
-    with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_rnn_stock', con=conn, index=False, if_exists='append')
+    with engine.connect() as conn:      # save best trial per stock prediction to DB
+        hpot['best_stock_df'].to_sql('results_rnn3_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
+
+    plot_history(hpot['best_history'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 

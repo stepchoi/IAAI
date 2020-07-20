@@ -1,13 +1,12 @@
 import numpy as np
-import os
-import argparse
 import pandas as pd
 import datetime as dt
+
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
-from keras import models, callbacks, optimizers
-from keras.layers import Dense, GRU, Dropout, Flatten, LeakyReLU
-from sklearn.model_selection import train_test_split
+from keras import callbacks, optimizers
+from keras.models import Model
+from keras.layers import Dense, Dropout, Input
+
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
@@ -18,23 +17,17 @@ import matplotlib.pyplot as plt
 
 space = {
 
-    'num_Dense_layer': hp.choice('num_Dense_layer', [5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
+    'num_Dense_layer': hp.choice('num_Dense_layer', [5, 6]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
     'learning_rate': hp.choice('lr', [2, 3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
+    'init_nodes': hp.choice('init_nodes', [16, 32]),  # nodes for Dense first layer
+    'dropout': hp.choice('dropout', [0.25, 0.5]),
 
-    'neurons_layer_1': hp.choice('neurons_layer_1', [16, 32]),
-    'dropout_1': hp.choice('dropout_1', [0.25, 0.5]),
-    'neurons_layer_2': hp.choice('neurons_layer_2', [32, 64]),
-    'dropout_2': hp.choice('dropout_2', [0.25, 0.5]),
-    'neurons_layer_3': hp.choice('neurons_layer_3', [32, 64]),
-    'dropout_3': hp.choice('dropout_3', [0.25, 0.5]),
-    'neurons_layer_4': hp.choice('neurons_layer_4', [64, 128]),
-    'dropout_4': hp.choice('dropout_4', [0.25, 0.5]),
-    'neurons_layer_5': hp.choice('neurons_layer_5', [64, 128]),
-    'dropout_5': hp.choice('dropout_5', [0.25, 0.5]),
+    'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
+    'mult_freq': hp.choice('mult_freq', [1, 2, 3]),         # nodes double frequency
+    'mult_start': hp.choice('mult_start', [2, 3, 4]),       # first layer nodes number growth
 
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    # 'leakyrelu_alpha': hp.choice('dropout_1', [0.05, 0.1]),
     'batch_size': hp.choice('batch_size', [64, 128]), # reduce batch size space # drop 512
 
 }
@@ -48,24 +41,29 @@ def dense_train(space):
     params = space.copy()
     print(params)
 
-    model = models.Sequential()
-    if params['activation'] == 'leakyrelu':     # try leaky relu
-        for i in range(params['num_Dense_layer']):
-            model.add(Dense(params['neurons_layer_{}'.format(i + 1)]))    # add layers accoridng to num_Dense_layer
-            model.add(LeakyReLU(alpha=0.1))
-            if params['dropout_{}'.format(i+1)] > 0:
-                model.add(Dropout(params['dropout_{}'.format(i+1)]))
-    else:
-        for i in range(params['num_Dense_layer']):
-            model.add(Dense(params['neurons_layer_{}'.format(i+1)], activation=params['activation']))
-            if params['dropout_{}'.format(i+1)] > 0:
-                model.add(Dropout(params['dropout_{}'.format(i+1)]))
-    model.add(Dense(1))
+    input_shape = (X_train.shape[-1],)      # input shape depends on x_fields used
+    input_img = Input(shape=input_shape)
+
+    init_nodes = params['init_nodes']
+    nodes_mult = params['nodes_mult']
+    mult_freq = params['mult_freq']
+    mult_start = params['mult_start']
+
+    for i in range(params['num_Dense_layer']):
+
+        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
+        d_1 = Dense(temp_nodes, activation=params['activation'])(input_img)
+
+        if i != params['num_gru_layer'] - 1:    # last dense layer has no dropout
+            d_1 = Dropout(params['dropout'.format(i+1)])(d_1)
+
+    f_x = Dense(1)(d_1)
 
     callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
 
     adam = optimizers.Adam(lr=lr_val)
+    model = Model(input_img, f_x)
     model.compile(adam, loss='mae')
 
     history = model.fit(X_train, Y_train, epochs=10, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
