@@ -18,19 +18,19 @@ from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
 space = {
-    'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),
+    'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3, ]),  # number of dense layers BEFORE GRU
     'num_nodes': hp.choice('num_nodes', [16, 32]),  #nodes per layer BEFORE GRU
 
-    'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers
+    'num_gru_layer': hp.choice('num_gru_layer', [3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
 
     'activation': hp.choice('activation', ['tanh']),
-    'batch_size': hp.choice('batch_size', [64, 128, 512, 1024]),
+    'batch_size': hp.choice('batch_size', [64, 128, 512]), # drop 1024
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -66,7 +66,7 @@ def rnn_train(space): #functional
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
 
         if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
@@ -152,10 +152,9 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_rnn_stock', con=conn, index=False, if_exists='append')
     engine.dispose()
 
-    plot_history(hpot['history'])  # plot training history
+    plot_history(hpot['best_history'])  # plot training history
 
     sql_result['trial_hpot'] += 1
-    exit(0)
 
     return best
 
@@ -172,7 +171,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_rnn_{}.png'.format(sql_result['trial_lgbm']))
+    plt.savefig('results_dense/new_plot_rnn_{}.png'.format(sql_result['trial_lgbm']))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
@@ -193,13 +192,13 @@ if __name__ == "__main__":
     exclude_fwd = False
     use_median = True
     chron_valid = False
-    sql_result['name'] = 'api'
+    sql_result['name'] = 'small space'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2018,3,31)
     sql_result['qcut_q'] = 10
     sample_no = 1
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn', first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
@@ -215,6 +214,8 @@ if __name__ == "__main__":
 
             cv_number = 1
             for train_index, test_index in cv:
+                sql_result['cv_number'] = cv_number
+
                 X_train = train_x[train_index]
                 Y_train = train_y[train_index]
                 X_valid = train_x[test_index]
@@ -223,5 +224,6 @@ if __name__ == "__main__":
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
                 HPOT(space, 10)
+                cv_number += 1
 
 
