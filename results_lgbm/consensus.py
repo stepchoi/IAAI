@@ -226,18 +226,21 @@ class calc_mae_write():
     def __init__(self, yoy_merge):
         ''' calculate all MAE and save to local xlsx '''
 
-        self.merge = yoy_merge
-        self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
+        # self.merge = yoy_merge
+        # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
 
-        self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(r_name))
+        for name, g in yoy_merge.groupby(['y_type', 'icb_code']):
 
-        self.by_sector().to_excel(self.writer, 'by_sector')
-        self.by_industry().to_excel(self.writer, 'by_industry')
-        self.by_time().to_excel(self.writer, 'by_time')
-        self.average().to_excel(self.writer, 'average')
+            self.merge = g
+            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(name))
 
-        print('save to file name: mae_{}.xlsx'.format(r_name))
-        self.writer.save()
+            self.by_sector().to_excel(self.writer, 'by_sector')
+            self.by_industry().to_excel(self.writer, 'by_industry')
+            self.by_time().to_excel(self.writer, 'by_time')
+            self.average().to_excel(self.writer, 'average')
+
+            print('save to file name: mae_{}.xlsx'.format(name))
+            self.writer.save()
 
     def by_sector(self):
         ''' calculate equivalent per sector MAE '''
