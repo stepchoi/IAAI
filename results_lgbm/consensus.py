@@ -15,7 +15,7 @@ indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 6
                501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-def download_add_detail(r_name, table_name):
+def download_add_detail(r_name, table_name, table_name_2 = 'results_lightgbm'):
     ''' download from DB TABLE results_lightgbm_stock '''
 
     print('----------------> update stock results from DB TABLE {}'.format(table_name))
@@ -23,8 +23,8 @@ def download_add_detail(r_name, table_name):
     with engine.connect() as conn:
 
         # read DB TABLE results_lightgbm data for given "name"
-        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd, y_type "
-                     "FROM results_lightgbm WHERE name='{}'".format(r_name), conn)
+        result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd, "
+                                 "y_type, x_type FROM {} WHERE name='{}'".format(table_name_2, r_name), conn)
         trial_lgbm = set(result_all['trial_lgbm'])
 
         # read corresponding part of DB TABLE results_lightgbm_stock
@@ -243,7 +243,7 @@ class calc_mae_write():
         ''' calculate equivalent per sector MAE '''
 
         sector_dict = {}
-        for name, g in self.merge.groupby(['icb_sector','exclude_fwd']):
+        for name, g in self.merge.groupby(['icb_sector','x_type']): # exclude_fwd -> x_type
             sector_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(sector_dict).T.unstack()
@@ -254,7 +254,7 @@ class calc_mae_write():
         ''' calculate equivalent per industry(new) MAE '''
 
         industry_dict = {}
-        for name, g in self.merge.groupby(['icb_industry', 'exclude_fwd']):
+        for name, g in self.merge.groupby(['icb_industry', 'x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
@@ -266,7 +266,7 @@ class calc_mae_write():
 
         industry_dict = {}
 
-        for name, g in self.merge.groupby(['testing_period', 'exclude_fwd']):
+        for name, g in self.merge.groupby(['testing_period', 'x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
@@ -279,7 +279,7 @@ class calc_mae_write():
 
         industry_dict = {}
 
-        for name, g in self.merge.groupby(['exclude_fwd']):
+        for name, g in self.merge.groupby(['x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).unstack().to_frame().reset_index()
