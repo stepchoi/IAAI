@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 
 space = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
-    'learning_rate': hp.choice('lr', [3, 4, 5]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+    'learning_rate': hp.choice('lr', [3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
     'init_nodes': hp.choice('init_nodes', [4, 8, 16]),  # nodes for Dense first layer -> LESS NODES
     'dropout': hp.choice('dropout', [0.25, 0.5]),
@@ -28,7 +28,19 @@ space = {
 
     # 'l1': hp.choice('l1', [0.01, 0.1, 1]),
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128, 256]), # reduce batch size space # drop 512
+    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
+}
+
+space_model = {
+    'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
+    'learning_rate': hp.choice('lr', [3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+                                                    # remove lr = 5 & 7 after tuning
+    'dropout': hp.choice('dropout', [0.25, 0.5]),
+
+    'models': hp.choice('models', ),  # nodes for Dense first layer -> LESS NODES
+
+    'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
+    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -51,9 +63,9 @@ def dense_train(space):
     nodes = []
     for i in range(params['num_Dense_layer']):
 
-        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
+        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
         d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
-        nodes.extend(temp_nodes)
+        nodes.append(temp_nodes)
 
         if i != params['num_Dense_layer'] - 1:    # last dense layer has no dropout
             d_1 = Dropout(params['dropout'])(d_1)
