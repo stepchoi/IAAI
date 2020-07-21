@@ -44,17 +44,16 @@ def rnn_train(space): #functional
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
-    # input_shape = (lookback, x_fields)  #prob need to flatten
-    # print(input_shape)
 
     kernel_size =params['kernel_size'] # of different "scenario"
+    num_nodes = params['num_nodes']
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
     c_1 = LeakyReLU(alpha=0.1)(c_1)
-    c_1 = Reshape((lookback, cnn_kernel_size))(c_1)
+    c_1 = Reshape((lookback, kernel_size))(c_1)
 
     g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
 
@@ -68,14 +67,11 @@ def rnn_train(space): #functional
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
-
         elif i == 0:
         # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
-
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
-            # g_1 = Flatten()(g_1)
 
     g_1 = Flatten()(g_1)    # convert 3d sequence(?,?,1) -> 2d (?,?)
 
@@ -105,24 +101,21 @@ def rnn_train(space): #functional
     return train_mae, valid_mae, test_mae, Y_test_pred, history
 
 def eval(space):
-    ''' train & evaluate each of the rnn model '''
+    ''' train & evaluate each of the cnn + rnn model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)     # train model
+    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)
 
-    result = {'mae_train': train_mae,   # save results in dict
+    result = {'mae_train': train_mae,
               'mae_valid': valid_mae,
               'mae_test': test_mae,
               'status': STATUS_OK}
 
-    sql_result.update(space)            # update sql_results (dict written to DB)
+    sql_result.update(space)
     sql_result.update(result)
-    sql_result['finish_timing'] = dt.datetime.now()     # record training finish time
+    sql_result['finish_timing'] = dt.datetime.now()
 
     print('sql_result_before writing: ', sql_result)
-
-    with engine.connect() as conn:  # save training results
-        pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn', con=conn, index=False, if_exists='append')
-    engine.dispose()
+    hpot['all_results'].append(sql_result.copy())
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -136,15 +129,17 @@ def eval(space):
 def HPOT(space, max_evals = 10):
     ''' use hyperopt on each set '''
 
-    hpot['best_mae'] = 1        # record best training (min mae_valid) in each hyperopt
+    hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
+    hpot['all_results'] = []
 
-    trials = Trials()           # use HPOT for 10 trials find minimal mae_valid
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
+    trials = Trials()
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
     print(hpot['best_stock_df'])
 
-    with engine.connect() as conn:      # save best trial per stock prediction to DB
-        hpot['best_stock_df'].to_sql('results_rnn_stock', con=conn, index=False, if_exists='append')
+    with engine.connect() as conn:
+        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     plot_history(hpot['best_history'])  # plot training history
@@ -166,7 +161,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/new_plot_rnn_{}.png'.format(sql_result['trial_lgbm']))
+    plt.savefig('results_dense/plot_dense_{}.png'.format(hpot['best_mae']))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
@@ -184,16 +179,21 @@ if __name__ == "__main__":
 
     sql_result = {}
     hpot = {}
-    exclude_fwd = False
-    use_median = True
-    chron_valid = False
-    sql_result['name'] = 'small space'
+
+    # default params for load_data
+    period_1 = dt.datetime(2013,3,31)
+    sample_no = 25
+    load_data_params = {'exclude_fwd': False,
+                        'use_median': True,
+                        'chron_valid': False,
+                        'macro_monthly': True,
+                        'y_type': 'ibes',
+                        'qcut_q': 10}
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2018,3,31)
-    sql_result['qcut_q'] = 10
-    sample_no = 1
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    sql_result['qcut_q'] = load_data_params['qcut_q']
+    sql_result['name'] = 'trial'
+    db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn', first=True)
 
     data = load_data()
 
@@ -205,7 +205,7 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, sql_result['qcut_q'], y_type='ibes')
+            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, **load_data_params)
 
             cv_number = 1
             for train_index, test_index in cv:
