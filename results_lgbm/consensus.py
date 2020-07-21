@@ -231,18 +231,23 @@ class calc_mae_write():
 
         # self.merge = yoy_merge
         # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
+        yoy_merge['icb_code'] = yoy_merge['icb_code'].astype(int).astype(str)
+        yoy_merge['icb_type'] = [len(x) for x in yoy_merge['icb_code']]
+        yoy_merge['icb_type'] = yoy_merge['icb_type'].astype(str)
 
-        for name, g in yoy_merge.groupby(['y_type', 'icb_code']):
+        for name, g in yoy_merge.groupby(['y_type', 'icb_type']):
 
+            self.name = name
             self.merge = g
-            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format(name))
+
+            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format('_'.join(name)))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
             self.by_time().to_excel(self.writer, 'by_time')
             self.average().to_excel(self.writer, 'average')
 
-            print('save to file name: mae_{}.xlsx'.format(name))
+            print('save to file name: mae_{}.xlsx'.format('_'.join(name)))
             self.writer.save()
 
     def by_sector(self):
@@ -253,7 +258,7 @@ class calc_mae_write():
             sector_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(sector_dict).T.unstack()
-
+        df.columns = ['_'.join(x) for x in df.columns.to_list()]
         return label_sector_name(df)
 
     def by_industry(self):
@@ -264,6 +269,7 @@ class calc_mae_write():
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
+        df.columns = ['_'.join(x) for x in df.columns.to_list()]
 
         return label_industry_name(df)
 
@@ -276,6 +282,7 @@ class calc_mae_write():
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
+        df.columns = ['_'.join(x) for x in df.columns.to_list()]
         print(df)
 
         return df
@@ -291,7 +298,7 @@ class calc_mae_write():
         df = pd.DataFrame(industry_dict).unstack().to_frame().reset_index()
         df['index'] = df['level_1'] + ['_']*len(df) + df['level_0']
         df = df.set_index('index')[0].to_frame().T
-        df.index = [r_name]
+        df.index = [self.name]
 
         print(df)
 
@@ -302,9 +309,9 @@ class calc_mae_write():
 
         dict = {}
         dict['ibes'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
-        if 'ibes' in r_name:
+        if 'ibes' in self.name:
             dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ibes_qcut'])
-        elif 'ni' in r_name:
+        elif 'ni' in self.name:
             dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ni_qcut'])
         dict['len'] = len(df)
         return dict
@@ -365,11 +372,12 @@ def combine():
 
             def select(f, name):
                 f_name = f[4:-5]
+                df = pd.read_excel(f, name, index_col='Unnamed: 0')
 
                 new_col = []
-                for col in ["('lgbm', 'in_fwd')", "('lgbm', 'ex_fwd')"]:
+                for col in df.columns:
                     try:
-                        s = pd.read_excel(f, name, index_col='Unnamed: 0')[col]
+                        s = df[col]
                         s = s.rename(f_name + '_' + col[-8:-6])
                         new_col.append(s)
                     except:
@@ -383,8 +391,8 @@ def combine():
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
     pd.concat(average, axis=0).to_excel(writer, 'average')
-    label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
-    label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
+    # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
+    # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
 
     print('save to file name: #compare_all.xlsx')
     writer.save()

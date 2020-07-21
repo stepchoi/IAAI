@@ -8,7 +8,7 @@ from miscel import date_type, check_dup
 from collections import Counter
 import os
 
-from results_lgbm.consensus import yoy_to_median, eps_to_yoy, download_add_detail
+from results_lgbm.consensus import yoy_to_median, eps_to_yoy, label_sector, calc_mae_write, combine
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -51,18 +51,46 @@ def download_stock():
         engine.dispose()
 
         detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')  # map training information to stock data
-        detail_stock['exclude_fwd'] = True
-        detail_stock['qcut_q'] = 10
-
         detail_stock.to_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name), index=False)
 
     print(detail_stock)
 
     return detail_stock
 
+def merge_ibes_stock():
+    ''' merge ibes and detail stock data '''
+
+    yoy_med = download_ibes_median()
+    detail_stock = download_stock()
+
+    detail_stock['x_type'] = 'fwdepsqcut'
+
+    detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
+                                                        'y_type'], keep='last')
+
+    # use median for cross listing & multiple cross-validation
+    detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
+        'pred'].reset_index(drop=False)
+
+    detail_stock['icb_code'] = detail_stock['icb_code'].astype(float)  # convert icb_code to int
+    yoy_med['icb_code'] = yoy_med['icb_code'].astype(float)
+
+    # merge (stock prediction) with (ibes consensus median)
+    yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
+                                        right_on=['identifier', 'period_end', 'y_type', 'icb_code'],
+                                        suffixes=('_lgbm', '_ibes'))
+
+    return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
+                                   'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']])
+
 
 if __name__ == "__main__":
 
     r_name = 'new'
 
-    download_stock()
+    yoy_merge = merge_ibes_stock()
+    print(yoy_merge)
+
+    calc_mae_write(yoy_merge)
+
+    combine()
