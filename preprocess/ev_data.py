@@ -25,15 +25,6 @@ def label_nation_sector(df):
     df['market'] = df['index_ric'].replace(['0#.CSI300', '0#.N225', '0#.SPX', '0#.HSLI'], ['CH', 'JP', 'US', 'HK'])
     return df.drop(['index_ric'], axis=1)
 
-def find_from_sp500():
-    ''' obselete '''
-
-    med = pd.read_csv('preprocess/med_ws.csv')
-
-    small_med = med.loc[med['fn_18100'] < 1e12]
-
-    print(small_med[['member_ric', 'fn_18100']].sort_values('fn_18100').drop_duplicates('member_ric', keep='last'))
-
 def filter_id_med_small():
     ''' filter small market company by size '''
 
@@ -66,6 +57,8 @@ def download_data_small_med(id_med_small=[]):
 
     if len(id_med_small) == 0:
         id_med_small = pd.read_csv('preprocess/small_med_name.csv', usecols=['identifier'])['identifier'].to_list()
+
+    print(id_med_small)
 
     with engine.connect() as conn:
 
@@ -188,6 +181,9 @@ if __name__ == '__main__':
 
     # pt_analysis(
 
-    # filter_id_med_small()
+    filter_id_med_small()
     download_data_small_med()
+    org_data_small_med()
+    rename_col()
+
 
