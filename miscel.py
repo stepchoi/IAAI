@@ -43,14 +43,20 @@ def write_db(df, table_name):
 
 if __name__ == '__main__':
 
-    init_nodes = 16
-    nodes_mult = 1
-    mult_freq = 1
-    mult_start = 2
+    # init_nodes = 16
+    # nodes_mult = 1
+    # mult_freq = 1
+    # mult_start = 2
+    #
+    # for i in range(6):
+    #
+    #     temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
+    #     # print((i-mult_start+1)//mult_freq)
+    #     print(i, temp_nodes)
+    with engine.connect() as conn:
+        df= pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
+    engine.dispose()
 
-    for i in range(6):
+    df.to_csv('stocks_all.csv', index=False)
 
-        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
-        # print((i-mult_start+1)//mult_freq)
-        print(i, temp_nodes)
 
