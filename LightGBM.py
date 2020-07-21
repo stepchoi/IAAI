@@ -249,16 +249,17 @@ if __name__ == "__main__":
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
     hpot = {}           # storing data for best trials in each Hyperopt
+    load_data_params = {'exclude_fwd': False,
+                        'use_median': True,
+                        'chron_valid': False,
+                        'macro_monthly': True,
+                        'y_type': 'ibes',
+                        'qcut_q': 10,
+                        'ibes_qcut_as_x': False}
 
     # default parser
     resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
-    sql_result['qcut_q'] = 10                           # number of Y classes
-    sql_result['y_type'] = 'ibes'
-    sql_result['name'] = None
-    use_median = True       # default setting
-    chron_valid = False     # default setting
-    macro_monthly = True    # since July 21
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
@@ -281,12 +282,11 @@ if __name__ == "__main__":
     # sql_result['name'] = 'new qcut x - new industry'                     # name = labeling the experiments
 
     # FINAL 1: use ibes_y + without ibes data
-    exclude_fwd = sql_result['exclude_fwd'] = True
-    ibes_qcut_as_x = False
-    sql_result['y_type'] = 'ibes'
-    sql_result['name'] = 'ibes_new industry -re'                # name = labeling the experiments
+    load_data_params['exclude_fwd'] = True
+    load_data_params['ibes_qcut_as_x'] = False
+    sql_result['name'] = 'ibes_new industry_monthly'                # name = labeling the experiments
 
-    # ## FINAL 2: use ibes_y + with ibes_data + with qcut x
+    # ## FINAL 2: use ibes_y + with ib
     # exclude_fwd = sql_result['exclude_fwd'] = False
     # ibes_qcut_as_x = True
     # sql_result['y_type'] = 'ibes'
@@ -301,8 +301,10 @@ if __name__ == "__main__":
     # sql_result['name'] = 'ibes_new industry_no ni'
 
 
-    # ibes_qcut_as_x = True
-
+    # update load_data params to sql_results
+    sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
+    sql_result['y_type'] = load_data_params['y_type']
+    sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
@@ -331,13 +333,7 @@ if __name__ == "__main__":
                     continue
 
             try:
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
-                                                                                  sql_result['qcut_q'],
-                                                                                  sql_result['y_type'],
-                                                                                  exclude_fwd=exclude_fwd,
-                                                                                  use_median=use_median,
-                                                                                  chron_valid=chron_valid,
-                                                                                  ibes_qcut_as_x=ibes_qcut_as_x)
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
 
                 print(feature_names)
 
