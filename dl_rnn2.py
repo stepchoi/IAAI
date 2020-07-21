@@ -23,7 +23,7 @@ space = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [1, 2, 3, ]),  # number of dense layers BEFORE GRU
     'num_nodes': hp.choice('num_nodes', [16, 32]),  #nodes per layer BEFORE GRU
 
-    'num_gru_layer': hp.choice('num_gru_layer', [3]),     # number of layers # drop 1, 2
+    'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
@@ -46,11 +46,11 @@ def rnn_train(space): #functional
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
-    # input_shape = (lookback * x_fields)  #prob need to flatten
+    # input_shape = (lookback, x_fields)  #prob need to flatten
     # print(input_shape)
 
-    input_img = Input(shape=(lookback, x_fields))   # input date: (batch_size, lookback, x_fields)
-    input_img_flat = Flatten()(input_img)           # flatten layer for dense training
+    input_img = Input(shape=(lookback, x_fields))
+    input_img_flat = Flatten()(input_img)
 
     num_layers =params['num_Dense_layer']
     num_nodes =params['num_nodes']
@@ -73,9 +73,11 @@ def rnn_train(space): #functional
             g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
+
         elif i == 0:
-            # extra.update(input_shape=(lookback, number_of_kernels * 2))
+        # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
+
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
             # g_1 = Flatten()(g_1)
@@ -131,8 +133,6 @@ def eval(space):
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_history'] = history
-
-    plot_history(history)  # plot history (epoch -> training / validation loss) find optimal epoch needed
 
     sql_result['trial_lgbm'] += 1
 

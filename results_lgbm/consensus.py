@@ -28,12 +28,19 @@ def download_add_detail(r_name, table_name):
         else:   # download everything
             result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, "
                                      "exclude_fwd, y_type, x_type FROM results_lightgbm", conn)
+            result_all = result_all.dropna(subset=['x_type'])
         trial_lgbm = set(result_all['trial_lgbm'])
 
-        # read corresponding part of DB TABLE results_lightgbm_stock
-        query = text('SELECT * FROM {} WHERE (trial_lgbm IN :trial_lgbm)'.format(table_name))
-        query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
-        result_stock = pd.read_sql(query, conn)
+        try:
+            result_stock = pd.read_csv('results_lgbm/compare_with_ibes/stock_all.csv')
+            print('local version run - stock_all')
+        except:
+            # read corresponding part of DB TABLE results_lightgbm_stock
+            print('download from DB')
+            query = text('SELECT * FROM results_lightgbm_stock WHERE (trial_lgbm IN :trial_lgbm)')
+            query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
+            result_stock = pd.read_sql(query, conn)
+            print('finish download result_stock', result_stock.info())
 
     engine.dispose()
 

@@ -147,9 +147,9 @@ def HPOT(space, max_evals):
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append')
-        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append')
-        hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append')
+        pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     # hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
