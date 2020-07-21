@@ -298,7 +298,7 @@ class calc_mae_write():
         df = pd.DataFrame(industry_dict).unstack().to_frame().reset_index()
         df['index'] = df['level_1'] + ['_']*len(df) + df['level_0']
         df = df.set_index('index')[0].to_frame().T
-        df.index = [self.name]
+        df.index = ['_'.join(self.name)]
 
         print(df)
 
