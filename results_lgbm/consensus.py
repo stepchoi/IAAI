@@ -32,7 +32,7 @@ def download_add_detail(r_name, table_name):
         trial_lgbm = set(result_all['trial_lgbm'])
 
         try:
-            result_stock = pd.read_csv('results_lgbm/compare_with_ibes/stock_all.csv')
+            result_stock = pd.read_csv('results_lgbm/compare_with_ibes/stocks_all.csv')
             print('local version run - stock_all')
         except:
             # read corresponding part of DB TABLE results_lightgbm_stock

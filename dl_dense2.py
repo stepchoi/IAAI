@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 
 space = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
-    'learning_rate': hp.choice('lr', [2, 3]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+    'learning_rate': hp.choice('lr', [3, 4, 5]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'init_nodes': hp.choice('init_nodes', [16, 32]),  # nodes for Dense first layer
+    'init_nodes': hp.choice('init_nodes', [4, 8, 16]),  # nodes for Dense first layer -> LESS NODES
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
     'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
@@ -48,16 +48,20 @@ def dense_train(space):
     mult_freq = params['mult_freq']
     mult_start = params['mult_start']
 
+    nodes = []
     for i in range(params['num_Dense_layer']):
 
         temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
         d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
+        nodes.extend(temp_nodes)
 
         if i != params['num_Dense_layer'] - 1:    # last dense layer has no dropout
             d_1 = Dropout(params['dropout'])(d_1)
 
     f_x = Dense(1)(d_1)
 
+    print(nodes)
+    sql_result['num_nodes'] = str(nodes)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
                       callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
@@ -139,7 +143,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_dense_{}.png'.format(sql_result['trial_lgbm']))
+    plt.savefig('results_dense/plot_dense_{}.png'.format(hpot['best_mae']))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
@@ -163,13 +167,13 @@ if __name__ == "__main__":
     use_median = True
     chron_valid = False
     ibes_qcut_as_x = False
-    sql_result['name'] = 'new'
+    sql_result['name'] = 'smaller'
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2016,9,30)
+    period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
-    sample_no = 25
+    sample_no = 1
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
