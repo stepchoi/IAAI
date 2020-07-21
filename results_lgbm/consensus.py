@@ -390,7 +390,9 @@ def combine():
 
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
-    pd.concat(average, axis=0).to_excel(writer, 'average')
+    avg_df = pd.concat(average, axis=0)
+    avg_df = avg_df.filter(sorted(avg_df.columns.to_list()))
+    avg_df.to_excel(writer, 'average')
     # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
     # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
 
