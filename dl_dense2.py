@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import datetime as dt
+import ast
 
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from keras import callbacks, optimizers, regularizers
@@ -37,7 +38,12 @@ space_model = {
                                                     # remove lr = 5 & 7 after tuning
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
-    'models': hp.choice('models', ),  # nodes for Dense first layer -> LESS NODES
+    'nodes_list': hp.choice('nodes_list', ['[16, 16, 16]',
+                                           '[8, 16, 16, 32]',
+                                           '[8, 8, 8, 8, 8]',
+                                           '[16, 16]',
+                                           '[8, 16, 32]',
+                                           '[16, 16, 16, 16]'])  # nodes for Dense first layer -> LESS NODES
 
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
     'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
@@ -55,15 +61,17 @@ def dense_train(space):
     input_shape = (X_train.shape[-1],)      # input shape depends on x_fields used
     input_img = Input(shape=input_shape)
 
-    init_nodes = params['init_nodes']
-    nodes_mult = params['nodes_mult']
-    mult_freq = params['mult_freq']
-    mult_start = params['mult_start']
+    # init_nodes = params['init_nodes']
+    # nodes_mult = params['nodes_mult']
+    # mult_freq = params['mult_freq']
+    # mult_start = params['mult_start']
+
+    nodes_list = ast.literal_eval(params['nodes_list'])  # convert str to nested dictionary
 
     nodes = []
     for i in range(params['num_Dense_layer']):
-
-        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
+        temp_nodes = nodes_list[i]
+        # temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
         d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
         nodes.append(temp_nodes)
 

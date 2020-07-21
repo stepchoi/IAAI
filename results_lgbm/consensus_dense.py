@@ -31,7 +31,7 @@ def download_stock():
     ''' Download results_dense2_stock for stocks '''
 
     try:
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name))
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/dense_sto.ck_{}.csv'.format(r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
         print('local version run - stock_{}'.format(r_name))
     except:
@@ -86,11 +86,11 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    # r_name = 'new'
-    #
-    # yoy_merge = merge_ibes_stock()
-    # print(yoy_merge)
-    #
-    # calc_mae_write(yoy_merge, tname='_dense')
+    r_name = 'new'
+
+    yoy_merge = merge_ibes_stock()
+    print(yoy_merge)
+
+    calc_mae_write(yoy_merge, tname='_dense')
 
     combine()

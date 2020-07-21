@@ -239,6 +239,7 @@ class calc_mae_write():
 
         print(yoy_merge)
 
+        self.tname = tname
         # self.merge = yoy_merge
         # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
         yoy_merge['icb_code'] = yoy_merge['icb_code'].astype(int).astype(str)
@@ -303,7 +304,7 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['x_type']):
-            industry_dict['_'.join(self.name) + '_' + name] = self.part_mae(g)
+            industry_dict['_'.join(self.name) + '_' + name + self.tname] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T
         print(df)
@@ -373,11 +374,10 @@ def combine():
 
     for f in files:
         if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
-            print(f)
+            f_name = f[4:-5]
             average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
 
             def select(f, name):
-                f_name = f[4:-5]
                 df = pd.read_excel(f, name, index_col='Unnamed: 0')
 
                 new_col = []
@@ -396,11 +396,12 @@ def combine():
 
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
+    # combine all average records
     avg_df = pd.concat(average, axis=0)
     avg_df = avg_df.filter(sorted(avg_df.columns.to_list())).reset_index()
     avg_df['index'] = avg_df['index'].replace(['1','2','6'],['entire','industry','sector'])
-    avg_df = avg_df.set_index(['index'])
-    avg_df = avg_df.loc[avg_df['len']>10000].sort_values(['lgbm'])
+    avg_df = avg_df.set_index(['index']).sort_values(['lgbm'])
+    # avg_df = avg_df.loc[avg_df['len']>10000]
 
     avg_df.to_excel(writer, 'average')
     # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
@@ -414,9 +415,9 @@ if __name__ == "__main__":
 
     # for r_name in ['ibes_new industry_qcut x','ibes_sector', 'ibes_new industry', 'ni_entire', 'ni_new industry',
     #                'ni_new industry_qcut x','ni_sector','ni_sector_qcut x']:
-    r_name = 'all'
-    yoy_merge = download(r_name).merge_stock_ibes()
-    calc_mae_write(yoy_merge)
+    # r_name = 'all'
+    # yoy_merge = download(r_name).merge_stock_ibes()
+    # calc_mae_write(yoy_merge)
     # exit(0)
 
     combine()

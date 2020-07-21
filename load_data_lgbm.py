@@ -16,15 +16,26 @@ engine = create_engine(db_string)
 
 class add_macro():
 
-    def __init__(self):
+    def __init__(self, macro_monthly=True):
         try:
             self.ratios = pd.read_csv('preprocess/clean_ratios.csv')
             self.macros = pd.read_csv('preprocess/clean_macros.csv')
+            self.new_macros = pd.read_csv('preprocess/clean_macros_new.csv')
             print('local version run - clean_ratios / macros')
         except:
+            print('-----------------> download from DB')
             self.ratios = pd.read_sql('SELECT * FROM clean_ratios', engine)
             self.macros = pd.read_sql('SELECT * FROM clean_macros', engine)
+            self.new_macros = pd.read_sql('SELECT * FROM clean_macros_new', engine)
             engine.dispose()
+
+        self.macros = date_type(self.macros)    # convert to date
+        self.new_macros = date_type(self.new_macros)
+        self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
+
+        if macro_monthly == True:
+            non_replace_col = list(set(self.macros.columns.to_list()) - set(self.new_macros.columns.to_list()))
+            self.macros = self.new_macros.merge(self.macros[['period_end'] + non_replace_col], on='period_end', how='left')
 
         self.ratios = self.label_nation_sector(self.ratios)
 
@@ -276,6 +287,7 @@ if __name__ == '__main__':
 
     exclude_fwd = True
     ibes_qcut_as_x = True
+    macro_monthly = True
 
     data = load_data()
     data.split_sector(icb_code)

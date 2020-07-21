@@ -258,6 +258,7 @@ if __name__ == "__main__":
     sql_result['name'] = None
     use_median = True       # default setting
     chron_valid = False     # default setting
+    macro_monthly = True    # since July 21
 
     data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
 

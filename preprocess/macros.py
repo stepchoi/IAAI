@@ -3,6 +3,10 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 from preprocess.ratios import trim_outlier
+from miscel import date_type
+
+db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
+engine = create_engine(db_string)
 
 def eikon_to_datetime(df, date_col):
     ''' convert quarter time e.g. Q2 1998 -> 1998-03-31 datetime'''
@@ -42,7 +46,7 @@ def clean_macro():
 
     reer = pd.read_excel('macro_data_raw.xlsx', 'reer')
     index = pd.read_excel('macro_data_raw.xlsx', 'index')
-    index['Name'] = pd.to_datetime(index['Name'], format='%Y-%m-%d') # convert string to datetime
+    index = date_type(index) # convert string to datetime
 
     interest_rate = pd.read_excel('macro_data_raw.xlsx', 'interest rate')
     interest_rate['Name'] = pd.to_datetime(interest_rate['Name'], format='%Y-%m-%d') # convert string to datetime
@@ -67,8 +71,8 @@ class macro_calc:
         ''' read raw data + mapping table '''
 
         try:
-            self.macros = pd.read_csv('preprocess/useless/macro_data.csv')
-            mapping = pd.read_csv('preprocess/useless/macro_formula.csv')
+            self.macros = pd.read_csv('preprocess/macro_data.csv')
+            mapping = pd.read_csv('preprocess/macro_formula.csv')
             print('local version run - macros, mapping')
         except:
             self.macros = pd.read_sql('SELECT * FROM macro_data', engine)
@@ -82,29 +86,55 @@ class macro_calc:
 
         macro_ratios = self.macros.drop(self.yoy_col, axis=1)
         macro_ratios['chgdp%..c'] = macro_ratios['chgdp%..c'].div(100) # convert china gdp (source EIKON) from %
-        macro_ratios[self.yoy_col] = (self.macros[self.yoy_col] / self.macros[self.yoy_col].shift(1)).sub(1)
+        macro_ratios[self.yoy_col] = (self.macros[self.yoy_col] / self.macros[self.yoy_col].shift(4)).sub(1)
 
         macro_ratios = self.push_1q(macro_ratios)
 
-        macro_ratios['period_end'] = pd.to_datetime(macro_ratios['period_end'], format='%d/%m/%Y')
-
-        return macro_ratios
+        return date_type(macro_ratios)
 
     def push_1q(self, df):
         df[self.push_1q_col] = df[self.push_1q_col].shift(-1)
         return df
 
+def new_macro_ratios():
+    ''' new macro ratios '''
+
+    macro = pd.read_excel('preprocess/New Macro Variable Values.xlsx','Sheet1')
+    macro['month'] = macro['Name'].apply(lambda x: x.month)
+    macro = macro.loc[macro['month'].isin([3,6,9,12])]
+    next = {3:4, 6:7, 9:10, 12:1}
+    macro['period_end'] = macro['Name'].apply(lambda x: pd.Timestamp(x.year, next[x.month], 1) - dt.timedelta(days=1))
+
+    oil = pd.read_excel('preprocess/New Macro Variable Values.xlsx','Sheet2').sort_values('Name')
+    oil['year_month'] = oil['Name'].apply(lambda x: '{}_{}'.format(x.year, x.month))
+    oil_end = oil.groupby('year_month').last()                      # find month end record from daily records
+    oil_end['month'] = oil_end['Name'].apply(lambda x: x.month)
+    oil_end = oil_end.loc[oil_end['month'].isin([3,6,9,12])]        # use quarter end month
+    oil_end['period_end'] = oil_end['Name'].apply(lambda x: pd.Timestamp(x.year, next[x.month], 1) - dt.timedelta(days=1))
+
+    new_macro = pd.merge(date_type(macro.drop(['Name','month'], axis=1)),
+                         oil_end[['period_end','CRUDOIL']], on='period_end').sort_values(['period_end'])
+    new_macro.columns = [x.lower() for x in new_macro.columns.to_list()]
+    new_macro.to_csv('preprocess/macro_data_new.csv', index=False)
+
+    yoy_col = list(set(new_macro.columns.to_list()) - {'period_end'})
+    new_macro[yoy_col] = (new_macro[yoy_col] / new_macro[yoy_col].shift(4)).sub(1)
+    new_macro.to_csv('preprocess/clean_macros_new.csv', index=False)
+
+    return new_macro
+
+
 if __name__ == '__main__':
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-    engine = create_engine(db_string)
+    new_macro_ratios()
 
     macro_ratios =  macro_calc().calc_yoy()
 
     # replace -np.inf with minimum value in usfrbpim
-    real_min = macro_ratios['usfrbpim'].replace(-np.inf, np.nan)
-    macro_ratios['usfrbpim'] = macro_ratios['usfrbpim'].replace(-np.inf, real_min)
+    real_min = macro_ratios['usfrbpim'].replace([-np.inf, np.inf], np.nan).min()
+    real_max = macro_ratios['usfrbpim'].replace([-np.inf, np.inf], np.nan).max()
+    macro_ratios['usfrbpim'] = macro_ratios['usfrbpim'].replace([-np.inf, np.inf], [real_min, real_max])
     print(macro_ratios.describe().T[['max','min']])
 
-    macro_ratios.to_csv('clean_macros.csv', index=False)
+    macro_ratios.to_csv('preprocess/clean_macros.csv', index=False)
 
     # worldwide_col = mapping.loc[mapping['market'] == 'W', 'symbol'].to_list()
