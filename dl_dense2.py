@@ -32,21 +32,21 @@ space = {
     'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
 }
 
-space_model = {
-    'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
+space_fix = {
+    # 'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
     'learning_rate': hp.choice('lr', [3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
-    'nodes_list': hp.choice('nodes_list', ['[16, 16, 16]',
+    'num_nodes': hp.choice('nodes_list', ['[16, 16, 16]',
                                            '[8, 16, 16, 32]',
                                            '[8, 8, 8, 8, 8]',
                                            '[16, 16]',
                                            '[8, 16, 32]',
-                                           '[16, 16, 16, 16]'])  # nodes for Dense first layer -> LESS NODES
+                                           '[16, 16, 16, 16]']),  # nodes for Dense first layer -> LESS NODES
 
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
+    'batch_size': hp.choice('batch_size', [64, 128, 256]), # reduce batch size space # drop 512
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -65,23 +65,27 @@ def dense_train(space):
     # nodes_mult = params['nodes_mult']
     # mult_freq = params['mult_freq']
     # mult_start = params['mult_start']
+    # num_Dense_layer = params['num_Dense_layer']
 
-    nodes_list = ast.literal_eval(params['nodes_list'])  # convert str to nested dictionary
+    nodes_list = ast.literal_eval(params['num_nodes'])  # convert str to nested dictionary
+    print(nodes_list)
 
-    nodes = []
-    for i in range(params['num_Dense_layer']):
+    num_Dense_layer = len(nodes_list)
+
+    # nodes = []
+    for i in range(num_Dense_layer):
         temp_nodes = nodes_list[i]
         # temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
         d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
-        nodes.append(temp_nodes)
+        # nodes.append(temp_nodes)
 
-        if i != params['num_Dense_layer'] - 1:    # last dense layer has no dropout
+        if i != num_Dense_layer - 1:    # last dense layer has no dropout
             d_1 = Dropout(params['dropout'])(d_1)
 
     f_x = Dense(1)(d_1)
 
-    print(nodes)
-    sql_result['num_nodes'] = str(nodes)
+    # print(nodes)
+    # sql_result['num_nodes'] = str(nodes)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
                       callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
@@ -187,13 +191,13 @@ if __name__ == "__main__":
     use_median = True
     chron_valid = False
     ibes_qcut_as_x = False
-    sql_result['name'] = 'smaller'
+    sql_result['name'] = 'fixed model'
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     qcut_q = 10
-    sample_no = 1
+    sample_no = 25
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
@@ -228,7 +232,8 @@ if __name__ == "__main__":
                     Y_valid = sample_set['train_y'][test_index]
 
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    HPOT(space, 10)
+                    HPOT(space_fix, 10)
+                    # HPOT(space, 10)
                     cv_number += 1
             except:
                 continue
