@@ -204,14 +204,15 @@ class download:
         ''' combine all prediction together '''
 
         # convert datetime
-        self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
+        # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
         self.detail_stock = self.detail_stock.drop_duplicates(
-            subset=['icb_code', 'identifier', 'testing_period', 'cv_number', 'exclude_fwd','y_type'], keep='last')
+            subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
 
         # use median for cross listing & multiple cross-validation
-        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd', 'y_type']).median()['pred'].reset_index(drop=False)
+        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
+                                                       'x_type','y_type']).median()['pred'].reset_index(drop=False)
 
         self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
@@ -221,13 +222,15 @@ class download:
                                             right_on=['identifier', 'period_end','y_type', 'icb_code'],
                                             suffixes=('_lgbm', '_ibes'))
 
-        return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'exclude_fwd', 'pred', 'icb_code',
-                                       'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']])
+        return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
+                                       'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']]) # 'exclude_fwd -> x_type
 
 class calc_mae_write():
 
-    def __init__(self, yoy_merge):
+    def __init__(self, yoy_merge, tname=''):
         ''' calculate all MAE and save to local xlsx '''
+
+        print(yoy_merge)
 
         # self.merge = yoy_merge
         # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
@@ -240,7 +243,7 @@ class calc_mae_write():
             self.name = name
             self.merge = g
 
-            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}.xlsx'.format('_'.join(name)))
+            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -293,13 +296,9 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['x_type']):
-            industry_dict[name] = self.part_mae(g)
+            industry_dict['_'.join(self.name) + '_' + name] = self.part_mae(g)
 
-        df = pd.DataFrame(industry_dict).unstack().to_frame().reset_index()
-        df['index'] = df['level_1'] + ['_']*len(df) + df['level_0']
-        df = df.set_index('index')[0].to_frame().T
-        df.index = ['_'.join(self.name)]
-
+        df = pd.DataFrame(industry_dict).T
         print(df)
 
         return df
@@ -308,7 +307,7 @@ class calc_mae_write():
         ''' calculate different mae for groups of sample '''
 
         dict = {}
-        dict['ibes'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
+        dict['consensus'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
         if 'ibes' in self.name:
             dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ibes_qcut'])
         elif 'ni' in self.name:
@@ -391,7 +390,11 @@ def combine():
     writer = pd.ExcelWriter('#compare_all.xlsx')
 
     avg_df = pd.concat(average, axis=0)
-    avg_df = avg_df.filter(sorted(avg_df.columns.to_list()))
+    avg_df = avg_df.filter(sorted(avg_df.columns.to_list())).reset_index()
+    avg_df['index'] = avg_df['index'].replace(['1','2','6'],['entire','industry','sector'])
+    avg_df = avg_df.set_index(['index'])
+    avg_df = avg_df.loc[avg_df['len']>10000].sort_values(['lgbm'])
+
     avg_df.to_excel(writer, 'average')
     # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
     # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')

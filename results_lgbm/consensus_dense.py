@@ -86,11 +86,11 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'new'
-
-    yoy_merge = merge_ibes_stock()
-    print(yoy_merge)
-
-    calc_mae_write(yoy_merge)
+    # r_name = 'new'
+    #
+    # yoy_merge = merge_ibes_stock()
+    # print(yoy_merge)
+    #
+    # calc_mae_write(yoy_merge, tname='_dense')
 
     combine()
