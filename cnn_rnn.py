@@ -55,9 +55,10 @@ def rnn_train(space): #functional
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
     c_1 = LeakyReLU(alpha=0.1)(c_1)
-    c_1 = Reshape((lookback, kernel_size))(c_1)
 
+    c_1 = Reshape((lookback, kernel_size))(c_1)
     # g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
+
     g_1 = c_1
 
     #GRU part ---------------------------------
