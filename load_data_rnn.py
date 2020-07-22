@@ -35,7 +35,8 @@ def read_data(macro_monthly=True):
         with engine.connect() as conn:
             ibes = pd.read_sql('SELECT * FROM ibes_data', conn)     # use DB TABLE if no local file
             stock = pd.read_sql('SELECT * FROM stock_data', conn)
-            macro = pd.read_sql('SELECT * FROM macro_data', conn)
+            macro = pd.read_sql('SELECT * FROM clean_macros', conn)
+            new_macro = pd.read_sql('SELECT * FROM clean_macros_new', conn)
             y = pd.read_sql('SELECT identifier, period_end, y_ibes, y_ni FROM clean_ratios', conn)
         engine.dispose()
 

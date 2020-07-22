@@ -4,6 +4,8 @@ import argparse
 import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from sklearn.metrics import r2_score, mean_absolute_error
+
 from keras import models, callbacks, optimizers, initializers
 from keras.models import Model
 from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
@@ -20,7 +22,7 @@ import matplotlib.pyplot as plt
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [32, 128, 384]) #CNN kernel size - num of different "scenario"
+    'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
@@ -93,21 +95,24 @@ def rnn_train(space): #functional
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
 
-    train_mae = model.evaluate(X_train, Y_train,  verbose=1)
-    valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
-    test_mae = model.evaluate(X_test, Y_test, verbose=1)
     Y_test_pred = model.predict(X_test)
+    Y_train_pred = model.predict(X_train)
+    Y_valid_pred = model.predict(X_valid)
 
-    return train_mae, valid_mae, test_mae, Y_test_pred, history
+    return Y_test_pred, Y_train_pred, Y_valid_pred, history
+
 
 def eval(space):
-    ''' train & evaluate each of the cnn + rnn model '''
+    ''' train & evaluate each of the dense model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)
+    Y_test_pred, Y_train_pred, Y_valid_pred, history = rnn_train(space)
 
-    result = {'mae_train': train_mae,
-              'mae_valid': valid_mae,
-              'mae_test': test_mae,
+    result = {'mae_train': mean_absolute_error(Y_train, Y_train_pred),
+              'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+              'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+              'r2_train': r2_score(Y_train, Y_train_pred),
+              'r2_valid': r2_score(Y_valid, Y_valid_pred),
+              'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
 
     sql_result.update(space)
@@ -184,7 +189,6 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
     load_data_params = {'exclude_fwd': True,
-                        'macro_monthly': True,
                         'y_type': 'ibes',
                         'qcut_q': 10}
 
@@ -193,7 +197,7 @@ if __name__ == "__main__":
     sql_result['name'] = 'trial'
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn', first=True)
 
-    data = load_data()
+    data = load_data(macro_monthly=True)
 
     for add_ind_code in [0]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
