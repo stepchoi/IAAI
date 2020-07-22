@@ -192,7 +192,7 @@ def to_sql_importance(gbm):
     ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
 
     df = pd.DataFrame()
-    df['name'] = feature_names     # column names
+    df['name'] = [x.lower() for x in feature_names]     # column names
     df['split'] = gbm.feature_importance(importance_type='split')   # split = # of appearance
     df['gain'] = gbm.feature_importance(importance_type='gain')     # gain = total gain
 
@@ -254,7 +254,6 @@ if __name__ == "__main__":
     load_data_params = {'exclude_fwd': False,
                         'use_median': True,
                         'chron_valid': False,
-                        'macro_monthly': True,
                         'y_type': 'ibes',
                         'qcut_q': 10,
                         'ibes_qcut_as_x': False}
@@ -263,7 +262,7 @@ if __name__ == "__main__":
     resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
-    data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    data = load_data(macro_monthly=True)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # # ALTER 1: change for classification problem
     # use_median = False
@@ -287,6 +286,7 @@ if __name__ == "__main__":
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
     sql_result['name'] = 'ibes_new industry_monthly'                # name = labeling the experiments
+    sql_result['x_type'] = 'fwdepsqcut'
 
     # ## FINAL 2: use ibes_y + with ib
     # exclude_fwd = sql_result['exclude_fwd'] = False
@@ -310,7 +310,7 @@ if __name__ == "__main__":
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    if (sql_result['name'] == None) and (sql_result['x_type'] == None):
+    if (sql_result['name'] == None) or (sql_result['x_type'] == None):
         exit(1)
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
@@ -359,6 +359,5 @@ if __name__ == "__main__":
 
             except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
                 pass_error()
-                cv_number += 1
                 continue
 
