@@ -14,7 +14,7 @@ import gc
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-class add_macro():
+class add_macro:
 
     def __init__(self, macro_monthly=True):
         try:
@@ -31,11 +31,13 @@ class add_macro():
 
         self.macros = date_type(self.macros)    # convert to date
         self.new_macros = date_type(self.new_macros)
+        self.ratios = date_type(self.ratios)
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 
         if macro_monthly == True:
             non_replace_col = list(set(self.macros.columns.to_list()) - set(self.new_macros.columns.to_list()))
             self.macros = self.new_macros.merge(self.macros[['period_end'] + non_replace_col], on='period_end', how='left')
+            print('update using monthly macros')
 
         self.ratios = self.label_nation_sector(self.ratios)
 
@@ -79,22 +81,23 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self):
+    def __init__(self, macro_monthly=True):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
-
 
         try:
             self.main = pd.read_csv('preprocess/main.csv')
             self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus'])
             print('local version run - main / consensus')
         except:
-            self.main = add_macro().map_macros()
+            self.main = add_macro(macro_monthly).map_macros()
             self.main.to_csv('preprocess/main.csv', index=False)
             self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus'])
             # self.main.to_csv('preprocess/main.csv', index=False)
 
         self.main = date_type(self.main)
+        self.main.columns = [x.lower() for x in self.main]
+
         self.consensus = date_type(self.consensus)
         self.consensus.columns = ['identifier', 'period_end', 'ibes_qcut_as_x']
         self.main = self.main.merge(self.consensus, on =['identifier','period_end'])

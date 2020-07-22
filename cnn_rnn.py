@@ -4,6 +4,8 @@ import argparse
 import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from sklearn.metrics import r2_score, mean_absolute_error
+
 from keras import models, callbacks, optimizers, initializers
 from keras.models import Model
 from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
@@ -20,7 +22,7 @@ import matplotlib.pyplot as plt
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [32, 128, 384]) #CNN kernel size - num of different "scenario"
+    'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
@@ -40,13 +42,13 @@ def rnn_train(space): #functional
     print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
-    x_fields = X_train.shape[-1]    # x_fields differ depending on whether include ibes ratios
+    x_fields = X_train.shape[2]    # x_fields differ depending on whether include ibes ratios
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
 
     kernel_size =params['kernel_size'] # of different "scenario"
-    num_nodes = params['num_nodes']
+    num_nodes = params['gru_nodes']
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
@@ -55,7 +57,8 @@ def rnn_train(space): #functional
     c_1 = LeakyReLU(alpha=0.1)(c_1)
     c_1 = Reshape((lookback, kernel_size))(c_1)
 
-    g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
+    # g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
+    g_1 = c_1
 
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
@@ -78,36 +81,40 @@ def rnn_train(space): #functional
     #join the return sequence and forecast state
     f_x = Concatenate(axis=1)([g_1, g_1_2])
     f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
-    # f_x = Flatten()(f_x)
     f_x = Dense(1)(f_x)
 
     model = Model(input_img, f_x)
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
-    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
+    callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
+                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
+                        validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
-    train_mae = model.evaluate(X_train, Y_train,  verbose=1)
-    valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
-    test_mae = model.evaluate(X_test, Y_test, verbose=1)
     Y_test_pred = model.predict(X_test)
+    Y_train_pred = model.predict(X_train)
+    Y_valid_pred = model.predict(X_valid)
 
-    return train_mae, valid_mae, test_mae, Y_test_pred, history
+    return Y_test_pred, Y_train_pred, Y_valid_pred, history
+
 
 def eval(space):
-    ''' train & evaluate each of the cnn + rnn model '''
+    ''' train & evaluate each of the dense model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)
+    Y_test_pred, Y_train_pred, Y_valid_pred, history = rnn_train(space)
 
-    result = {'mae_train': train_mae,
-              'mae_valid': valid_mae,
-              'mae_test': test_mae,
+    result = {'mae_train': mean_absolute_error(Y_train, Y_train_pred),
+              'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+              'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+              'r2_train': r2_score(Y_train, Y_train_pred),
+              'r2_valid': r2_score(Y_valid, Y_valid_pred),
+              'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
 
     sql_result.update(space)
@@ -184,16 +191,15 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
     load_data_params = {'exclude_fwd': True,
-                        'macro_monthly': True,
                         'y_type': 'ibes',
                         'qcut_q': 10}
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'trial'
+    sql_result['name'] = 'without ibes'
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn', first=True)
 
-    data = load_data()
+    data = load_data(macro_monthly=True)
 
     for add_ind_code in [0]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
@@ -203,15 +209,17 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, **load_data_params)
+            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+            print(x_col)
+            X_test = np.expand_dims(X_test, axis=3)
 
             cv_number = 1
             for train_index, test_index in cv:
                 sql_result['cv_number'] = cv_number
 
-                X_train = train_x[train_index]
+                X_train = np.expand_dims(train_x[train_index], axis=3)
                 Y_train = train_y[train_index]
-                X_valid = train_x[test_index]
+                X_valid = np.expand_dims(train_x[test_index], axis=3)
                 Y_valid = train_y[test_index]
 
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
