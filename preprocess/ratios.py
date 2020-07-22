@@ -59,6 +59,7 @@ class worldscope:
         self.ws['period_end'] = self.ws.apply(lambda x: x['last_year_end'] +
                                                         pd.offsets.MonthEnd(x['frequency_number']*3), axis=1)
 
+
         return self.ws.drop(['last_year_end','fiscal_year_end','year','frequency_number','fiscal_quarter_end'], axis=1)
 
     def fill_missing_ws(self):

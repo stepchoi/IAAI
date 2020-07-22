@@ -109,7 +109,9 @@ def eval_classify(space):
                 'mae_train': accuracy_score(sample_set['train_yy'], Y_train_pred),   # use column names of regression
                 'mae_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': accuracy_score(Y_test, Y_test_pred),
-                'r2': r2_score(Y_test, Y_test_pred),
+                'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
+                'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
+                'r2_test': r2_score(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
     sql_result.update(space)        # update hyper-parameter used in model

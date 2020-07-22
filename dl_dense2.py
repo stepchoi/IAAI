@@ -7,6 +7,7 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from keras import callbacks, optimizers, regularizers
 from keras.models import Model
 from keras.layers import Dense, Dropout, Input
+from sklearn.metrics import r2_score, mean_absolute_error
 
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -99,21 +100,26 @@ def dense_train(space):
                         callbacks=callbacks_list, verbose=1)
     model.summary()
 
-    train_mae = model.evaluate(X_train, Y_train,  verbose=1)
-    valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
-    test_mae = model.evaluate(X_test, Y_test, verbose=1)
+    # train_mae = model.evaluate(X_train, Y_train,  verbose=1)
+    # valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
+    # test_mae = model.evaluate(X_test, Y_test, verbose=1)
     Y_test_pred = model.predict(X_test)
+    Y_train_pred = model.predict(X_train)
+    Y_valid_pred = model.predict(X_valid)
 
-    return train_mae, valid_mae, test_mae, Y_test_pred, history
+    return Y_test_pred, Y_train_pred, Y_valid_pred, history
 
 def eval(space):
     ''' train & evaluate each of the dense model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = dense_train(space)
+    Y_test_pred, Y_train_pred, Y_valid_pred, history = dense_train(space)
 
-    result = {'mae_train': train_mae,
-              'mae_valid': valid_mae,
-              'mae_test': test_mae,
+    result = {'mae_train': mean_absolute_error(Y_train, Y_train_pred),
+              'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+              'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+              'r2_train': r2_score(Y_train, Y_train_pred),
+              'r2_valid': r2_score(Y_valid, Y_valid_pred),
+              'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
 
     sql_result.update(space)
