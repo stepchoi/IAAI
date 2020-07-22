@@ -9,6 +9,8 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
+
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 space = {
@@ -19,12 +21,12 @@ space = {
     'num_leaves': hp.choice('num_leaves', [25, 75, 125, 250, 500]), # np.arange(50, 200, 30, dtype=int)
 
     # avoid overfit
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [0, 10, 25, 75, 100]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [10, 25, 50, 75]),
     'feature_fraction': hp.choice('feature_fraction', [0.3, 0.5, 0.7, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.7, 0.8, 0.9, 1]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.7, 0.8, 0.9]),
     'bagging_freq': hp.choice('bagging_freq', [1, 2, 8, 16]),
     'min_gain_to_split': hp.choice('min_gain_to_split', [0.01, 0.02, 0.05, 0.08]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 5, 15, 30]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 5, 10]),
     'lambda_l2': hp.choice('lambda_l2', [1, 10, 50, 100]),
 
     # parameters won't change
@@ -48,11 +50,15 @@ def lgbm_train(space):
     lgb_train = lgb.Dataset(sample_set['train_xx'], label=sample_set['train_yy'], free_raw_data=False)
     lgb_eval = lgb.Dataset(sample_set['valid_x'], label=sample_set['valid_y'], free_raw_data=False, reference=lgb_train)
 
+    evals_result = {}
     gbm = lgb.train(params,
                     lgb_train,
-                    valid_sets=lgb_eval,
+                    valid_sets=[lgb_eval, lgb_train],
+                    valid_names=['valid', 'train'],
                     num_boost_round=1000,
-                    early_stopping_rounds=150)
+                    early_stopping_rounds=150,
+                    feature_name = feature_names,
+                    evals_result=evals_result)
 
     # prediction on all sets
     if space['objective'] == 'regression_l1':
@@ -68,18 +74,20 @@ def lgbm_train(space):
         Y_test_pred_softmax = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
         Y_test_pred = [list(i).index(max(i)) for i in Y_test_pred_softmax]
 
-    return Y_train_pred, Y_valid_pred, Y_test_pred, gbm
+    return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
 
-    Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
+    Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm = lgbm_train(space)
     Y_test = sample_set['test_y']
 
     result = {  'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
-                'r2': r2_score(Y_test, Y_test_pred),
+                'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
+                'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
+                'r2_test': r2_score(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
     sql_result.update(space)        # update hyper-parameter used in model
@@ -92,7 +100,9 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']: # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = to_sql_prediction(Y_test_pred)
-        # hpot['best_model'] = gbm
+        hpot['best_plot'] = evals_result
+        hpot['best_model'] = gbm
+        hpot['best_trial'] = sql_result['trial_lgbm']
         hpot['best_importance'] = to_sql_importance(gbm)
 
     sql_result['trial_lgbm'] += 1
@@ -140,7 +150,7 @@ def HPOT(space, max_evals):
 
     trials = Trials()
 
-    if space['objective'] == 'regression_l1':
+    if space['objective'] in ('regression_l1', 'regression_l2'):
         best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     elif space['objective'] == 'multiclass':
         hpot['best_mae'] = 0  # record best training (min mae_valid) in each hyperopt
@@ -154,10 +164,23 @@ def HPOT(space, max_evals):
         hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    # hpot['best_model'].save_model('models_lgbm/{}_model.txt'.format(sql_result['trial_lgbm']))
+    plot_history(hpot['best_plot'], hpot['best_model'], hpot['best_trial'])
 
     sql_result['trial_hpot'] += 1
     # return best
+
+def plot_history(evals_result, gbm, trial_num):
+    ''' plot the training loss history '''
+
+    ax = lgb.plot_metric(evals_result, metric='l1')
+    fig = ax.get_figure()
+    fig.savefig('models_lgbm/plot_lgbm_eval_{}.png'.format(trial_num))
+    plt.close()
+
+    ax = lgb.plot_importance(gbm, max_num_features=20)
+    fig = ax.get_figure()
+    fig.savefig('models_lgbm/plot_lgbm_impt_{}.png'.format(trial_num))
+    plt.close()
 
 def to_sql_bins(cut_bins, write=True):
     ''' write cut_bins & median of each set to DB'''
@@ -254,39 +277,23 @@ if __name__ == "__main__":
     load_data_params = {'exclude_fwd': False,
                         'use_median': True,
                         'chron_valid': False,
-                        'macro_monthly': True,
                         'y_type': 'ibes',
                         'qcut_q': 10,
                         'ibes_qcut_as_x': False}
 
     # default parser
-    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    macro_monthly = True # remember to change main.csv
+    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
-    data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
-
-    # # ALTER 1: change for classification problem
-    # use_median = False
-    # sql_result['qcut_q'] = 3
-    # space['num_class']= 3,
-    # space['objective'] = 'multiclass'
-    # space['metric'] = 'multi_error'
-
-    # # ALTER 3: use eps_ts instead of ni_ts
-    # exclude_fwd = False                             # TRUE = remove fwd_ey, fwd_roic from x (ratios using ibes data)
-    # ibes_qcut_as_x = False
-    # sql_result['y_type'] = 'ibes'
-    # sql_result['name'] = 'classification_ibes_new industry'                # name = labeling the experiments
-
-    # #ALTER 4: use qcut ibes
-    # exclude_fwd = True
-    # ibes_qcut_as_x = True
-    # sql_result['name'] = 'new qcut x - new industry'                     # name = labeling the experiments
+    data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
-    sql_result['name'] = 'ibes_new industry_monthly'                # name = labeling the experiments
+    sql_result['name'] = 'ibes_new industry_monthly -new'                # name = labeling the experiments
+    # sql_result['objective'] = space['objective'] = 'regression_l2'
+    sql_result['x_type'] = 'fwdepsqcut'
 
     # ## FINAL 2: use ibes_y + with ib
     # exclude_fwd = sql_result['exclude_fwd'] = False

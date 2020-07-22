@@ -42,13 +42,13 @@ def rnn_train(space): #functional
     print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
-    x_fields = X_train.shape[-1]    # x_fields differ depending on whether include ibes ratios
+    x_fields = X_train.shape[2]    # x_fields differ depending on whether include ibes ratios
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
 
     kernel_size =params['kernel_size'] # of different "scenario"
-    num_nodes = params['num_nodes']
+    num_nodes = params['gru_nodes']
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
@@ -57,7 +57,8 @@ def rnn_train(space): #functional
     c_1 = LeakyReLU(alpha=0.1)(c_1)
     c_1 = Reshape((lookback, kernel_size))(c_1)
 
-    g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
+    # g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
+    g_1 = c_1
 
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
@@ -80,20 +81,21 @@ def rnn_train(space): #functional
     #join the return sequence and forecast state
     f_x = Concatenate(axis=1)([g_1, g_1_2])
     f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
-    # f_x = Flatten()(f_x)
     f_x = Dense(1)(f_x)
 
     model = Model(input_img, f_x)
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
-    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
+    callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
+                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid), verbose=1)
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
+                        validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
     Y_test_pred = model.predict(X_test)
     Y_train_pred = model.predict(X_train)
@@ -194,7 +196,7 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'trial'
+    sql_result['name'] = 'without ibes'
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn', first=True)
 
     data = load_data(macro_monthly=True)
@@ -207,15 +209,17 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, **load_data_params)
+            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+            print(x_col)
+            X_test = np.expand_dims(X_test, axis=3)
 
             cv_number = 1
             for train_index, test_index in cv:
                 sql_result['cv_number'] = cv_number
 
-                X_train = train_x[train_index]
+                X_train = np.expand_dims(train_x[train_index], axis=3)
                 Y_train = train_y[train_index]
-                X_valid = train_x[test_index]
+                X_valid = np.expand_dims(train_x[test_index], axis=3)
                 Y_valid = train_y[test_index]
 
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
