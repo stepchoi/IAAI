@@ -31,6 +31,7 @@ class add_macro():
 
         self.macros = date_type(self.macros)    # convert to date
         self.new_macros = date_type(self.new_macros)
+        self.ratios = date_type(self.ratios)
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 
         if macro_monthly == True:
@@ -79,7 +80,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self):
+    def __init__(self, macro_monthly):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -89,7 +90,7 @@ class load_data:
             self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus'])
             print('local version run - main / consensus')
         except:
-            self.main = add_macro().map_macros()
+            self.main = add_macro(macro_monthly).map_macros()
             self.main.to_csv('preprocess/main.csv', index=False)
             self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus'])
             # self.main.to_csv('preprocess/main.csv', index=False)
