@@ -59,6 +59,7 @@ class worldscope:
         self.ws['period_end'] = self.ws.apply(lambda x: x['last_year_end'] +
                                                         pd.offsets.MonthEnd(x['frequency_number']*3), axis=1)
 
+
         return self.ws.drop(['last_year_end','fiscal_year_end','year','frequency_number','fiscal_quarter_end'], axis=1)
 
     def fill_missing_ws(self):
@@ -66,7 +67,7 @@ class worldscope:
 
         ws = self.label_period_end()
 
-        # 1. replace Net Debt (fn_18199) with Total Debt (fn_3255) - Cash & ST investment(fn_2001)
+        # 1. replace Net Debt (fn_18199) with Total Debt (fn_3255) - Cash & ST investment(fn_2003)
         ws['fn_18199'] = ws['fn_18199'].fillna(ws['fn_3255'] - ws['fn_2001'])
 
         # 2. replace TTM EBITDA (fn_18309) with EBIT (fn_18308) + DDA (fn_18313)
@@ -128,7 +129,6 @@ class calc_ts:
         ni['y_ni'] = (self.ws['fn_18263'].shift(-4) - self.ws['fn_18263']) / self.ws['fn_8001']
         ni['y_rev'] = (self.ws['fn_18262'].shift(-4) - self.ws['fn_18262']) / self.ws['fn_8001']
         ni.loc[ni.groupby('identifier').tail(4).index, ['y_ni', 'y_rev']] = np.nan  # y-1 ~ y0
-
         return ni.dropna(how='any')
 
 def calc_fwd(ws):

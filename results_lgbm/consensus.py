@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, accuracy_score, r2_score, mean_squared_error
+from sklearn.metrics import mean_absolute_error, accuracy_score
 from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
 from miscel import date_type, check_dup
@@ -251,11 +251,7 @@ class calc_mae_write():
             self.name = name
             self.merge = g
 
-            if r_name == 'all':
-                self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}{}.xlsx'.format('_'.join(name),tname))
-            else:
-                self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}{}_{}.xlsx'.format('_'.join(name),
-                                                                                                      tname, r_name))
+            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -308,10 +304,7 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['x_type']):
-            if r_name == 'all':
-                industry_dict['_'.join(self.name) + '_' + name + self.tname] = self.part_mae(g)
-            else:
-                industry_dict['_'.join(self.name) + '_' + name + self.tname + '_' + r_name] = self.part_mae(g)
+            industry_dict['_'.join(self.name) + '_' + name + self.tname] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T
         print(df)
@@ -323,9 +316,6 @@ class calc_mae_write():
 
         dict = {}
         dict['consensus'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
-        dict['consensus_r2'] = r2_score(df['y_consensus_qcut'], df['y_ibes_qcut'])              # calculate r2
-        dict['consensus_mse'] = mean_squared_error(df['y_consensus_qcut'], df['y_ibes_qcut'])   # calculate mse
-
         if 'ibes' in self.name:
             dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ibes_qcut'])
         elif 'ni' in self.name:
@@ -425,11 +415,9 @@ if __name__ == "__main__":
 
     # for r_name in ['ibes_new industry_qcut x','ibes_sector', 'ibes_new industry', 'ni_entire', 'ni_new industry',
     #                'ni_new industry_qcut x','ni_sector','ni_sector_qcut x']:
-    r_name = 'ibes_new industry_monthly'
     # r_name = 'all'
-
-    yoy_merge = download(r_name).merge_stock_ibes()
-    calc_mae_write(yoy_merge)
+    # yoy_merge = download(r_name).merge_stock_ibes()
+    # calc_mae_write(yoy_merge)
     # exit(0)
 
     combine()

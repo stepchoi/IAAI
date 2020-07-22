@@ -183,9 +183,7 @@ if __name__ == "__main__":
     # default params for load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
-    load_data_params = {'exclude_fwd': False,
-                        'use_median': True,
-                        'chron_valid': False,
+    load_data_params = {'exclude_fwd': True,
                         'macro_monthly': True,
                         'y_type': 'ibes',
                         'qcut_q': 10}

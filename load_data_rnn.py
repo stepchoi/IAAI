@@ -18,7 +18,7 @@ from preprocess.ratios import worldscope, full_period, trim_outlier
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-def read_data():
+def read_data(macro_monthly=True):
 
     ''' read worldscope_quarter_summary / ibes_data / stock_data / macro_data / clean_ratios'''
 
@@ -27,6 +27,7 @@ def read_data():
         ibes = pd.read_csv('preprocess/ibes_data.csv')              # raw ibes data
         stock = pd.read_csv('preprocess/stock_data.csv')            # raw stock return data
         macro = pd.read_csv('preprocess/clean_macros.csv')          # clean macro data (i.e. yoy)
+        new_macro = pd.read_csv('preprocess/clean_macros_new.csv')          # clean macro data (i.e. yoy)
         y = pd.read_csv('preprocess/clean_ratios.csv', usecols=['identifier','period_end','y_ibes','y_ni'])     # Y ratios from clean table
         print('local version run - quarter_summary_clean / ibes_data / stock_data / macro_data / clean_ratios')
     except:
@@ -37,6 +38,10 @@ def read_data():
             macro = pd.read_sql('SELECT * FROM macro_data', conn)
             y = pd.read_sql('SELECT identifier, period_end, y_ibes, y_ni FROM clean_ratios', conn)
         engine.dispose()
+
+    if macro_monthly == True:
+        non_replace_col = list(set(macro.columns.to_list()) - set(new_macro.columns.to_list()))
+        macro = new_macro.merge(macro[['period_end'] + non_replace_col], on='period_end', how='left')
 
     ibes_stock = pd.merge(date_type(ibes), date_type(stock), on=['identifier','period_end'])   # merge ibes / stock data (both originally labeled with tickers)
     ibes_stock = ibes_stock.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
@@ -115,7 +120,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, ):
+    def __init__(self, macro_monthly):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
         try:
@@ -123,7 +128,7 @@ class load_data:
             self.main = date_type(main)
             print('local version run - main_rnn')
         except:
-            self.main = read_data()     # all YoY ratios
+            self.main = read_data(macro_monthly)     # all YoY ratios
             self.main.to_csv('preprocess/main_rnn.csv', index=False)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
@@ -143,7 +148,7 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, qcut_q, y_type):
+    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
@@ -160,6 +165,9 @@ class load_data:
         # 2. split and standardize train / test X
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
                                                            'icb_industry', 'y_{}'.format(y_type)})    # define x_fields
+
+        if exclude_fwd == True:
+            x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback
@@ -240,10 +248,11 @@ if __name__ == '__main__':
     add_ind_code = 1
     testing_period = dt.datetime(2013, 3, 31)
     qcut_q = 10
+    exclude_fwd = True
 
     data = load_data()
     data.split_entire(add_ind_code)
-    train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q, y_type='ibes')
+    train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q, exclude_fwd=exclude_fwd, y_type='ibes')
 
     print(x_col)
 
