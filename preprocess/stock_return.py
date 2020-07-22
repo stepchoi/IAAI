@@ -37,16 +37,16 @@ if __name__ == '__main__':
 
     result = full_period(data, 'ticker')
 
-    result['close_shifted'] = result.groupby('ticker')['close'].shift(1)
-    result['trading_day_shifted'] = result.groupby('ticker')['period_end'].shift(1)
+    result['stock_return_1Qa'] = (result['close'].shift(-1) / result['close']) - 1
+    result.loc[result.groupby('ticker').tail(1).index, 'stock_return_1Qa'] = np.nan # stock T-3 -> T0
 
-    result['close_shifted3'] = result.groupby('ticker')['close'].shift(-3)
-    result['trading_day_shifted3'] = result.groupby('ticker')['period_end'].shift(-3)
-    result['stock_return_1Qa'] = result['close_shifted'] / result['close'] - 1
-    result['stock_return_3Qb'] = result['close'] / result['close_shifted3'] - 1
+    result['stock_return_3Qb'] = (result['close'] / result['close'].shift(3)) - 1
+    result.loc[result.groupby('ticker').head(3).index, 'stock_return_3Qb'] = np.nan # stock T0 -> T1
 
     worldscope_identifier = get_worldscope_identifier()
     result = result.merge(worldscope_identifier, how='left', left_on=["ticker"], right_on=["member_ric"])
+    result.to_csv("#check_stock.csv",index=False)
+    exit(0)
 
     # result[['identifier', 'period_end','close']].to_csv('preprocess/stock_data.csv', index=False)
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     result[[ "stock_return_1Qa", "stock_return_3Qb"]] = result[[ "stock_return_1Qa", "stock_return_3Qb"]].astype(float)
 
     result = result.groupby(['identifier','period_end']).mean().reset_index(drop=False)
-    result.to_csv("stock_ratios.csv",index=False)
+    result.to_csv("preprocess/stock_ratios.csv",index=False)
     #print(result)
     # for col in data.columns: 
     #     print(col) 
