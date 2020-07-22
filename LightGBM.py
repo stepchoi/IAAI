@@ -76,10 +76,12 @@ def eval(space):
     Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
     Y_test = sample_set['test_y']
 
-    result = {  'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
+    result = {  'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),   # use column names of regression
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
-                'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
-                'r2': r2_score(Y_test, Y_test_pred),
+                'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+                'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
+                'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
+                'r2_test': r2_score(Y_test, Y_test_pred),
                 'status': STATUS_OK}
 
     sql_result.update(space)        # update hyper-parameter used in model
