@@ -265,7 +265,7 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     # training / testing sets split par
-    indi_models = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+    indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
@@ -289,28 +289,13 @@ if __name__ == "__main__":
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
-    load_data_params['exclude_fwd'] = True
-    load_data_params['ibes_qcut_as_x'] = False
-    sql_result['name'] = 'ibes_new industry_monthly -new'                # name = labeling the experiments
+    load_data_params['exclude_fwd'] = False
+    load_data_params['ibes_qcut_as_x'] = True
+    sql_result['name'] = 'ibes_new industry_all x'                # name = labeling the experiments
     # sql_result['objective'] = space['objective'] = 'regression_l2'
-    sql_result['x_type'] = 'fwdepsqcut'
+    sql_result['x_type'] = 'ni'
 
-    # ## FINAL 2: use ibes_y + with ib
-    # exclude_fwd = sql_result['exclude_fwd'] = False
-    # ibes_qcut_as_x = True
-    # sql_result['y_type'] = 'ibes'
-    # sql_result['x_type'] = 'ni'
-    # sql_result['name'] = 'ibes_new industry_qcut x -re'
-
-    ## FINAL 3: use ibes_y + with ibes_data + with qcut x
-    # exclude_fwd = sql_result['exclude_fwd'] = False
-    # ibes_qcut_as_x = True
-    # sql_result['y_type'] = 'ibes'
-    # sql_result['x_type'] = 'ni'
-    # sql_result['name'] = 'ibes_new industry_no ni'
-
-
-    # update load_data params to sql_results
+    # update load_data pa
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
     sql_result['y_type'] = load_data_params['y_type']
     sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
@@ -325,6 +310,7 @@ if __name__ == "__main__":
     for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
         # data.split_entire(icb_code)
         data.split_industry(icb_code, combine_ind=True)
+        # data.split_sector(icb_code)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
