@@ -188,6 +188,8 @@ def full_period(df, index_col='identifier', date_format=None):
     full_period = pd.DataFrame(columns=set(df[index_col]), index=date_list)
     full_period = full_period.unstack().reset_index(drop=False).iloc[:, :2]
     full_period.columns = [index_col, 'period_end']
+    print(full_period)
+
     df_full_period = pd.merge(full_period, df, on=[index_col, 'period_end'], how='left')
 
     print('# full records length: {}={}*{} '.format(len(df_full_period), len(set(df[index_col])), len(date_list)))

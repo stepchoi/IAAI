@@ -14,6 +14,9 @@ import gc
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
+                501010, 201020, 502030, 401010]
+
 class add_macro:
 
     def __init__(self, macro_monthly=True):
@@ -115,9 +118,6 @@ class load_data:
     def split_sector(self, icb_code):
         ''' split samples from specific sectors (icb_code) '''
 
-        indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
-                          501010, 201020, 502030, 401010]
-
         if icb_code in indi_sectors:
             self.sector = self.main.loc[self.main['icb_sector'] == icb_code]
         else:
@@ -136,6 +136,8 @@ class load_data:
 
         if add_ind_code == 1:
             self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
+        if add_ind_code == 2:
+            self.main['icb_sector_x'] = self.main['icb_sector']
 
         self.sector = self.main
 
