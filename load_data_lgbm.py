@@ -135,7 +135,7 @@ class load_data:
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
 
         if add_ind_code == 1:
-            self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
+            self.main['icb_industry_x'] = self.main['icb_industry']
         elif add_ind_code == 2:
             self.main['icb_sector_x'] = self.main['icb_sector']
         elif add_ind_code == 0:
