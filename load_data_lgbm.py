@@ -136,8 +136,13 @@ class load_data:
 
         if add_ind_code == 1:
             self.main['icb_industry_x'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
-        if add_ind_code == 2:
+        elif add_ind_code == 2:
             self.main['icb_sector_x'] = self.main['icb_sector']
+        elif add_ind_code == 0:
+            pass
+        else:
+            print('wrong add_ind_code !!!!!!! ')
+            exit(1)
 
         self.sector = self.main
 
