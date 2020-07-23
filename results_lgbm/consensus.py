@@ -429,10 +429,10 @@ def compare_by_part():
 if __name__ == "__main__":
 
 
-    r_name = 'ibes_new industry_all x'      # name in DB results_lightgbm
+    r_name = 'all'      # name in DB results_lightgbm
 
-    # yoy_merge = download(r_name).merge_stock_ibes()
-    # calc_mae_write(yoy_merge, tname=r_name)
+    yoy_merge = download(r_name).merge_stock_ibes()
+    calc_mae_write(yoy_merge, tname=r_name)
     # exit(0)
 
     combine()
