@@ -63,8 +63,7 @@ class download:
         return importance
 
     def finish(self):
-        x_col = list(set(self.download.columns.to_list()) - {'qcut_q', 'testing_period', 'cv_number',
-                                                             'mae_test', 'exclude_fwd'
+        x_col = list(set(self.download.columns.to_list()) - {'qcut_q', 'testing_period', 'cv_number', 'mae_test', 'exclude_fwd'})
         return self.download.filter(x_col)
 
 def org_describe(feature_info, importance_type='split', tname=''):
@@ -105,9 +104,10 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_sector']
+    r_name = ['ibes_new industry_monthly -new']
+    tname = '_industry_ni'
 
     feature = download(r_name).finish()
-    org_describe(feature, importance_type ='split', tname='sector')
+    org_describe(feature, importance_type ='split', tname=tname)
     # feature = download_complete_describe(r_name, importance_type='split')
 

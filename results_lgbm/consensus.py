@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, accuracy_score
+from sklearn.metrics import mean_absolute_error, accuracy_score, mean_squared_error, r2_score
 from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
 from miscel import date_type, check_dup
@@ -173,7 +173,7 @@ class download:
         try:
             detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(self.r_name))
             detail_stock = date_type(detail_stock, date_col='testing_period')
-            print('local version run - stock_{}'.format(self.r_name))
+            print('local version run - stock_{}'.format(self.r_name), detail_stock.shape)
         except:
             detail_stock = download_add_detail(self.r_name,'results_lightgbm_stock')
             detail_stock.to_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(self.r_name), index=False)
@@ -258,7 +258,7 @@ class calc_mae_write():
             self.by_time().to_excel(self.writer, 'by_time')
             self.average().to_excel(self.writer, 'average')
 
-            print('save to file name: mae_{}.xlsx'.format('_'.join(name)))
+            print('save to file name: mae_{}{}.xlsx'.format('_'.join(name), tname))
             self.writer.save()
 
     def by_sector(self):
@@ -315,11 +315,17 @@ class calc_mae_write():
         ''' calculate different mae for groups of sample '''
 
         dict = {}
-        dict['consensus'] = mean_absolute_error(df['y_consensus_qcut'], df['y_ibes_qcut'])
+        dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
+        dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
+        dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
         if 'ibes' in self.name:
-            dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ibes_qcut'])
+            dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])
+            dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
+            dict['lgbm_r2'] = r2_score(df['y_ibes_qcut'], df['pred'])
         elif 'ni' in self.name:
-            dict['lgbm'] = mean_absolute_error(df['pred'], df['y_ni_qcut'])
+            dict['lgbm_mae'] = mean_absolute_error(df['y_ni_qcut'], df['pred'])
+            dict['lgbm_mse'] = mean_squared_error(df['y_ni_qcut'], df['pred'])
+            dict['lgbm_r2'] = r2_score(df['y_ni_qcut'], df['pred'])
         dict['len'] = len(df)
         return dict
 
@@ -366,58 +372,67 @@ def combine():
 
     os.chdir('results_lgbm/compare_with_ibes')
 
-    sector = []
-    industry = []
     average = []
 
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
 
-    for f in files:
+    for f in files:     # append all average records from files
         if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
             f_name = f[4:-5]
             average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
 
-            def select(f, name):
-                df = pd.read_excel(f, name, index_col='Unnamed: 0')
-
-                new_col = []
-                for col in df.columns:
-                    try:
-                        s = df[col]
-                        s = s.rename(f_name + '_' + col[-8:-6])
-                        new_col.append(s)
-                    except:
-                        continue
-
-                return pd.concat(new_col, axis=1)
-
-            sector.append(select(f, 'by_sector'))
-            industry.append(select(f, 'by_industry'))
-
-    writer = pd.ExcelWriter('#compare_all.xlsx')
+    writer = pd.ExcelWriter('#compare_all.xlsx')    # create excel records
 
     # combine all average records
     avg_df = pd.concat(average, axis=0)
     avg_df = avg_df.filter(sorted(avg_df.columns.to_list())).reset_index()
     avg_df['index'] = avg_df['index'].replace(['1','2','6'],['entire','industry','sector'])
     avg_df = avg_df.set_index(['index']).sort_values(['lgbm'])
-    # avg_df = avg_df.loc[avg_df['len']>10000]
 
-    avg_df.to_excel(writer, 'average')
-    # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
-    # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
+    def find_col(k):
+        return [x for x in avg_df.columns if k in x]
+
+    avg_df[find_col('mae') + find_col('len')].to_excel(writer, 'average_mae')    # write to files
+    avg_df[find_col('mse')].to_excel(writer, 'average_mse')
+    avg_df[find_col('r2')].to_excel(writer, 'average_r2')
 
     print('save to file name: #compare_all.xlsx')
     writer.save()
 
+def compare_by_part():
+
+    ''' (unfinished) compare different trials in each sector / industry '''
+
+    sector = []
+    industry = []
+
+    def select(f, name):
+        df = pd.read_excel(f, name, index_col='Unnamed: 0')
+
+        new_col = []
+        for col in df.columns:
+            try:
+                s = df[col]
+                s = s.rename(f_name + '_' + col[-8:-6])
+                new_col.append(s)
+            except:
+                continue
+
+        return pd.concat(new_col, axis=1)
+
+    # sector.append(select(f, 'by_sector'))
+    # industry.append(select(f, 'by_industry'))
+
+    # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
+    # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
+
 if __name__ == "__main__":
 
 
-    # for r_name in ['ibes_new industry_qcut x','ibes_sector', 'ibes_new industry', 'ni_entire', 'ni_new industry',
-    #                'ni_new industry_qcut x','ni_sector','ni_sector_qcut x']:
-    # r_name = 'all'
+    r_name = 'ibes_new industry_all x'      # name in DB results_lightgbm
+
     # yoy_merge = download(r_name).merge_stock_ibes()
-    # calc_mae_write(yoy_merge)
+    # calc_mae_write(yoy_merge, tname=r_name)
     # exit(0)
 
     combine()
