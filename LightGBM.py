@@ -39,32 +39,6 @@ space = {
     'num_threads': 12  # for the best speed, set this to the number of real CPU cores
 }
 
-# the avoiding overfitting space
-space = {
-    # better accuracy
-    'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1, 0.12]),
-    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
-    'max_bin': hp.choice('max_bin', [127, 255]),
-    'num_leaves': hp.choice('num_leaves', [25, 75, 125, 250]), # np.arange(50, 200, 30, dtype=int)
-
-    # avoid overfit
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [25, 50, 75, 150]),
-    'feature_fraction': hp.choice('feature_fraction', [0.3, 0.5, 0.7]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.7]),
-    'bagging_freq': hp.choice('bagging_freq', [1, 2, 8, 16]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [1, 5, 20]),
-    'lambda_l1': hp.choice('lambda_l1', [1, 5, 20, 50]),
-    'lambda_l2': hp.choice('lambda_l2', [1, 50, 100, 250]),
-
-    # parameters won't change
-    # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
-    'objective': 'regression_l1',     # for regression
-    # 'objective': 'multiclass',          # for classification
-    'verbose': -1,
-    # 'metric': 'multi_error',            # for classification
-    'num_threads': 12  # for the best speed, set this to the number of real CPU cores
-}
-
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
@@ -199,15 +173,15 @@ def HPOT(space, max_evals):
 def plot_history(evals_result, gbm, trial_num):
     ''' plot the training loss history '''
 
-    ax = lgb.plot_metric(evals_result, metric='l1')
+    ax = lgb.plot_metric(evals_result, metric='l1')     # plot training / validation loss
     fig = ax.get_figure()
     fig.savefig('models_lgbm/plot_lgbm_eval_{}.png'.format(trial_num))
     plt.close()
 
-    ax = lgb.plot_importance(gbm, max_num_features=20)
-    fig = ax.get_figure()
-    fig.savefig('models_lgbm/plot_lgbm_impt_{}.png'.format(trial_num))
-    plt.close()
+    # ax = lgb.plot_importance(gbm, max_num_features=20)    # plot feature importance
+    # fig = ax.get_figure()
+    # fig.savefig('models_lgbm/plot_lgbm_impt_{}.png'.format(trial_num))
+    # plt.close()
 
 def to_sql_bins(cut_bins, write=True):
     ''' write cut_bins & median of each set to DB'''
@@ -316,11 +290,11 @@ if __name__ == "__main__":
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
-    load_data_params['exclude_fwd'] = False
-    load_data_params['ibes_qcut_as_x'] = True
-    sql_result['name'] = 'ibes_new industry_all x'                # name = labeling the experiments
+    load_data_params['exclude_fwd'] = True
+    load_data_params['ibes_qcut_as_x'] = False
+    sql_result['name'] = 'trial avoid overfit'                # name = labeling the experiments
     # sql_result['objective'] = space['objective'] = 'regression_l2'
-    sql_result['x_type'] = 'ni'
+    sql_result['x_type'] = 'fwdepsqcut'
 
     # update load_data pa
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
@@ -377,7 +351,10 @@ if __name__ == "__main__":
                     HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1
 
+                # exit(0)
+
             except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+                # exit(0)
                 pass_error()
                 cv_number += 1
                 continue

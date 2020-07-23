@@ -6,10 +6,9 @@ import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import r2_score, mean_absolute_error
 
-from keras import models, callbacks, optimizers, initializers
-from keras.models import Model
-from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
-import keras.backend as K
+from tensorflow.python.keras import callbacks, optimizers, initializers
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
 
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -18,6 +17,10 @@ from tqdm import tqdm
 from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
+
+import tensorflow as tf                             # avoid error in Tensorflow initialization
+tf.compat.v1.disable_eager_execution()
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
@@ -52,14 +55,12 @@ def rnn_train(space): #functional
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
+
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
     c_1 = LeakyReLU(alpha=0.1)(c_1)
 
-    c_1 = Reshape((lookback, kernel_size))(c_1)
-    # g_1 = Reshape((lookback, num_nodes))(c_1) # reshape for GRU
-
-    g_1 = c_1
+    g_1 = Reshape((lookback, kernel_size))(c_1) # reshape for GRU
 
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
@@ -129,6 +130,7 @@ def eval(space):
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_history'] = history
+        hpot['best_trial'] = sql_result['trial_lgbm']
 
     sql_result['trial_lgbm'] += 1
 
@@ -169,7 +171,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_dense_{}.png'.format(hpot['best_mae']))
+    plt.savefig('results_rnn/plot_cnn_dnn_{}.png'.format(hpot['best_trial']))
     plt.close()
 
 def pred_to_sql(Y_test_pred):

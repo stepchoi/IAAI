@@ -201,7 +201,7 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2015,9,30)
     qcut_q = 10
     sample_no = 25
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
