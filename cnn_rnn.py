@@ -89,14 +89,14 @@ def rnn_train(space): #functional
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
-                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
+                      callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
+    history = model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
     Y_test_pred = model.predict(X_test)
@@ -126,6 +126,13 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
+    with engine.connect() as conn:
+        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
+                                                                if_exists='append', method='multi')
+    engine.dispose()
+
+    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
@@ -148,17 +155,17 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
+        # pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
         hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_history'])  # plot training history
+    # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 
     return best
 
-def plot_history(history):
+def plot_history(history, trial, mae):
     ''' plot the training loss history '''
 
     history_dict = history.history
@@ -171,7 +178,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_rnn/plot_cnn_dnn_{}.png'.format(hpot['best_trial']))
+    plt.savefig('results_rnn/plot_cnn_dnn_{} {}.png'.format(trial, round(mae,4)))
     plt.close()
 
 def pred_to_sql(Y_test_pred):

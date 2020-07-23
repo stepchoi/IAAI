@@ -12,8 +12,6 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-
-# the overfitting space
 space = {
     # better accuracy
     'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1, 0.12]),
@@ -29,6 +27,32 @@ space = {
     'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.08]),
     'lambda_l1': hp.choice('lambda_l1', [0, 5, 10]),
     'lambda_l2': hp.choice('lambda_l2', [1, 10, 50, 100]),
+
+    # parameters won't change
+    # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
+    'objective': 'regression_l1',     # for regression
+    # 'objective': 'multiclass',          # for classification
+    'verbose': -1,
+    # 'metric': 'multi_error',            # for classification
+    'num_threads': 12  # for the best speed, set this to the number of real CPU cores
+}
+
+# the overfitting space
+space_1 = {
+    # better accuracy
+    'learning_rate': hp.choice('learning_rate', [0.05, 0.12]),
+    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
+    'max_bin': hp.choice('max_bin', [127, 255]),
+    'num_leaves': hp.choice('num_leaves', [75, 100]), # np.arange(50, 200, 30, dtype=int)
+
+    # avoid overfit
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [50, 75]),
+    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.9]),
+    'bagging_freq': hp.choice('bagging_freq', [1, 8]),
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.1]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 5]),
+    'lambda_l2': hp.choice('lambda_l2', [1, 10]),
 
     # parameters won't change
     # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
@@ -60,6 +84,8 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     feature_name = feature_names,
                     evals_result=evals_result)
+
+    # plot_history(evals_result, gbm, sql_result['trial_lgbm'])
 
     # prediction on all sets
     if space['objective'] == 'regression_l1':
@@ -174,6 +200,10 @@ def plot_history(evals_result, gbm, trial_num):
     ''' plot the training loss history '''
 
     ax = lgb.plot_metric(evals_result, metric='l1')     # plot training / validation loss
+
+    print(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'))
+    ax.set_title('{}:{}:{}'.format(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'),
+                                   sql_result['x_type']))
     fig = ax.get_figure()
     fig.savefig('models_lgbm/plot_lgbm_eval_{}.png'.format(trial_num))
     plt.close()
@@ -292,7 +322,7 @@ if __name__ == "__main__":
     # FINAL 1: use ibes_y + without ibes data
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
-    sql_result['name'] = 'trial avoid overfit'                # name = labeling the experiments
+    sql_result['name'] = 'ibes_entire_only ws -new'                # name = labeling the experiments
     # sql_result['objective'] = space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
@@ -308,9 +338,9 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
-        # data.split_entire(icb_code)
-        data.split_industry(icb_code, combine_ind=True)
+    for icb_code in [2]:   # roll over industries (first 2 icb code)
+        data.split_entire(icb_code)
+        # data.split_industry(icb_code, combine_ind=True)
         # data.split_sector(icb_code)
         sql_result['icb_code'] = icb_code
 
@@ -328,34 +358,34 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            try:
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+            # try:
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
 
-                print(feature_names)
+            print(feature_names)
 
-                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-                cv_number = 1   # represent which cross-validation sets
-                for train_index, valid_index in cv:     # roll over 5 cross validation set
-                    sql_result['cv_number'] = cv_number
+            cv_number = 1   # represent which cross-validation sets
+            for train_index, valid_index in cv:     # roll over 5 cross validation set
+                sql_result['cv_number'] = cv_number
 
-                    # when Resume = False: try split validation set from training set + start hyperopt
-                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                    sample_set['train_yy'] = sample_set['train_y'][train_index]
+                # when Resume = False: try split validation set from training set + start hyperopt
+                sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                    sql_result['valid_len'] = len(sample_set['valid_x'])
+                sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                    HPOT(space, max_evals=10)   # start hyperopt
-                    cv_number += 1
-
-                # exit(0)
-
-            except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                # exit(0)
-                pass_error()
+                HPOT(space, max_evals=10)   # start hyperopt
                 cv_number += 1
-                continue
+
+                # exit(0)
+
+            # except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+            #     # exit(0)
+            #     pass_error()
+            #     cv_number += 1
+            #     continue
 
