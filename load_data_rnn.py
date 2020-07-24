@@ -114,6 +114,7 @@ def yoy(df):
     df.loc[df.groupby('identifier').head(4).index, ws_col] = np.nan     # avoid calculation with different identifier
 
     df[ws_col] = trim_outlier(df[ws_col])   # use 99% as maximum values -> avoid inf
+    # print(df.describe().T[['min','max']])
 
     return df.filter(['identifier', 'period_end'] + ws_col)
 
@@ -131,7 +132,7 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            # self.main.to_csv('preprocess/main_rnn.csv', index=False)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -139,6 +140,7 @@ class load_data:
         self.cut_bins = {}
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
+        self.main = self.main.dropna(subset=['icb_sector'])
 
     def split_entire(self, add_ind_code):   # we always use entire samples for training
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
