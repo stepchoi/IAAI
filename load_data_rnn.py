@@ -31,6 +31,7 @@ def read_data(macro_monthly=True):
         y = pd.read_csv('preprocess/clean_ratios.csv', usecols=['identifier','period_end','y_ibes','y_ni'])     # Y ratios from clean table
         print('local version run - quarter_summary_clean / ibes_data / stock_data / macro_data / clean_ratios')
     except:
+        print('---------------------> load rnn data')
         ws = worldscope().fill_missing_ws() # from Proprocess.ratios.py genenrate raw worldscope data
         with engine.connect() as conn:
             ibes = pd.read_sql('SELECT * FROM ibes_data', conn)     # use DB TABLE if no local file
