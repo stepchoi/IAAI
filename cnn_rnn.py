@@ -206,7 +206,7 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'without ibes'
+    sql_result['name'] = 'without ibes -2'
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn', first=True)
 
     data = load_data(macro_monthly=True)
