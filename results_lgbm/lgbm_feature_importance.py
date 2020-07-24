@@ -69,6 +69,13 @@ class download:
 def org_describe(feature_info, importance_type='split', tname=''):
 
     print(feature_info)
+
+    if 'entire' in r_name:  # for entire
+        print('------ convert entire ------')
+        feature_info.loc[feature_info['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+        feature_info.loc[feature_info['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+        feature_info['icb_code'] = 0
+
     feature_info['x_type'] = feature_info['x_type'].fillna('fwdepsqcut')
 
     feature_info[['trial_lgbm', 'icb_code']] = feature_info[['trial_lgbm', 'icb_code']].astype(str)
@@ -104,10 +111,9 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_new industry_monthly -new']
-    tname = '_industry_ni'
+    r_name = ['ibes_entire_only ws -small space']
 
     feature = download(r_name).finish()
-    org_describe(feature, importance_type ='split', tname=tname)
+    org_describe(feature, importance_type ='split', tname=r_name)
     # feature = download_complete_describe(r_name, importance_type='split')
 

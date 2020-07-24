@@ -12,56 +12,11 @@ from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-space = {
-    # better accuracy
-    'learning_rate': hp.choice('learning_rate', [0.1, 0.12]),
-    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
-    'max_bin': hp.choice('max_bin', [255]),
-    'num_leaves': hp.choice('num_leaves', [75, 125, 250]), # np.arange(50, 200, 30, dtype=int)
+from hyperspace_lgbm import find_hyperspace
 
-    # avoid overfit
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [25, 50]),
-    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
-    'bagging_freq': hp.choice('bagging_freq', [1, 8]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.08]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
-    'lambda_l2': hp.choice('lambda_l2', [10, 100]),
-
-    # parameters won't change
-    # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
-    'objective': 'regression_l1',     # for regression
-    # 'objective': 'multiclass',          # for classification
-    'verbose': -1,
-    # 'metric': 'multi_error',            # for classification
-    'num_threads': 12  # for the best speed, set this to the number of real CPU cores
-}
-
-# the overfitting space
-space_1 = {
-    # better accuracy
-    'learning_rate': hp.choice('learning_rate', [0.05, 0.12]),
-    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
-    'max_bin': hp.choice('max_bin', [127, 255]),
-    'num_leaves': hp.choice('num_leaves', [75, 100]), # np.arange(50, 200, 30, dtype=int)
-
-    # avoid overfit
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [50, 75]),
-    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.9]),
-    'bagging_freq': hp.choice('bagging_freq', [1, 8]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.1]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 5]),
-    'lambda_l2': hp.choice('lambda_l2', [1, 10]),
-
-    # parameters won't change
-    # 'boosting_type': 'gbdt',  # past:  hp.choice('boosting_type', ['gbdt', 'dart']
-    'objective': 'regression_l1',     # for regression
-    # 'objective': 'multiclass',          # for classification
-    'verbose': -1,
-    # 'metric': 'multi_error',            # for classification
-    'num_threads': 12  # for the best speed, set this to the number of real CPU cores
-}
+base_space ={'objective': 'regression_l1',     # for regression
+            'verbose': -1,
+            'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -327,7 +282,7 @@ if __name__ == "__main__":
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
     sql_result['name'] = 'ibes_industry_only ws'                # name = labeling the experiments
-    # sql_result['objective'] = space['objective'] = 'regression_l2'
+    # sql_result['objective'] = base_space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
     # update load_data pa
@@ -342,10 +297,11 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
-        # data.split_entire(icb_code)
+    for icb_code in indi_industry_new + [0, 1, 2]:   # roll over industries (first 2 icb code)
+        print(icb_code)
+        continue
+
         data.split_industry(icb_code, combine_ind=True)
-        # data.split_sector(icb_code)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
@@ -381,6 +337,9 @@ if __name__ == "__main__":
 
                     sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
                     sql_result['valid_len'] = len(sample_set['valid_x'])
+
+                    space = find_hyperspace(sql_result)
+                    space.update(base_space)
 
                     HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1

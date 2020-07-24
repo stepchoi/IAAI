@@ -126,10 +126,15 @@ class load_data:
 
     def split_industry(self, icb_industry, combine_ind=True):
 
-        if combine_ind == True:
-            self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
+        if icb_industry < 10:   # entire sampling
+            self.split_entire(icb_industry)
+        elif icb_industry > 100:    # per sector
+            self.split_sector(icb_industry)
+        else:       # per industry
+            if combine_ind == True:
+                self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
 
-        self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
+            self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
     def split_entire(self, add_ind_code):
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''

@@ -214,10 +214,11 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
-        # for entire
-        self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
-        self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
-        self.detail_stock['icb_code'] = 0
+        if 'entire' in r_name: # for entire
+            print('------ convert entire ------')
+            self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
+            self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
+            self.detail_stock['icb_code'] = 0
 
         # print(set(self.detail_stock['x_type']))
 
@@ -225,8 +226,8 @@ class download:
             subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
 
         # use median for cross listing & multiple cross-validation
-        # self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-        #                                                'x_type','y_type','cv_number']).mean()['pred'].reset_index(drop=False)
+        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
+                                                       'x_type','y_type']).mean()['pred'].reset_index(drop=False)
 
         self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
@@ -235,6 +236,11 @@ class download:
         yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
                                             right_on=['identifier', 'period_end','y_type', 'icb_code'],
                                             suffixes=('_lgbm', '_ibes'))
+
+        # print(r2_score(yoy_merge['y_ibes_qcut'], yoy_merge['y_consensus_qcut']))
+        # print(r2_score(yoy_merge['y_ibes'], yoy_merge['y_consensus']))
+        # print(mean_absolute_error(yoy_merge['y_ibes'], yoy_merge['y_consensus']))
+        # exit(0)
 
         # df=yoy_merge.loc[(yoy_merge['icb_code']==11) & (yoy_merge['cv_number']==5)]
         # check ={}
@@ -268,19 +274,18 @@ class calc_mae_write():
 
 
         for name, g in yoy_merge.groupby(['y_type', 'icb_type']):
-            print(name)
 
             self.name = name
             self.merge = g
 
-            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}{}.xlsx'.format('_'.join(name),tname))
+            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
             self.by_time().to_excel(self.writer, 'by_time')
             self.average().to_excel(self.writer, 'average')
 
-            print('save to file name: mae_{}{}.xlsx'.format('_'.join(name), tname))
+            print('save to file name: mae_{}｜{}.xlsx'.format('_'.join(name), tname))
             self.writer.save()
 
     def by_sector(self):
@@ -326,7 +331,7 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['x_type']):
-            industry_dict['_'.join(self.name) + '_' + name + self.tname] = self.part_mae(g)
+            industry_dict['_'.join(self.name) + '|' + name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T
         print(df.T)
@@ -456,13 +461,28 @@ def compare_by_part():
 if __name__ == "__main__":
 
 
-    r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
+    # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
+    # r_name = 'ibes_new industry_monthly -new'
+    r_name_list = ['ibes_sector_only ws', 'ibes_entire_only ws -small space', 'ibes_new industry_monthly -new']
 
-    #
-    yoy_merge = download(r_name).merge_stock_ibes()
-    calc_mae_write(yoy_merge, tname=r_name)
-    # exit(0)
+    # r_name = 'ibes_new industry_all x'
+
+    for r_name in r_name_list:
+        yoy_merge = download(r_name).merge_stock_ibes()
+
+        # import matplotlib.pyplot as plt
+        # yoy_merge['res_consensus'] = yoy_merge['y_consensus_qcut'] - yoy_merge['y_ibes_qcut']
+        # yoy_merge['res_pred'] = yoy_merge['pred'] - yoy_merge['y_ibes_qcut']
+        # plt.hist(yoy_merge['res_pred'], bins=1000, color='b', alpha=0.5, label='residual_lgbm')
+        # plt.hist(yoy_merge['res_consensus'], bins=1000, color='y', alpha=0.5, label='residual_consensus')
+        # plt.ylim(0,200)
+        # plt.legend()
+        # plt.show()
+        #
+        # exit(0)
+
+        calc_mae_write(yoy_merge, tname=r_name)
 
     combine()
 
