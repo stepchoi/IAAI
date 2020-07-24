@@ -219,8 +219,8 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            if qcut_q==10:
-            # try:
+            # if qcut_q==10:
+            try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                                   y_type=sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
