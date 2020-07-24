@@ -175,7 +175,7 @@ class load_data:
 
         # 2. split and standardize train / test X
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
-                                                           'icb_industry', 'y_{}'.format(y_type)})    # define x_fields
+                                                           'icb_industry', 'y_ni', 'y_ibes', 'y_rev'})    # define x_fields
 
         if exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})

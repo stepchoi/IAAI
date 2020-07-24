@@ -456,7 +456,7 @@ def compare_by_part():
 if __name__ == "__main__":
 
 
-    r_name = 'ibes_new industry_monthly -new'      # name in DB results_lightgbm
+    r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
 
     #
