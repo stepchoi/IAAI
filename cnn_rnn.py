@@ -89,14 +89,14 @@ def rnn_train(space): #functional
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
-                      callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')]  # add callbacks
+                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=100, batch_size=params['batch_size'],
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
     Y_test_pred = model.predict(X_test)
@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
     data = load_data(macro_monthly=True)
 
-    for add_ind_code in [0]: # 1 means add industry code as X
+    for add_ind_code in [0, 1, 2]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
