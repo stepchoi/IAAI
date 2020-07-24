@@ -281,14 +281,12 @@ if __name__ == "__main__":
     # FINAL 1: use ibes_y + without ibes data
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
-    sql_result['name'] = 'ibes_industry_only ws'                # name = labeling the experiments
     # sql_result['objective'] = base_space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
     # update load_data pa
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
     sql_result['y_type'] = load_data_params['y_type']
-    sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
@@ -298,8 +296,11 @@ if __name__ == "__main__":
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     for icb_code in indi_industry_new + [0, 1, 2]:   # roll over industries (first 2 icb code)
-        print(icb_code)
-        continue
+
+        if icb_code < 10:
+            sql_result['name'] = 'ibes_industry_only ws -smaller space'  # name = labeling the experiments
+        else:
+            sql_result['name'] = 'ibes_new industry_only ws -indi space'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
@@ -320,6 +321,7 @@ if __name__ == "__main__":
 
             try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
                 print(feature_names)
 
