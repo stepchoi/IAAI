@@ -129,7 +129,7 @@ class calc_ts:
         ni['y_ni'] = (self.ws['fn_18263'].shift(-4) - self.ws['fn_18263']) / self.ws['fn_8001']
         ni['y_rev'] = (self.ws['fn_18262'].shift(-4) - self.ws['fn_18262']) / self.ws['fn_8001']
         ni.loc[ni.groupby('identifier').tail(4).index, ['y_ni', 'y_rev']] = np.nan  # y-1 ~ y0
-        return ni.dropna(how='any')
+        return ni.dropna(how='all')
 
 def calc_fwd(ws):
     ''' calculate the forward ratios (2) using DB ibes_data'''
@@ -196,16 +196,20 @@ def full_period(df, index_col='identifier', date_format=None):
 
     return df_full_period
 
-def trim_outlier(df, prc=0.01):
+def trim_outlier(df, prc=0):
     ''' assign a max value for the 99% percentile to replace inf'''
 
     df_nan = df.replace([np.inf, -np.inf], np.nan)
     try:
         pmax = df_nan.quantile(q=(1 - prc), axis=0)
+        pmin = df_nan.quantile(q=prc, axis=0)
         df = df.mask(df > pmax, pmax, axis=1)
+        df = df.mask(df < pmin, pmin, axis=1)
     except:
         pmax = df_nan.quantile(q=(1 - prc))
+        pmin = df_nan.quantile(q=prc)
         df = df.mask(df > pmax, pmax)
+        df = df.mask(df < pmin, pmin)
     return df
 
 if __name__ == '__main__':
@@ -216,6 +220,7 @@ if __name__ == '__main__':
     #     print('local version run - ws')
     # except:
     ws = worldscope().fill_missing_ws()
+
     # ws.to_csv('preprocess/quarter_summary_clean.csv', index=False)
     # exit(0)
 
@@ -258,12 +263,13 @@ if __name__ == '__main__':
     fund_ratio = pd.merge(divide_ratio, ts_ratio, on=['identifier', 'period_end'], how='left')
     fund_ratio = pd.merge(fund_ratio, ibes_ratio, on=['identifier', 'period_end'], how='left')
     fund_ratio = pd.merge(fund_ratio, stock_ratio, on=['identifier', 'period_end'], how='left')
-    fund_ratio = pd.merge(fund_ratio, y, on=['identifier', 'period_end'], how='right')
+    fund_ratio = pd.merge(fund_ratio, y, on=['identifier', 'period_end'], how='left')
     print('3.1. all ratios combined df shape', fund_ratio.shape)
 
-    # convert inf (i.e. divided by 0) to 99%
-    fund_ratio.iloc[:,2:-1] = trim_outlier(fund_ratio.iloc[:,2:-1])
-    # print(fund_ratio.describe().T[['max']])
+    # convert inf (i.e. divided by 0) to 100% & -inf to 0%
+    x_col = list(set(fund_ratio.columns.to_list()) - {'identifier', 'period_end', 'y_ibes', 'y_ni', 'y_rev'})
+    fund_ratio[x_col] = trim_outlier(fund_ratio[x_col])
+    print(fund_ratio.describe().T[['min','max']])
 
     fund_ratio.drop_duplicates().to_csv('preprocess/clean_ratios.csv', index=False)
     print(fund_ratio.columns, fund_ratio.shape)

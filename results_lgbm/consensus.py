@@ -214,12 +214,19 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
+        # for entire
+        self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
+        self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
+        self.detail_stock['icb_code'] = 0
+
+        # print(set(self.detail_stock['x_type']))
+
         self.detail_stock = self.detail_stock.drop_duplicates(
             subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
 
         # use median for cross listing & multiple cross-validation
-        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                       'x_type','y_type']).median()['pred'].reset_index(drop=False)
+        # self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
+        #                                                'x_type','y_type','cv_number']).mean()['pred'].reset_index(drop=False)
 
         self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
@@ -229,6 +236,21 @@ class download:
                                             right_on=['identifier', 'period_end','y_type', 'icb_code'],
                                             suffixes=('_lgbm', '_ibes'))
 
+        # df=yoy_merge.loc[(yoy_merge['icb_code']==11) & (yoy_merge['cv_number']==5)]
+        # check ={}
+        # for name, g in yoy_merge.groupby(['icb_code','testing_period','cv_number']):
+        #     check[name] = {}
+        #     check[name]['consensus'] = mean_absolute_error(g['y_consensus_qcut'], g['y_ibes_qcut'])
+        #     check[name]['lgbm'] = mean_absolute_error(g['pred'], g['y_ibes_qcut'])
+        # df = pd.DataFrame(check).T
+        # print(df.mean())
+        #
+        # new = {}
+        # new['consensus'] = mean_absolute_error(yoy_merge['y_consensus_qcut'], yoy_merge['y_ibes_qcut'])
+        # new['lgbm'] = mean_absolute_error(yoy_merge['pred'], yoy_merge['y_ibes_qcut'])
+        # print(new)
+        # df.to_csv('#check_mae4.csv')
+
         return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
                                        'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']]) # 'exclude_fwd -> x_type
 
@@ -237,8 +259,6 @@ class calc_mae_write():
     def __init__(self, yoy_merge, tname=''):
         ''' calculate all MAE and save to local xlsx '''
 
-        print(yoy_merge)
-
         self.tname = tname
         # self.merge = yoy_merge
         # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
@@ -246,7 +266,9 @@ class calc_mae_write():
         yoy_merge['icb_type'] = [len(x) for x in yoy_merge['icb_code']]
         yoy_merge['icb_type'] = yoy_merge['icb_type'].astype(str)
 
+
         for name, g in yoy_merge.groupby(['y_type', 'icb_type']):
+            print(name)
 
             self.name = name
             self.merge = g
@@ -307,7 +329,7 @@ class calc_mae_write():
             industry_dict['_'.join(self.name) + '_' + name + self.tname] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T
-        print(df)
+        print(df.T)
 
         return df
 
@@ -332,9 +354,14 @@ class calc_mae_write():
 def label_sector(df):
     ''' find sector(6) / industry(2) for each identifier '''
 
-    with engine.connect() as conn:
-        icb = pd.read_sql("SELECT icb_sector, identifier FROM dl_value_universe WHERE identifier IS NOT NULL", conn)
-    engine.dispose()
+    try:
+        icb = pd.read_csv('preprocess/dl_value_universe_icb.csv')
+        print('local version run - dl_value_universe_icb')
+    except:
+        with engine.connect() as conn:
+            icb = pd.read_sql("SELECT icb_sector, identifier FROM dl_value_universe WHERE identifier IS NOT NULL", conn)
+        engine.dispose()
+        icb.to_csv('preprocess/dl_value_universe_icb.csv', index=False)
 
     icb['icb_industry'] = icb.dropna(how='any')['icb_sector'].astype(str).str[:2].astype(int)
     icb['icb_industry'] = icb['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])
@@ -351,7 +378,7 @@ def label_sector_name(df):
 
     ind_name.index = ind_name.index.astype(int)
     df = df.merge(ind_name, left_index=True, right_index=True, how='left')
-    print(df)
+    # print(df)
 
     return df
 
@@ -363,7 +390,7 @@ def label_industry_name(df):
     engine.dispose()
 
     df = df.merge(ind_name, left_index=True, right_index=True, how='left')
-    print(df)
+    # print(df)
 
     return df
 
@@ -377,8 +404,8 @@ def combine():
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
 
     for f in files:     # append all average records from files
-        if (f[:4]=='mae_') and (f[-5:]=='.xlsx'):
-            f_name = f[4:-5]
+        if (f[:9]=='mae_ibes_') and (f[-5:]=='.xlsx'):
+            f_name = f[9:-5]
             average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
 
     writer = pd.ExcelWriter('#compare_all.xlsx')    # create excel records
@@ -429,8 +456,10 @@ def compare_by_part():
 if __name__ == "__main__":
 
 
-    r_name = 'all'      # name in DB results_lightgbm
+    r_name = 'ibes_new industry_monthly -new'      # name in DB results_lightgbm
+    # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
 
+    #
     yoy_merge = download(r_name).merge_stock_ibes()
     calc_mae_write(yoy_merge, tname=r_name)
     # exit(0)

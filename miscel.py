@@ -53,10 +53,11 @@ if __name__ == '__main__':
     #     temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 128)) # nodes grow at 2X or stay same - at most 128 nodes
     #     # print((i-mult_start+1)//mult_freq)
     #     print(i, temp_nodes)
-    with engine.connect() as conn:
-        df= pd.read_sql('SELECT * FROM results_lightgbm_stock', conn)
-    engine.dispose()
 
-    df.to_csv('stocks_all.csv', index=False)
+
+
+    df_c = df.replace([np.inf, np.inf], np.nan)
+    # print(df_c.isnull().sum() - df.isnull().sum())
+
 
 
