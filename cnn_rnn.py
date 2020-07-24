@@ -22,6 +22,10 @@ import tensorflow as tf                             # avoid error in Tensorflow 
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--add_ind_code', type=int, default=0)
+args = parser.parse_args()
+
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
@@ -159,7 +163,7 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
+    # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 
@@ -211,30 +215,30 @@ if __name__ == "__main__":
 
     data = load_data(macro_monthly=True)
 
-    for add_ind_code in [0, 1, 2]: # 1 means add industry code as X
-        data.split_entire(add_ind_code=add_ind_code)
-        sql_result['icb_code'] = add_ind_code
+    add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 mesns add sector code as X
+    data.split_entire(add_ind_code=add_ind_code)
+    sql_result['icb_code'] = add_ind_code
 
-        for i in tqdm(range(1)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3)
-            sql_result['testing_period'] = testing_period
+    for i in tqdm(range(1)):  # roll over testing period
+        testing_period = period_1 + i * relativedelta(months=3)
+        sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
-            print(x_col)
-            X_test = np.expand_dims(X_test, axis=3)
+        train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+        print(x_col)
+        X_test = np.expand_dims(X_test, axis=3)
 
-            cv_number = 1
-            for train_index, test_index in cv:
-                sql_result['cv_number'] = cv_number
+        cv_number = 1
+        for train_index, test_index in cv:
+            sql_result['cv_number'] = cv_number
 
-                X_train = np.expand_dims(train_x[train_index], axis=3)
-                Y_train = train_y[train_index]
-                X_valid = np.expand_dims(train_x[test_index], axis=3)
-                Y_valid = train_y[test_index]
+            X_train = np.expand_dims(train_x[train_index], axis=3)
+            Y_train = train_y[train_index]
+            X_valid = np.expand_dims(train_x[test_index], axis=3)
+            Y_valid = train_y[test_index]
 
-                print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+            print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-                HPOT(space, 10)
-                cv_number += 1
+            HPOT(space, 10)
+            cv_number += 1
 
 
