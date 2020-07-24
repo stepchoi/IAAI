@@ -126,12 +126,12 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    with engine.connect() as conn:
-        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
-                                                                if_exists='append', method='multi')
-    engine.dispose()
-
-    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    # with engine.connect() as conn:
+    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
+    #                                                             if_exists='append', method='multi')
+    # engine.dispose()
+    #
+    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -155,11 +155,11 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        # pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
         hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
+    plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 
