@@ -326,7 +326,7 @@ if __name__ == "__main__":
     # FINAL 1: use ibes_y + without ibes data
     load_data_params['exclude_fwd'] = True
     load_data_params['ibes_qcut_as_x'] = False
-    sql_result['name'] = 'ibes_sector_only ws'                # name = labeling the experiments
+    sql_result['name'] = 'ibes_industry_only ws'                # name = labeling the experiments
     # sql_result['objective'] = space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
@@ -342,10 +342,10 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_sector:   # roll over industries (first 2 icb code)
+    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
         # data.split_entire(icb_code)
-        # data.split_industry(icb_code, combine_ind=True)
-        data.split_sector(icb_code)
+        data.split_industry(icb_code, combine_ind=True)
+        # data.split_sector(icb_code)
         sql_result['icb_code'] = icb_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period

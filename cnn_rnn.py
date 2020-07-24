@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
     data = load_data(macro_monthly=True)
 
-    for add_ind_code in [0]: # 1 means add industry code as X
+    for add_ind_code in [0, 1, 2]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
