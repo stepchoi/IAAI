@@ -2,11 +2,11 @@ import numpy as np
 import pandas as pd
 import datetime as dt
 import ast
-
+import os
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from keras import callbacks, optimizers, regularizers
-from keras.models import Model
-from keras.layers import Dense, Dropout, Input
+from tensorflow.python.keras import callbacks, optimizers, regularizers
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense, Dropout, Input
 from sklearn.metrics import r2_score, mean_absolute_error
 
 from sqlalchemy import create_engine
@@ -16,6 +16,10 @@ from tqdm import tqdm
 from load_data_lgbm import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
+
+import tensorflow as tf                             # avoid error in Tensorflow initialization
+tf.compat.v1.disable_eager_execution()
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 space = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
@@ -62,31 +66,30 @@ def dense_train(space):
     input_shape = (X_train.shape[-1],)      # input shape depends on x_fields used
     input_img = Input(shape=input_shape)
 
-    # init_nodes = params['init_nodes']
-    # nodes_mult = params['nodes_mult']
-    # mult_freq = params['mult_freq']
-    # mult_start = params['mult_start']
-    # num_Dense_layer = params['num_Dense_layer']
+    init_nodes = params['init_nodes']
+    nodes_mult = params['nodes_mult']
+    mult_freq = params['mult_freq']
+    mult_start = params['mult_start']
+    num_Dense_layer = params['num_Dense_layer']
 
-    nodes_list = ast.literal_eval(params['num_nodes'])  # convert str to nested dictionary
-    print(nodes_list)
+    # nodes_list = ast.literal_eval(params['num_nodes'])  # convert str to nested dictionary
+    # print(nodes_list)
+    # num_Dense_layer = len(nodes_list)
 
-    num_Dense_layer = len(nodes_list)
-
-    # nodes = []
+    nodes = []
     for i in range(num_Dense_layer):
-        temp_nodes = nodes_list[i]
-        # temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
+        # temp_nodes = nodes_list[i]
+        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
         d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
-        # nodes.append(temp_nodes)
+        nodes.append(temp_nodes)
 
         if i != num_Dense_layer - 1:    # last dense layer has no dropout
             d_1 = Dropout(params['dropout'])(d_1)
 
     f_x = Dense(1)(d_1)
 
-    # print(nodes)
-    # sql_result['num_nodes'] = str(nodes)
+    print(nodes)
+    sql_result['num_nodes'] = str(nodes)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
                       callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
@@ -197,7 +200,7 @@ if __name__ == "__main__":
     use_median = True
     chron_valid = False
     ibes_qcut_as_x = False
-    sql_result['name'] = 'fixed model'
+    sql_result['name'] = 'with ind code -small space'
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
@@ -208,7 +211,7 @@ if __name__ == "__main__":
 
     data = load_data()
 
-    for add_ind_code in [0]: # 1 means add industry code as X
+    for add_ind_code in [1]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
@@ -216,7 +219,8 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            try:
+            if qcut_q==10:
+            # try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                                   y_type=sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
@@ -238,8 +242,8 @@ if __name__ == "__main__":
                     Y_valid = sample_set['train_y'][test_index]
 
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    HPOT(space_fix, 10)
-                    # HPOT(space, 10)
+                    # HPOT(space_fix, 10)
+                    HPOT(space, 10)
                     cv_number += 1
             except:
                 continue
