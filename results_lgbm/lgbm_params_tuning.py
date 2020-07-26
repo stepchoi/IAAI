@@ -4,25 +4,36 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
 
-def download(table_name = 'results_lightgbm', r_name = None):
+params = ['bagging_fraction', 'bagging_freq', 'feature_fraction', 'lambda_l1', 'learning_rate',
+          'min_data_in_leaf', 'min_gain_to_split', 'lambda_l2', 'boosting_type', 'max_bin', 'num_leaves']
+
+def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
 
+    if best == 'best':
+        query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot) as min_thing " \
+                "from results_lightgbm where name = '{}') t where mae_valid = min_thing".format(r_name)
+    elif r_name == 'all':
+        query = 'SELECT * FROM results_lightgbm'
+    else:
+        query = "SELECT * FROM results_lightgbm WHERE name = '{}'".format(r_name)
+
+
     try: # update if newer results is downloaded
-        results = pd.read_csv('results_lgbm/params_tuning/{}_{}.csv'.format(table_name, r_name))
-        print('local version run - {}_{}.csv'.format(table_name, r_name))
+        print('lgbm_{}|{}.csv'.format(best, r_name))
+        results = pd.read_csv('results_lgbm/params_tuning/lgbm_{}|{}.csv'.format(best, r_name))
+        print('local version run - {}.csv'.format(r_name))
 
     except:
+        print('--------> download from DB TABLE')
         with engine.connect() as conn:
-            if r_name != None:
-                results = pd.read_sql("SELECT * FROM {} WHERE name = '{}'".format(table_name, r_name), con=conn)
-            else:
-                results = pd.read_sql('SELECT * FROM {}'.format(table_name), con=conn)
+            results = pd.read_sql(query, con=conn)
         engine.dispose()
 
-        results.to_csv('results_lgbm/params_tuning/{}_{}.csv'.format(table_name, r_name), index=False)
+        results.to_csv('results_lgbm/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
 
-    # print(', '.join(results.columns.to_list()))
-    # print(results.columns)
+    calc_correl(results) # check correlation
+
     return results
 
 def calc_correl(results):
@@ -43,28 +54,39 @@ def calc_correl(results):
 
     print(pd.DataFrame(correls))
 
-    pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
+    # pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
 
-def plot_boxplot(df, table_name='results_lightgbm', r_name=None):
+def calc_average(df):
+    ''' calculate mean of each variable in db '''
+
+
+    writer = pd.ExcelWriter('results_lgbm/params_tuning/lgbm_describe|{}.xlsx'.format(r_name))    # create excel records
+
+    for c in set(df['icb_code']):
+        sub_df = df.loc[df['icb_code']==c]
+
+        df_list = []
+        # df_list.append(sub_df.mean()['mae_test'])
+        for p in params:
+            des_df = sub_df.groupby(p).mean()['mae_test'].reset_index()  # calculate means of each subset
+            des_df['len'] = sub_df.groupby(p).count().reset_index()['mae_test']
+            des_df.columns = ['subset', 'mae_test', 'len']
+            des_df['params'] = p
+            des_df = des_df.sort_values(by=['mae_test'], ascending=True)
+            print(des_df)
+
+            # std_arr = df.groupby(p).std()[['mae_train', 'mae_valid', 'mae_test']].values  # calculate std of each subset
+            # des_df[['mae_train_std', 'mae_valid_std', 'mae_test_std']] = pd.DataFrame(std_arr)
+            df_list.append((des_df))
+
+        pd.concat(df_list, axis=0).to_excel(writer, '{}'.format(c), index=False)
+
+    writer.save()
+
+def plot_boxplot(df, r_name=None):
     ''' plot distribution of mae based on different hyper-parameters'''
 
-    if r_name == None:
-        r_name = table_name
-
-    if table_name == 'results_lightgbm':
-        params = 'bagging_fraction, bagging_freq, feature_fraction, lambda_l1, learning_rate, min_data_in_leaf, ' \
-                 'min_gain_to_split, lambda_l2, boosting_type, max_bin, num_leaves'.rsplit(', ')
-    elif table_name == 'results_dense':
-        params = ['batch_size', 'neurons_layer_1', 'neurons_layer_2', 'neurons_layer_3', 'num_Dense_layer',
-                  'neurons_layer_4', 'activation','dropout_1', 'dropout_2', 'dropout_3']
-
     n = round(np.sqrt(len(params)))+1
-
-    if table_name == 'results_dense':
-        df['activation'] = df['activation'].fillna('tanh')
-        df = df.fillna(0)
-        for i in range(1, 4):
-            df.loc[(df['num_Dense_layer']<i),['neurons_layer_{}'.format(i), 'dropout_{}'.format(i)]] = 0
 
     fig_test = plt.figure(figsize=(4*n, 4*n), dpi=120)      # create figure for test only boxplot
     fig_all = plt.figure(figsize=(4*n, 4*n), dpi=120)       # create figure for test & train boxplot
@@ -76,18 +98,6 @@ def plot_boxplot(df, table_name='results_lightgbm', r_name=None):
     print(df.describe().T)
     for p in params:
         print(p, set(df[p]))
-
-        # calculate mean of each variable in db
-        des_df = df.groupby(p).mean()[['mae_train','mae_valid','mae_test']].reset_index()   # calculate means of each subset
-        des_df.columns = ['subset', 'mae_train_avg', 'mae_valid_avg', 'mae_test_avg']
-
-        std_arr = df.groupby(p).std()[['mae_train','mae_valid','mae_test']].values           # calculate std of each subset
-        des_df[['mae_train_std', 'mae_valid_std', 'mae_test_std']] = pd.DataFrame(std_arr)
-
-        des_df = des_df.sort_values(by=['mae_test_avg'], ascending=True)
-        des_df['params'] = p
-        des_df_list.append(des_df.filter(['params', 'subset', 'mae_train_avg', 'mae_valid_avg', 'mae_test_avg',
-                                          'mae_train_std', 'mae_valid_std', 'mae_test_std']))
 
         # prepare for plotting
         data_test = []
@@ -149,10 +159,11 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'ibes_new industry_monthly -new'
+    r_name = 'ibes_new industry_only ws -indi space'
 
     results = download(r_name=r_name)
-    plot_boxplot(results, r_name=r_name)
+    calc_average(results)
+    # plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)
     # compare_valid()

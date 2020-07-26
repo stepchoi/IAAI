@@ -76,6 +76,18 @@ def org_describe(feature_info, importance_type='split', tname=''):
         feature_info.loc[feature_info['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
         feature_info['icb_code'] = 0
 
+    x_col = ['gross_margin', 'cap_adequacy_ratio', 'ebitda_to_ev', 'cash_ratio', 'interest_to_earnings', 'div_payout', 'capex_to_dda',
+       'fa_turnover', 'inv_turnover', 'earnings_yield', 'ni_to_cfo', 'ca_turnover', 'roe', 'roic', 'debt_to_asset', 'pretax_margin', 'ni_ts01', 'sales_ts01', 'pretax_margin_ts01', 'cfps_ts01', 'ni_ts13', 'sales_ts13', 'pretax_margin_ts13', 'cfps_ts13', 'ni_ts35',
+       'sales_ts35', 'pretax_margin_ts35', 'cfps_ts35', 'fwd_ey', 'fwd_roic',
+       'stock_return_1qa', 'stock_return_3qb', 'dollar_index', 'crudoil',
+       'usinter3', 'usfrbpim', 'usrettotb', 'ushouse.o', 'usgdp...d',
+       'uscnper.d', 'cpi', 'gdp', 'ipi', 'reer', 'index', 'interest_rate_10y',
+       'interest_rate_3m', 'unemployment', 'eps_ts01',
+       'eps_ts13', 'eps_ts35', 'ibes_qcut_as_x', 'icb_sector_x',
+       'icb_industry_x']
+
+    feature_info = feature_info.filter(['x_type', 'trial_lgbm', 'icb_code', 'importance_type', 'y_type'] + x_col)
+
     feature_info['x_type'] = feature_info['x_type'].fillna('fwdepsqcut')
 
     feature_info[['trial_lgbm', 'icb_code']] = feature_info[['trial_lgbm', 'icb_code']].astype(str)
@@ -111,9 +123,10 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_entire_only ws -small space']
+    r_name = ['ibes_new industry_only ws -indi space']
 
     feature = download(r_name).finish()
+    # feature = pd.read_csv('201030 feature importance.csv')
     org_describe(feature, importance_type ='split', tname=r_name)
     # feature = download_complete_describe(r_name, importance_type='split')
 

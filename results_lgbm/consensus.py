@@ -250,11 +250,12 @@ class download:
         #     check[name]['lgbm'] = mean_absolute_error(g['pred'], g['y_ibes_qcut'])
         # df = pd.DataFrame(check).T
         # print(df.mean())
+        # exit(0)
         #
-        # new = {}
-        # new['consensus'] = mean_absolute_error(yoy_merge['y_consensus_qcut'], yoy_merge['y_ibes_qcut'])
-        # new['lgbm'] = mean_absolute_error(yoy_merge['pred'], yoy_merge['y_ibes_qcut'])
-        # print(new)
+        new = {}
+        new['consensus'] = mean_absolute_error(yoy_merge['y_consensus_qcut'], yoy_merge['y_ibes_qcut'])
+        new['lgbm'] = mean_absolute_error(yoy_merge['pred'], yoy_merge['y_ibes_qcut'])
+        print(r_name, new)
         # df.to_csv('#check_mae4.csv')
 
         return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
@@ -464,9 +465,9 @@ if __name__ == "__main__":
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_sector_only ws', 'ibes_entire_only ws -small space', 'ibes_new industry_monthly -new']
+    r_name_list = ['ibes_new industry_only ws -indi space', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
+                   'ibes_new industry_monthly -new', 'ibes_new industry_all x', 'ibes_entire_only ws -small space']
 
-    # r_name = 'ibes_new industry_all x'
 
     for r_name in r_name_list:
         yoy_merge = download(r_name).merge_stock_ibes()
