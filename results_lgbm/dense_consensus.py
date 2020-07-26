@@ -8,7 +8,7 @@ from miscel import date_type, check_dup
 from collections import Counter
 import os
 
-from results_lgbm.consensus import yoy_to_median, eps_to_yoy, label_sector, calc_mae_write, combine
+from results_lgbm.lgbm_consensus import yoy_to_median, eps_to_yoy, label_sector, calc_mae_write, combine
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -31,7 +31,7 @@ def download_stock():
     ''' Download results_dense2_stock for stocks '''
 
     try:
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/dense_sto.ck_{}.csv'.format(r_name))
+        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
         print('local version run - stock_{}'.format(r_name))
     except:
@@ -52,6 +52,7 @@ def download_stock():
 
         detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')  # map training information to stock data
         detail_stock.to_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name), index=False)
+        print('detial_stock shape: ', detail_stock)
 
     print(detail_stock)
 
@@ -67,6 +68,11 @@ def merge_ibes_stock():
 
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type'], keep='last')
+
+    print('------ convert entire ------')
+    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+    detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
     detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
@@ -86,11 +92,12 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'new'
+    r_name = 'with ind code -small space'
+    tname = 'dense2_fixed_space'
 
     yoy_merge = merge_ibes_stock()
     print(yoy_merge)
 
-    calc_mae_write(yoy_merge, tname='_dense')
+    calc_mae_write(yoy_merge, tname=tname)
 
     combine()

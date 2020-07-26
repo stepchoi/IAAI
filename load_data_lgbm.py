@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GroupShuffleSplit
 from collections import Counter
-from results_lgbm.consensus import eps_to_yoy
+from results_lgbm.lgbm_consensus import eps_to_yoy
 from miscel import date_type
 import gc
 

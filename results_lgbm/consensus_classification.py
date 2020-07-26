@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, mean_absolute_error
 from tqdm import tqdm
-from results_lgbm.consensus import eps_to_yoy
+from results_lgbm.lgbm_consensus import eps_to_yoy
 
 ''' classification'''
 

@@ -3,48 +3,36 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
+from results_lgbm.lgbm_params_tuning import calc_correl
 
-def download(table_name = 'results_dense', r_name = None):
+def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
 
+    if best == 'best':
+        query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot) as min_thing " \
+                "from results_dense2 where name in '{}') t where mae_valid = min_thing".format(r_name)
+    elif r_name == 'all':
+        query = 'SELECT * FROM results_dense2'
+    else:
+        query = "SELECT * FROM results_dense2 WHERE name = '{}'".format(r_name)
+
+
     try: # update if newer results is downloaded
-        results = pd.read_csv('results_lgbm/params_tuning/{}_1{}.csv'.format(table_name, r_name))
-        print('local version run - {}_{}.csv'.format(table_name, r_name))
+        print('lgbm_{}|{}.csv'.format(best, r_name))
+        results = pd.read_csv('results_lgbm/params_tuning/dense2_{}|{}.csv'.format(best, r_name))
+        print('local version run - {}.csv'.format(r_name))
 
     except:
-
+        print('--------> download from DB TABLE')
         with engine.connect() as conn:
-            if r_name != None:
-                results = pd.read_sql("SELECT * FROM {} WHERE name = '{}'".format(table_name, r_name), con=conn)
-            else:
-                results = pd.read_sql('SELECT * FROM {}'.format(table_name), con=conn)
+            results = pd.read_sql(query, con=conn)
         engine.dispose()
 
-        results.to_csv('results_lgbm/params_tuning/{}_{}.csv'.format(table_name, r_name), index=False)
+        results.to_csv('results_lgbm/params_tuning/dense2_{}|{}.csv'.format(best, r_name), index=False)
 
-    # print(', '.join(results.columns.to_list()))
-    # print(results.columns)
+    calc_correl(results) # check correlation
+
     return results
-
-def calc_correl(results):
-    correls = {}
-    correls['train_valid'] = {}
-    correls['valid_test'] = {}
-
-    correls['train_valid']['all'] = results['mae_train'].corr(results['mae_valid'])
-    correls['valid_test']['all'] = results['mae_valid'].corr(results['mae_test'])
-
-    for t in set(results['testing_period']):
-        str_t = pd.Timestamp(t).strftime('%Y%m%d')
-        for i in set(results['icb_code']):
-            part = results.loc[(results['testing_period'] == t) & (results['icb_code'] ==i)]
-            correls['train_valid']['{}_{}'.format(str_t, i)] = part['mae_train'].corr(part['mae_valid'])
-            correls['valid_test']['{}_{}'.format(str_t, i)] = part['mae_valid'].corr(part['mae_test'])
-
-
-    print(pd.DataFrame(correls))
-
-    pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
 
 def plot_boxplot(df, table_name='results_dense', r_name=None):
     ''' plot distribution of mae based on different hyper-parameters'''
@@ -156,11 +144,31 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = '5 layer'
-    table_name = 'results_dense'
+    r_name = 'with ind code -small space'
 
     results = download(r_name=r_name)
     plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)
     # compare_valid()
+
+
+    ''' download new dense results and CHECK !!!!!!!!!!!!!!!!!!!!!!!!!!'''
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
