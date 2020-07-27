@@ -174,12 +174,12 @@ class load_data:
 
         # 1. split and qcut train / test Y
         start_train_y = testing_period - relativedelta(years=10)    # train df = 40 quarters
-        self.sector = full_period(self.sector)                      # fill in for non-sequential records
-        self.sector = full_period(self.sector).sort_values(['identifier', 'period_end']).reset_index(drop=True)
-        # print(len(self.sector), idd in self.sector['identifier'].to_list())
+        self.sector = full_period(self.sector).sort_values(['period_end', 'identifier']).reset_index(drop=True)  # fill in for non-sequential records
 
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
+        train_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
+                                  (self.sector['period_end'] < testing_period)]['identifier']
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
         test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier']
 
@@ -197,9 +197,8 @@ class load_data:
         start_test = testing_period - relativedelta(years=5)      # test df = 1q * 5y lookback
 
         train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)] # extract df for X
-        test_2dx_info = self.sector.loc[(start_test < self.sector['period_end']) & (self.sector['period_end'] <= testing_period)]
+        test_2dx_info = self.sector.loc[(start_test <= self.sector['period_end']) & (self.sector['period_end'] <= testing_period)]
         # print(len(test_2dx_info), idd in test_2dx_info['identifier'].to_list())
-
 
         # 2.2. standardize data
         train_2dx_info.loc[:, x_col], test_2dx_info.loc[:, x_col] = self.standardize_x(train_2dx_info[x_col], test_2dx_info[x_col])  # standardize x
@@ -213,18 +212,21 @@ class load_data:
             # print(train_3dx_all)
 
             arr = []
+            id = []
             for i in period_range: # slice every 20q data as sample & reduce lookback (60 -> 20) (axis=1)
                 arr.append(train_3dx_all[:,(1+i):(21+i),:].values)
-                id = train_3dx_all.identifier
+                id.append(list(train_3dx_all.identifier))
+                print(train_3dx_all[:,(1+i):(21+i),:])
 
-            # print(test_id)
-            # print(len(id),id==test_id)
+            print(len(id),all(id==train_id))
+            print(len(id),all(id==test_id))
 
 
             return np.concatenate(arr, axis=0)  # concat sliced samples & increase batchsize (axis=0)
 
         train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
         test_x = to_3d(test_2dx_info, [0])
+        exit(0)
 
         # 2.4. remove samples without Y
         train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
@@ -284,13 +286,13 @@ if __name__ == '__main__':
     train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
                                                                                  exclude_fwd=exclude_fwd, y_type='ibes')
 
-    lgbm_id = pd.read_csv('lgbm_id.csv')
-    lgbm_id['lgbm_id'] = [str(x).zfill(9) for x in lgbm_id['lgbm_id']]
-
-    c = pd.merge(lgbm_id, pd.DataFrame(test_id, columns=['rnn_id']), left_on=['lgbm_id'], right_on=['rnn_id'],
-                 how='outer', suffixes= ['','_new'])
-    c.to_csv('rnn_lgbm_id.csv', index=False)
-    print(x_col)
+    # lgbm_id = pd.read_csv('lgbm_id.csv')
+    # lgbm_id['lgbm_id'] = [str(x).zfill(9) for x in lgbm_id['lgbm_id']]
+    #
+    # c = pd.merge(lgbm_id, pd.DataFrame(test_id, columns=['rnn_id']), left_on=['lgbm_id'], right_on=['rnn_id'],
+    #              how='outer', suffixes= ['','_new'])
+    # c.to_csv('rnn_lgbm_id.csv', index=False)
+    # print(x_col)
     # print(len(test_id), idd in test_id)
 
     for train_index, test_index in cv:
