@@ -109,7 +109,7 @@ def yoy(df):
     ''' calculate yoy for ws / ibes / stock data '''
 
     ws_col = ['cap1fd12', 'ebd1fd12', 'eps1fd12', 'eps1tr12', 'close', 'fn_18100', 'fn_18158', 'fn_18199', 'fn_18262',
-              'fn_18264', 'fn_18265', 'fn_18266', 'fn_18267', 'fn_18269', 'fn_18271', 'fn_18304', 'fn_18308',
+              'fn_18263', 'fn_18264', 'fn_18265', 'fn_18266', 'fn_18267', 'fn_18269', 'fn_18271', 'fn_18304', 'fn_18308',
               'fn_18309', 'fn_18310', 'fn_18311', 'fn_18312', 'fn_18313', 'fn_2001', 'fn_2101', 'fn_2201', 'fn_2501',
               'fn_2999', 'fn_3101', 'fn_3255', 'fn_3501', 'fn_5085', 'fn_8001']     # replace fn_18263 (ws net income) with eps1tr12 (ibes eps)
 
