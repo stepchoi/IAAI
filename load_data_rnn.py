@@ -136,7 +136,7 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            # self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            self.main.to_csv('preprocess/main_rnn.csv', index=False)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -189,7 +189,7 @@ class load_data:
         start_test = testing_period - relativedelta(years=5)      # test df = 1q * 5y lookback
 
         train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)] # extract df for X
-        test_2dx_info = self.sector.loc[(start_test < self.sector['period_end']) & (self.sector['period_end'] <= testing_period)]
+        test_2dx_info = self.sector.loc[(start_test <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)]
 
         # 2.2. standardize data
         train_2dx_info[x_col], test_2dx_info[x_col] = self.standardize_x(train_2dx_info[x_col], test_2dx_info[x_col])  # standardize x
@@ -203,8 +203,8 @@ class load_data:
 
             arr = []
             for i in period_range: # slice every 20q data as sample & reduce lookback (60 -> 20) (axis=1)
-                arr.append(train_3dx_all[:,i:(20+i),:].values)
-                id = train_3dx_all[:,i:(20+i),:].indexes['identifier']
+                arr.append(train_3dx_all[:,i:(21+i),:].values)
+                id = train_3dx_all[:,i:(21+i),:].indexes['identifier']
 
             return np.concatenate(arr, axis=0), id  # concat sliced samples & increase batchsize (axis=0)
 

@@ -150,8 +150,10 @@ class load_data:
 
         # 1. split train / test set
         start = testing_period - relativedelta(years=10) # train df = 40 quarters
+
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
+
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         # 2. split x, y for train / test set
