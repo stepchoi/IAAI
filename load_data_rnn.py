@@ -263,13 +263,13 @@ if __name__ == '__main__':
     add_ind_code = 1
     testing_period = dt.datetime(2013, 3, 31)
     qcut_q = 10
-    exclude_fwd = True
+    exclude_fwd = False
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
                                                                                  exclude_fwd=exclude_fwd, y_type='ibes')
-
+    print(x_col)
     # print('test_id: ', len(test_id), test_id)
 
     for train_index, test_index in cv:
