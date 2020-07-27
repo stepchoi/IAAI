@@ -220,6 +220,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd}
+    sql_result['exclude_fwd'] = args.exclude_fwd
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']

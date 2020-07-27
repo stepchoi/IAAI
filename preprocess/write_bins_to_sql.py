@@ -52,7 +52,7 @@ if __name__ == "__main__":
                                                                                   sql_result['y_type'],
                                                                                   use_median=use_median)
 
-                    total_test_id += len(test_id)
+                    total_test_id[icb_code] += len(test_id)
                     for col in ['qcut_q', 'icb_code', 'testing_period', 'y_type']:
                         cut_bins[col] = sql_result[col]
                     for col in ['cut_bins', 'med_train']:
@@ -63,10 +63,10 @@ if __name__ == "__main__":
                 except:
                     continue
 
-
-    print(pd.DataFrame(total_test_id, columns=[0]))
+    print(total_test_id)
+    print(pd.DataFrame(total_test_id, index=[0]).T)
     print(pd.DataFrame(bins_list))
 
     with engine.connect() as conn:  # record type of Y
-        pd.DataFrame(bins_list).to_sql('results_bins', con=conn, index=False, if_exists='replace', method='multi')
+        pd.DataFrame(bins_list).to_sql('results_bins_new', con=conn, index=False, if_exists='replace', method='multi')
     engine.dispose()

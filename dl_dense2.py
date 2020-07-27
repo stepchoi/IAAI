@@ -184,7 +184,7 @@ if __name__ == "__main__":
         sql_result['icb_code'] = add_ind_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
-            testing_period =
+            testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
             # if qcut_q==10:

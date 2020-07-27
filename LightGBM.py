@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
     # default parser
     macro_monthly = True # remember to change main.csv
-    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)

@@ -4,10 +4,9 @@ import argparse
 import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from keras import models, callbacks, optimizers
-from keras.models import Model
-from keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda
-import keras.backend as K
+from tensorflow.python.keras import models, callbacks, optimizers
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda
 
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -16,6 +15,10 @@ from tqdm import tqdm
 from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
+
+import tensorflow as tf                             # avoid error in Tensorflow initialization
+tf.compat.v1.disable_eager_execution()
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
@@ -200,7 +203,7 @@ if __name__ == "__main__":
     sample_no = 1
     db_last_param, sql_result = read_db_last(sql_result, 'results_rnn')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    data = load_data()
+    data = load_data(macro_monthly=True)
 
     for add_ind_code in [0]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
@@ -210,7 +213,8 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            train_x, train_y, X_test, Y_test, cv, test_id = data.split_train_test(testing_period, sql_result['qcut_q'], y_type='ibes')
+            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, sql_result['qcut_q'],
+                                                                                  y_type='ibes', exclude_fwd=exclude_fwd)
 
             cv_number = 1
             for train_index, test_index in cv:
