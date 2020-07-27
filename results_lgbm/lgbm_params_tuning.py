@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -11,13 +11,14 @@ def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
 
     if best == 'best':
-        query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot) as min_thing " \
-                "from results_lightgbm where name = '{}') t where mae_valid = min_thing".format(r_name)
+        query = text("select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot) as min_thing " \
+                "from results_lightgbm where name in :name) t where mae_valid = min_thing")
+        query = query.bindparams(name=tuple(r_name))
     elif r_name == 'all':
         query = 'SELECT * FROM results_lightgbm'
     else:
-        query = "SELECT * FROM results_lightgbm WHERE name = '{}'".format(r_name)
-
+        query = text("SELECT * FROM results_lightgbm WHERE name in :name")
+        query = query.bindparams(name=tuple(r_name))
 
     try: # update if newer results is downloaded
         print('lgbm_{}|{}.csv'.format(best, r_name))
@@ -158,7 +159,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'ibes_new industry_only ws -indi space'
+    r_name = ['ibes_new industry_only ws -indi space2', 'ibes_new industry_only ws -indi space']
 
     results = download(r_name=r_name)
     calc_average(results, params, r_name)

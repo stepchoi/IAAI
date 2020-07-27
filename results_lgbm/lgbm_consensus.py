@@ -214,6 +214,13 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
+        print(self.detail_stock.shape)
+        base_list = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv',
+                                usecols=['identifier', 'testing_period'])
+        base_list = date_type(base_list, 'testing_period')
+        self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
+        print(self.detail_stock.shape)
+
         if 'entire' in r_name: # for entire
             print('------ convert entire ------')
             self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
@@ -227,7 +234,7 @@ class download:
 
         # use median for cross listing & multiple cross-validation
         self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                       'x_type','y_type']).mean()['pred'].reset_index(drop=False)
+                                                       'x_type','y_type']).median()['pred'].reset_index(drop=False)
 
         self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
@@ -411,8 +418,10 @@ def combine():
 
     for f in files:     # append all average records from files
         if (f[:9]=='mae_ibes_') and (f[-5:]=='.xlsx'):
-            f_name = f[9:-5]
-            average.append(pd.read_excel(f, 'average', index_col='Unnamed: 0'))
+            f_name = f[11:-5]
+            avg = pd.read_excel(f, 'average', index_col='Unnamed: 0')
+            avg.index = [x + '|' + f_name for x in avg.index]
+            average.append(avg)
 
     writer = pd.ExcelWriter('#compare_all.xlsx')    # create excel records
 
@@ -461,11 +470,28 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
+    # df1 = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space.csv')
+    # df2 = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv')
+    # print(df1.shape)
+    # print(df2.shape)
+    #
+    # merge_col = ['identifier','qcut_q','icb_code','testing_period','cv_number','exclude_fwd','y_type','x_type']
+    # print(df1.loc[df1.duplicated(merge_col, keep=False)])
+    # print(df2.loc[df2.duplicated(merge_col, keep=False)])
+    #
+    # d = pd.merge(df1, df2, on=merge_col, how='left', suffixes=['_1','_2'])
+    # print(d.isnull().sum())
+    # print(d.loc[d['pred_2'].isnull()])
+    #
+    # d.loc[d['pred_2'].isnull()].to_csv('#check.csv')
+    #
+    # exit(0)
+
 
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_new industry_only ws -indi space2', 'ibes_new industry_only ws -indi space', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
+    r_name_list = ['ibes_new industry_only ws -indi space', 'ibes_new industry_only ws -indi space2', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
                    'ibes_new industry_monthly -new', 'ibes_new industry_all x', 'ibes_entire_only ws -small space']
 
 
@@ -484,7 +510,7 @@ if __name__ == "__main__":
         # exit(0)
 
         calc_mae_write(yoy_merge, tname=r_name)
-        break
+        continue
 
     combine()
 
