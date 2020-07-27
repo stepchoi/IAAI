@@ -172,14 +172,14 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2015,9,30)
+    period_1 = dt.datetime(2014,3,31)
     qcut_q = 10
-    sample_no = 25
+    sample_no = 5
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
     data = load_data()
 
-    for add_ind_code in [1]: # 1 means add industry code as X
+    for add_ind_code in [1,2]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 

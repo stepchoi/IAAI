@@ -290,17 +290,14 @@ if __name__ == "__main__":
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    if (sql_result['name'] == None) and (sql_result['x_type'] == None):
-        exit(1)
-
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new + [0, 1, 2]:   # roll over industries (first 2 icb code)
+    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
 
         if icb_code < 10:
             sql_result['name'] = 'ibes_industry_only ws -smaller space'  # name = labeling the experiments
         else:
-            sql_result['name'] = 'ibes_new industry_only ws -indi space'  # name = labeling the experiments
+            sql_result['name'] = 'ibes_new industry_only ws -indi space2'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
