@@ -191,7 +191,10 @@ def pred_to_sql(Y_test_pred):
     df = pd.DataFrame()
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
-    df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['trial_lgbm'] = [sql_result['trial_lgbm']]*len(test_id)
+    df['icb_code'] = [sql_result['icb_code']]*len(test_id)
+    df['testing_period'] = [sql_result['testing_period']]*len(test_id)
+    df['cv_number'] = [sql_result['cv_number']]*len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
@@ -219,7 +222,7 @@ if __name__ == "__main__":
     data.split_entire(add_ind_code=add_ind_code)
     sql_result['icb_code'] = add_ind_code
 
-    for i in tqdm(range(1)):  # roll over testing period
+    for i in tqdm(range(sample_no)):  # roll over testing period
         testing_period = period_1 + i * relativedelta(months=3)
         sql_result['testing_period'] = testing_period
 
