@@ -142,7 +142,10 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            # self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            try:
+                self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            except:
+                pass
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -179,9 +182,9 @@ class load_data:
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
         train_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
-                                  (self.sector['period_end'] < testing_period)]['identifier']
+                                  (self.sector['period_end'] < testing_period)]['identifier'].to_list()
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
-        test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier']
+        test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list()
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)  # qcut & convert to median for training / testing
 
@@ -209,24 +212,17 @@ class load_data:
 
             df = train_2dx_info.fillna(0)       # fill nan with 0
             train_3dx_all = df.set_index(['period_end', 'identifier'])[x_col].to_xarray().to_array().transpose() # training (batchsize, 60, x_fields)
-            # print(train_3dx_all)
 
             arr = []
             id = []
             for i in period_range: # slice every 20q data as sample & reduce lookback (60 -> 20) (axis=1)
                 arr.append(train_3dx_all[:,(1+i):(21+i),:].values)
-                id.append(list(train_3dx_all.identifier))
-                print(train_3dx_all[:,(1+i):(21+i),:])
-
-            print(len(id),all(id==train_id))
-            print(len(id),all(id==test_id))
-
+                id.append(np.array(train_3dx_all.identifier))
 
             return np.concatenate(arr, axis=0)  # concat sliced samples & increase batchsize (axis=0)
 
         train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
         test_x = to_3d(test_2dx_info, [0])
-        exit(0)
 
         # 2.4. remove samples without Y
         train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
