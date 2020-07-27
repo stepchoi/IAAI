@@ -203,8 +203,8 @@ class load_data:
 
             arr = []
             for i in period_range: # slice every 20q data as sample & reduce lookback (60 -> 20) (axis=1)
-                arr.append(train_3dx_all[:,i:(21+i),:].values)
-                id = train_3dx_all[:,i:(21+i),:].indexes['identifier']
+                arr.append(train_3dx_all[:,(1+i):(21+i),:].values)
+                id = train_3dx_all[:,(1+i):(21+i),:].indexes['identifier']
 
             return np.concatenate(arr, axis=0), id  # concat sliced samples & increase batchsize (axis=0)
 
