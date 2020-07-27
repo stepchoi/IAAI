@@ -34,12 +34,14 @@ if __name__ == "__main__":
     for y_type in ['ibes']:
         sql_result['y_type'] = y_type
 
-        for icb_code in [0]:   # roll over industries (first 2 icb code)
-            # data.split_industry(icb_code, combine_ind=True)
-            data.split_entire(icb_code)
+        total_test_id = {}
+        for icb_code in indi_industry_new + indi_sectors + [0, 1, 2]:   # roll over industries (first 2 icb code)
+            data.split_industry(icb_code, combine_ind=True)
+            # data.split_entire(icb_code)
             # data.split_sector(icb_code)
             sql_result['icb_code'] = icb_code
 
+            total_test_id[icb_code] = 0
             for i in tqdm(range(25)):  # roll over testing period
                 testing_period = period_1 + i * relativedelta(months=3)
                 sql_result['testing_period'] = testing_period
@@ -50,19 +52,21 @@ if __name__ == "__main__":
                                                                                   sql_result['y_type'],
                                                                                   use_median=use_median)
 
-
+                    total_test_id += len(test_id)
                     for col in ['qcut_q', 'icb_code', 'testing_period', 'y_type']:
                         cut_bins[col] = sql_result[col]
                     for col in ['cut_bins', 'med_train']:
                         cut_bins[col] = str(cut_bins[col])
 
                     bins_list.append(cut_bins)  # record cut_bins & median used in Y conversion
-                    print(cut_bins)
+                    # print(cut_bins)
                 except:
                     continue
 
+
+    print(pd.DataFrame(total_test_id, columns=[0]))
     print(pd.DataFrame(bins_list))
-    # exit(0)
+
     with engine.connect() as conn:  # record type of Y
-        pd.DataFrame(bins_list).to_sql('results_bins_new', con=conn, index=False, if_exists='append')
+        pd.DataFrame(bins_list).to_sql('results_bins', con=conn, index=False, if_exists='replace', method='multi')
     engine.dispose()
