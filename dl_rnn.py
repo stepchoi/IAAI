@@ -4,10 +4,12 @@ import argparse
 import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
-from keras import models, callbacks, optimizers
-from keras.layers import Dense, GRU, Dropout, Flatten
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score, mean_absolute_error
+
+from tensorflow.python.keras import callbacks, optimizers, initializers, models
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
+
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
@@ -15,6 +17,10 @@ from tqdm import tqdm
 from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
+
+import tensorflow as tf                             # avoid error in Tensorflow initialization
+tf.compat.v1.disable_eager_execution()
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 space = {
     'learning_rate': hp.choice('lr', [2, 3, 4, 5, 7]),
@@ -51,10 +57,9 @@ def rnn_train(space):
 
     model = models.Sequential()
 
-    for i in range(params['num_gru_layer']):
-        model.add(GRU(params['gru_{}'.format(i+1)], activation=params['activation'],
-                      dropout=params['dropout_{}'.format(i+1)], recurrent_dropout=params['recurrent_dropout_{}'.format(i+1)],
-                      return_sequences=not(i==params['num_gru_layer']-1), input_shape=(X_train.shape[1], X_train.shape[2]), ))
+    model.add(GRU(params['gru_{}'.format(i+1)], activation=params['activation'],
+                  dropout=params['dropout_{}'.format(i+1)], recurrent_dropout=params['recurrent_dropout_{}'.format(i+1)],
+                  return_sequences=False, input_shape=(X_train.shape[1], X_train.shape[2]), ))
 
     ''' Use GRU + dense? '''
     # model.add(Flatten())

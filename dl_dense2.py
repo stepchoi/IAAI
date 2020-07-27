@@ -98,6 +98,7 @@ def eval(space):
     sql_result['finish_timing'] = dt.datetime.now()
 
     print('sql_result_before writing: ', sql_result)
+    exit(0)
     hpot['all_results'].append(sql_result.copy())
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
