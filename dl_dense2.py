@@ -168,23 +168,23 @@ if __name__ == "__main__":
     use_median = True
     chron_valid = False
     ibes_qcut_as_x = False
-    sql_result['name'] = 'with ind code -small space'
+    qcut_q = 10
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2014,3,31)
-    qcut_q = 10
-    sample_no = 5
+    period_1 = dt.datetime(2013,3,31)
+    sample_no = 25
+    sql_result['name'] = 'with ind code -small space'
+
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    data = load_data(macro_monthly=True)
 
-    data = load_data()
-
-    for add_ind_code in [1,2]: # 1 means add industry code as X
+    for add_ind_code in [0, 1, 2]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 
         for i in tqdm(range(sample_no)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3)
+            testing_period =
             sql_result['testing_period'] = testing_period
 
             # if qcut_q==10:
@@ -210,7 +210,7 @@ if __name__ == "__main__":
                     Y_valid = sample_set['train_y'][test_index]
 
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    # HPOT(space_fix, 10)                    space = find_hyperspace(sql_result)
+                    space = find_hyperspace(sql_result)
                     HPOT(space, 10)
                     cv_number += 1
             except:
