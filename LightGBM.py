@@ -320,7 +320,7 @@ if __name__ == "__main__":
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
                 sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-                print('23355L106' in test_id)
+                # print('23355L106' in test_id)
                 print(feature_names)
 
                 # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion

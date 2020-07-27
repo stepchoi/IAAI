@@ -36,11 +36,11 @@ def download_add_detail(r_name, table_name):
             print('local version run - stock_all')
         except:
             # read corresponding part of DB TABLE results_lightgbm_stock
-            print('download from DB')
+            print('----------> download from DB: stock detail')
             query = text('SELECT * FROM results_lightgbm_stock WHERE (trial_lgbm IN :trial_lgbm)')
             query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
             result_stock = pd.read_sql(query, conn)
-            print('finish download result_stock', result_stock.info())
+            # print('finish download result_stock', result_stock.info())
 
     engine.dispose()
 
@@ -98,8 +98,8 @@ class eps_to_yoy:
 
         self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
 
-        for name, g in self.ibes.groupby('icb_sector'):
-            print(name, len(g))
+        # for name, g in self.ibes.groupby('icb_sector'):
+        #     print(name, len(g))
 
         return self.ibes
 

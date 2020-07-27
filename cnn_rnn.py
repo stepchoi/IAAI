@@ -24,6 +24,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
+parser.add_argument('--exclude_fwd', type=bool)
 args = parser.parse_args()
 
 space = {
@@ -207,9 +208,7 @@ if __name__ == "__main__":
     # default params for load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
-    load_data_params = {'exclude_fwd': True,
-                        'y_type': 'ibes',
-                        'qcut_q': 10}
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd}
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']

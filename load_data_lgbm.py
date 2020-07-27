@@ -175,7 +175,7 @@ class load_data:
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
-            print('x_col: ', x.columns)
+            # print('x_col: ', x.columns)
             x = x.values
             y = {}
             for col in y_col:
@@ -259,7 +259,7 @@ class load_data:
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
 
-        print('sample_set keys: ', self.sample_set.keys())
+        # print('sample_set keys: ', self.sample_set.keys())
 
         return self.sample_set, self.cut_bins, gkf, self.test['identifier'].to_list(), self.feature_names
 
