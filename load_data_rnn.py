@@ -48,6 +48,10 @@ def read_data(macro_monthly=True):
     ibes_stock = pd.merge(date_type(ibes), date_type(stock), on=['identifier','period_end'])   # merge ibes / stock data (both originally labeled with tickers)
     ibes_stock = ibes_stock.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
 
+    ibes_stock = full_period(ibes_stock)                                # stock data pushing ahead 1Q
+    ibes_stock['close_new'] = ibes_stock['close'].shift(-1)
+    ibes_stock.groupby(['identifier']).tail(1)['close_new'] = np.nan
+
     main = pd.merge(date_type(ws), ibes_stock, on=['identifier','period_end'])  # convert ws to yoy
     main.columns = [x.lower() for x in main.columns]    # convert columns name to lower case
     main = yoy(main)   # convert raw point-in-time data to yoy formats
@@ -263,9 +267,8 @@ if __name__ == '__main__':
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
-    train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q, exclude_fwd=exclude_fwd, y_type='ibes')
-
-    print(x_col)
+    train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
+                                                                                 exclude_fwd=exclude_fwd, y_type='ibes')
 
     # print('test_id: ', len(test_id), test_id)
 
