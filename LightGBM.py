@@ -297,7 +297,7 @@ if __name__ == "__main__":
         if icb_code < 10:
             sql_result['name'] = 'ibes_industry_only ws -smaller space'  # name = labeling the experiments
         else:
-            sql_result['name'] = 'ibes_new industry_only ws -indi space2'  # name = labeling the experiments
+            sql_result['name'] = 'ibes_new industry_only ws -indi space3'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
@@ -320,6 +320,7 @@ if __name__ == "__main__":
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
                 sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
+                print('23355L106' in test_id)
                 print(feature_names)
 
                 # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion

@@ -26,10 +26,11 @@ class add_macro:
             self.new_macros = pd.read_csv('preprocess/clean_macros_new.csv')
             print('local version run - clean_ratios / macros')
         except:
-            print('-----------------> download from DB')
-            self.ratios = pd.read_sql('SELECT * FROM clean_ratios', engine)
-            self.macros = pd.read_sql('SELECT * FROM clean_macros', engine)
-            self.new_macros = pd.read_sql('SELECT * FROM clean_macros_new', engine)
+            print('-----------------> download data from DB: clean_ratios/clean_macros')
+            with engine.connect() as conn:
+                self.ratios = pd.read_sql('SELECT * FROM clean_ratios', conn)
+                self.macros = pd.read_sql('SELECT * FROM clean_macros', conn)
+                self.new_macros = pd.read_sql('SELECT * FROM clean_macros_new', conn)
             engine.dispose()
 
         self.macros = date_type(self.macros)    # convert to date
@@ -88,15 +89,8 @@ class load_data:
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
-        try:
-            self.main = pd.read_csv('preprocess/main.csv')
-            self.consensus = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', usecols=['identifier','period_end','y_consensus'])
-            print('local version run - main / consensus')
-        except:
-            self.main = add_macro(macro_monthly).map_macros()
-            self.main.to_csv('preprocess/main.csv', index=False)
-            self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus'])
-            # self.main.to_csv('preprocess/main.csv', index=False)
+        self.main = add_macro(macro_monthly).map_macros()
+        self.consensus = eps_to_yoy().merge_and_calc().filter(['identifier','period_end','y_consensus'])
 
         self.main = date_type(self.main)
         self.main.columns = [x.lower() for x in self.main]
@@ -314,7 +308,7 @@ if __name__ == '__main__':
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x)
-
+    print('23355L106' in test_id)
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))
