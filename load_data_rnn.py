@@ -18,6 +18,12 @@ from preprocess.ratios import worldscope, full_period, trim_outlier
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+idd = 'C156E0340'
+def check_id(df, id=idd):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print(df.loc[df['identifier'] ==id, ['period_end', 'y_ibes']].sort_values(['period_end']))
+    exit(0)
+
 def read_data(macro_monthly=True):
 
     ''' read worldscope_quarter_summary / ibes_data / stock_data / macro_data / clean_ratios'''
@@ -49,17 +55,16 @@ def read_data(macro_monthly=True):
     ibes_stock = ibes_stock.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
 
     ibes_stock = full_period(ibes_stock)                                # stock data pushing ahead 1Q
-    ibes_stock['close_new'] = ibes_stock['close'].shift(-1)
-    ibes_stock.groupby(['identifier']).tail(1)['close_new'] = np.nan
+    ibes_stock['close'] = ibes_stock['close'].shift(-1)
+    ibes_stock.loc[ibes_stock.groupby('identifier').tail(1).index, 'close'] = np.nan
 
-    main = pd.merge(date_type(ws), ibes_stock, on=['identifier','period_end'])  # convert ws to yoy
+    main = pd.merge(date_type(ws), ibes_stock, on=['identifier','period_end'], how='left')  # convert ws to yoy
     main.columns = [x.lower() for x in main.columns]    # convert columns name to lower case
     main = yoy(main)   # convert raw point-in-time data to yoy formats
-
+    macro = macro.loc[date_type(macro)['period_end'] >= dt.datetime(1997, 12, 31)]  # filter records after 1998
     main = add_macro(main, macro).map_macros()  # add clean macro variables
-    main = main.merge(date_type(y), on=['identifier','period_end'])
+    main = main.merge(date_type(y), on=['identifier','period_end'], how='left')
     main.columns = [x.lower() for x in main.columns]    # convert columns name to lower case
-
     main = main.sort_values('market').drop_duplicates(['identifier','period_end'], keep='first')    # for cross listing (CH + HK) use macro for CH
 
     return main
@@ -117,7 +122,8 @@ def yoy(df):
     df[ws_col] = (df[ws_col] / df[ws_col].shift(4)).sub(1)  # calculate YoY using (T0 - T-4)/T-4
     df.loc[df.groupby('identifier').head(4).index, ws_col] = np.nan     # avoid calculation with different identifier
 
-    df[ws_col] = trim_outlier(df[ws_col])   # use 99% as maximum values -> avoid inf
+    df[ws_col] = trim_outlier(df[ws_col])   # use 100% as maximum values -> avoid inf
+    df = df.dropna(subset=ws_col, how='all')
     # print(df.describe().T[['min','max']])
 
     return df.filter(['identifier', 'period_end'] + ws_col)
@@ -136,7 +142,7 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            # self.main.to_csv('preprocess/main_rnn.csv', index=False)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -169,13 +175,15 @@ class load_data:
         # 1. split and qcut train / test Y
         start_train_y = testing_period - relativedelta(years=10)    # train df = 40 quarters
         self.sector = full_period(self.sector)                      # fill in for non-sequential records
+        self.sector = full_period(self.sector).sort_values(['identifier', 'period_end']).reset_index(drop=True)
+        # print(len(self.sector), idd in self.sector['identifier'].to_list())
+
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
+        test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier']
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)  # qcut & convert to median for training / testing
-
-        # print(train_y.shape, test_y.shape)
 
         # 2. split and standardize train / test X
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
@@ -189,10 +197,12 @@ class load_data:
         start_test = testing_period - relativedelta(years=5)      # test df = 1q * 5y lookback
 
         train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)] # extract df for X
-        test_2dx_info = self.sector.loc[(start_test <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)]
+        test_2dx_info = self.sector.loc[(start_test < self.sector['period_end']) & (self.sector['period_end'] <= testing_period)]
+        # print(len(test_2dx_info), idd in test_2dx_info['identifier'].to_list())
+
 
         # 2.2. standardize data
-        train_2dx_info[x_col], test_2dx_info[x_col] = self.standardize_x(train_2dx_info[x_col], test_2dx_info[x_col])  # standardize x
+        train_2dx_info.loc[:, x_col], test_2dx_info.loc[:, x_col] = self.standardize_x(train_2dx_info[x_col], test_2dx_info[x_col])  # standardize x
 
         # 2.3. convert 2D -> 3D data (add lookback axis)
         def to_3d(train_2dx_info, period_range):
@@ -200,16 +210,21 @@ class load_data:
 
             df = train_2dx_info.fillna(0)       # fill nan with 0
             train_3dx_all = df.set_index(['period_end', 'identifier'])[x_col].to_xarray().to_array().transpose() # training (batchsize, 60, x_fields)
+            # print(train_3dx_all)
 
             arr = []
             for i in period_range: # slice every 20q data as sample & reduce lookback (60 -> 20) (axis=1)
                 arr.append(train_3dx_all[:,(1+i):(21+i),:].values)
-                id = train_3dx_all[:,(1+i):(21+i),:].indexes['identifier']
+                id = train_3dx_all.identifier
 
-            return np.concatenate(arr, axis=0), id  # concat sliced samples & increase batchsize (axis=0)
+            # print(test_id)
+            # print(len(id),id==test_id)
 
-        train_x, train_id = to_3d(train_2dx_info, range(40))  # convert to 3d array
-        test_x, test_id = to_3d(test_2dx_info, [0])
+
+            return np.concatenate(arr, axis=0)  # concat sliced samples & increase batchsize (axis=0)
+
+        train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
+        test_x = to_3d(test_2dx_info, [0])
 
         # 2.4. remove samples without Y
         train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
@@ -217,7 +232,6 @@ class load_data:
         test_x = test_x[~np.isnan(test_y[:, 0])]
         test_id = np.array(test_id)[~np.isnan(test_y[:, 0])]    # records identifier for testing set for TABLE results_rnn_stock
         test_y = test_y[~np.isnan(test_y[:, 0])]
-
 
         # 3. split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set
         group_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &
@@ -260,17 +274,24 @@ class load_data:
 
 if __name__ == '__main__':
 
-    add_ind_code = 1
+    add_ind_code = 0
     testing_period = dt.datetime(2013, 3, 31)
     qcut_q = 10
-    exclude_fwd = False
+    exclude_fwd = True
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
                                                                                  exclude_fwd=exclude_fwd, y_type='ibes')
+
+    lgbm_id = pd.read_csv('lgbm_id.csv')
+    lgbm_id['lgbm_id'] = [str(x).zfill(9) for x in lgbm_id['lgbm_id']]
+
+    c = pd.merge(lgbm_id, pd.DataFrame(test_id, columns=['rnn_id']), left_on=['lgbm_id'], right_on=['rnn_id'],
+                 how='outer', suffixes= ['','_new'])
+    c.to_csv('rnn_lgbm_id.csv', index=False)
     print(x_col)
-    # print('test_id: ', len(test_id), test_id)
+    # print(len(test_id), idd in test_id)
 
     for train_index, test_index in cv:
         X_train = train_x[train_index]

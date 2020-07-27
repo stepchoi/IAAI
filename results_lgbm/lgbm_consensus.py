@@ -214,12 +214,12 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
-        print(self.detail_stock.shape)
-        base_list = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv',
-                                usecols=['identifier', 'testing_period'])
-        base_list = date_type(base_list, 'testing_period')
-        self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
-        print(self.detail_stock.shape)
+        # print(self.detail_stock.shape)
+        # base_list = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv',
+        #                         usecols=['identifier', 'testing_period'])
+        # base_list = date_type(base_list, 'testing_period')
+        # self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
+        # print(self.detail_stock.shape)
 
         if 'entire' in r_name: # for entire
             print('------ convert entire ------')
@@ -491,7 +491,7 @@ if __name__ == "__main__":
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_new industry_only ws -indi space', 'ibes_new industry_only ws -indi space2', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
+    r_name_list = ['ibes_new industry_only ws -indi space3', 'ibes_new industry_only ws -indi space', 'ibes_new industry_only ws -indi space2', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
                    'ibes_new industry_monthly -new', 'ibes_new industry_all x', 'ibes_entire_only ws -small space']
 
 
@@ -510,7 +510,7 @@ if __name__ == "__main__":
         # exit(0)
 
         calc_mae_write(yoy_merge, tname=r_name)
-        continue
+        break
 
     combine()
 

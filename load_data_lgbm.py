@@ -10,12 +10,20 @@ from collections import Counter
 from results_lgbm.lgbm_consensus import eps_to_yoy
 from miscel import date_type
 import gc
+from miscel import check_dup
+from preprocess.ratios import full_period
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
 indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                 501010, 201020, 502030, 401010]
+
+idd = 'C156E0340'
+def check_id(df, id=idd):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print(df.loc[df['identifier'] ==id, ['period_end', 'y_ibes']].sort_values(['period_end']))
+    exit(0)
 
 class add_macro:
 
@@ -34,6 +42,7 @@ class add_macro:
             engine.dispose()
 
         self.macros = date_type(self.macros)    # convert to date
+
         self.new_macros = date_type(self.new_macros)
         self.ratios = date_type(self.ratios)
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
@@ -76,8 +85,9 @@ class add_macro:
 
         new_macros = new_macros.pivot_table(index=['period_end','market'], columns='type', values='values')
         self.ratios = pd.merge(self.ratios, new_macros, on=['period_end', 'market'], how='left')
-
+        self.ratios = self.ratios.sort_values('market').drop_duplicates(['identifier', 'period_end'], keep='first')  # for cross listing (CH + HK) use macro for CH
         self.ratios['period_end'] = pd.to_datetime(self.ratios['period_end'])
+
         return self.ratios
 
 class load_data:
@@ -97,9 +107,11 @@ class load_data:
 
         self.consensus = date_type(self.consensus)
         self.consensus.columns = ['identifier', 'period_end', 'ibes_qcut_as_x']
-        self.main = self.main.merge(self.consensus, on =['identifier','period_end'])
+        self.main = self.main.merge(self.consensus, on =['identifier','period_end'], how='left')
 
+        self.main = self.main.dropna(subset=['icb_sector'])
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
+        print('main_consensus: ', self.main.shape)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -145,16 +157,26 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
-        start = testing_period - relativedelta(years=10) # train df = 40 quarters
+        start = testing_period - relativedelta(years=10)    # train df = 40 quarters
 
+        self.sector = full_period(self.sector)
+        # self.sector['lookback_y_{}'.format(y_type)] = self.sector['y_{}'.format(y_type)].shift(20)
+        # self.sector.iloc[self.sector.groupby('identifier').head(20),'lookback_y_{}'.format(y_type)]
+        # full_hist_comp = self.sector.loc[self.sector['period_end']==start, 'identifier'].to_list()
+        # self.sector = self.sector[self.sector['period_end'].isin(full_hist_comp)]
+        # print(start, len(full_hist_comp), full_hist_comp)
+
+        self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
 
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
+
+        print('test_df: ', self.test.shape)
 
         # 2. split x, y for train / test set
         def divide_set(df, ibes_qcut_as_x):
@@ -209,14 +231,8 @@ class load_data:
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
 
             if ibes_qcut_as_x == True:
-
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
-
-                # d = pd.DataFrame(self.sample_set['train_x'][:,-1], columns = ['ibes_qcut_as_x'])
-                # d[['identifier', 'period_end']] = self.train[['identifier', 'period_end']]
-                # d.to_csv('##load_data_qcut_train.csv', index=False)
-                # exit(0)
 
             if use_median == True:
                 # calculate median on train_y for each qcut group
@@ -256,7 +272,7 @@ class load_data:
     def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False, ibes_qcut_as_x=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
@@ -291,10 +307,10 @@ if __name__ == '__main__':
     chron_valid = False
 
     # these are parameters used to load_data
-    icb_code = 11
+    icb_code = 0
     testing_period = dt.datetime(2013,3,31)
     qcut_q = 10
-    y_type = 'ni'
+    y_type = 'ibes'
 
     exclude_fwd = True
     ibes_qcut_as_x = True
@@ -310,7 +326,11 @@ if __name__ == '__main__':
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x)
-    print('23355L106' in test_id)
+    print('test_id: ', len(test_id))
+    pd.DataFrame(test_id, columns=['lgbm_id']).to_csv('lgbm_id.csv', index=False)
+    print(pd.DataFrame(test_id, columns=['lgbm_id']))
+
+
 
     for train_index, test_index in cv:
         print(len(train_index), len(test_index))
