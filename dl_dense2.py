@@ -14,45 +14,13 @@ from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
+from hyperspace_dense import find_hyperspace
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-
-space = {
-    'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
-    'learning_rate': hp.choice('lr', [3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-                                                    # remove lr = 5 & 7 after tuning
-    'init_nodes': hp.choice('init_nodes', [4, 8, 16]),  # nodes for Dense first layer -> LESS NODES
-    'dropout': hp.choice('dropout', [0.25, 0.5]),
-
-    'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
-    'mult_freq': hp.choice('mult_freq', [1, 2, 3]),         # nodes double frequency
-    'mult_start': hp.choice('mult_start', [2, 3]),       # first layer nodes number growth
-
-    # 'l1': hp.choice('l1', [0.01, 0.1, 1]),
-    'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
-}
-
-space_fix = {
-    # 'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
-    'learning_rate': hp.choice('lr', [3, 4]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-                                                    # remove lr = 5 & 7 after tuning
-    'dropout': hp.choice('dropout', [0.25, 0.5]),
-
-    'num_nodes': hp.choice('nodes_list', ['[16, 16, 16]',
-                                           '[8, 16, 16, 32]',
-                                           '[8, 8, 8, 8, 8]',
-                                           '[16, 16]',
-                                           '[8, 16, 32]',
-                                           '[16, 16, 16, 16]']),  # nodes for Dense first layer -> LESS NODES
-
-    'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [64, 128, 256]), # reduce batch size space # drop 512
-}
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -242,7 +210,7 @@ if __name__ == "__main__":
                     Y_valid = sample_set['train_y'][test_index]
 
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    # HPOT(space_fix, 10)
+                    # HPOT(space_fix, 10)                    space = find_hyperspace(sql_result)
                     HPOT(space, 10)
                     cv_number += 1
             except:

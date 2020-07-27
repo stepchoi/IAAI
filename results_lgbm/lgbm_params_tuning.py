@@ -56,11 +56,10 @@ def calc_correl(results):
 
     # pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
 
-def calc_average(df):
+def calc_average(df, params, r_name, model='lgbm'):
     ''' calculate mean of each variable in db '''
 
-
-    writer = pd.ExcelWriter('results_lgbm/params_tuning/lgbm_describe|{}.xlsx'.format(r_name))    # create excel records
+    writer = pd.ExcelWriter('results_lgbm/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
 
     for c in set(df['icb_code']):
         sub_df = df.loc[df['icb_code']==c]
@@ -162,7 +161,7 @@ if __name__ == "__main__":
     r_name = 'ibes_new industry_only ws -indi space'
 
     results = download(r_name=r_name)
-    calc_average(results)
+    calc_average(results, params, r_name)
     # plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)

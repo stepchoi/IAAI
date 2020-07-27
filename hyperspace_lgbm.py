@@ -1,5 +1,4 @@
 from hyperopt import hp
-import numpy as np
 
 space = {}
 space[0] = {

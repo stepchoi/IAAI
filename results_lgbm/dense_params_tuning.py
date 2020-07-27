@@ -3,14 +3,17 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
-from results_lgbm.lgbm_params_tuning import calc_correl
+from results_lgbm.lgbm_params_tuning import calc_correl, calc_average
+
+params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult',
+          'num_Dense_layer', 'num_nodes']
 
 def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
 
     if best == 'best':
         query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot) as min_thing " \
-                "from results_dense2 where name in '{}') t where mae_valid = min_thing".format(r_name)
+                "from results_dense2 where name = '{}') t where mae_valid = min_thing".format(r_name)
     elif r_name == 'all':
         query = 'SELECT * FROM results_dense2'
     else:
@@ -18,7 +21,7 @@ def download(r_name, best='best'):
 
 
     try: # update if newer results is downloaded
-        print('lgbm_{}|{}.csv'.format(best, r_name))
+        print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
         results = pd.read_csv('results_lgbm/params_tuning/dense2_{}|{}.csv'.format(best, r_name))
         print('local version run - {}.csv'.format(r_name))
 
@@ -31,6 +34,8 @@ def download(r_name, best='best'):
         results.to_csv('results_lgbm/params_tuning/dense2_{}|{}.csv'.format(best, r_name), index=False)
 
     calc_correl(results) # check correlation
+
+    print(results.columns)
 
     return results
 
@@ -147,7 +152,8 @@ if __name__ == "__main__":
     r_name = 'with ind code -small space'
 
     results = download(r_name=r_name)
-    plot_boxplot(results, r_name=r_name)
+    calc_average(results, params=params, r_name=r_name, model='dense2')
+    # plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)
     # compare_valid()

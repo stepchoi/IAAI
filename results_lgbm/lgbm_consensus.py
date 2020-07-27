@@ -465,7 +465,7 @@ if __name__ == "__main__":
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_new industry_only ws -indi space', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
+    r_name_list = ['ibes_new industry_only ws -indi space2', 'ibes_new industry_only ws -indi space', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
                    'ibes_new industry_monthly -new', 'ibes_new industry_all x', 'ibes_entire_only ws -small space']
 
 
@@ -484,6 +484,7 @@ if __name__ == "__main__":
         # exit(0)
 
         calc_mae_write(yoy_merge, tname=r_name)
+        break
 
     combine()
 
