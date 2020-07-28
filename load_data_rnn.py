@@ -273,7 +273,7 @@ class load_data:
 if __name__ == '__main__':
 
     add_ind_code = 0
-    testing_period = dt.datetime(2013, 3, 31)
+    testing_period = dt.datetime(2013, 6, 30)
     qcut_q = 10
     exclude_fwd = True
 
