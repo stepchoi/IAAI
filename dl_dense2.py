@@ -34,30 +34,44 @@ def dense_train(space):
     input_shape = (X_train.shape[-1],)      # input shape depends on x_fields used
     input_img = Input(shape=input_shape)
 
-    init_nodes = params['init_nodes']
-    nodes_mult = params['nodes_mult']
-    mult_freq = params['mult_freq']
-    mult_start = params['mult_start']
-    num_Dense_layer = params['num_Dense_layer']
+    if 'fix' in sql_result['name']:     # run with defined model structure e.g. [8, 8, 8]
+        nodes_list = ast.literal_eval(params['num_nodes'])  # convert str to nested dictionary
+        print(nodes_list)
 
-    # nodes_list = ast.literal_eval(params['num_nodes'])  # convert str to nested dictionary
-    # print(nodes_list)
-    # num_Dense_layer = len(nodes_list)
+        d_1 = Dense(nodes_list[0], activation=params['activation'])(input_img)
+        d_1 = Dropout(params['dropout'])(d_1)
+        for i in range(1, len(nodes_list)):
+            temp_nodes = nodes_list[i]
+            d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)
+            if i != len(nodes_list) - 1:    # last dense layer has no dropout
+                d_1 = Dropout(params['dropout'])(d_1)
 
-    nodes = []
-    for i in range(num_Dense_layer):
-        # temp_nodes = nodes_list[i]
-        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
-        d_1 = Dense(temp_nodes, activation=params['activation'])(input_img) # remove kernel_regularizer=regularizers.l1(params['l1'])
-        nodes.append(temp_nodes)
+        sql_result['num_nodes'] = str(nodes_list)
 
-        if i != num_Dense_layer - 1:    # last dense layer has no dropout
-            d_1 = Dropout(params['dropout'])(d_1)
+    else:
+        init_nodes = params['init_nodes']
+        nodes_mult = params['nodes_mult']
+        mult_freq = params['mult_freq']
+        mult_start = params['mult_start']
+        num_Dense_layer = params['num_Dense_layer']
+
+        d_1 = Dense(init_nodes, activation=params['activation'])(input_img)  # remove kernel_regularizer=regularizers.l1(params['l1'])
+        d_1 = Dropout(params['dropout'])(d_1)
+
+        nodes = [init_nodes]
+        for i in range(1, num_Dense_layer):
+            # temp_nodes = nodes_list[i]
+            temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
+            d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)  # remove kernel_regularizer=regularizers.l1(params['l1'])
+            nodes.append(temp_nodes)
+
+            if i != num_Dense_layer - 1:    # last dense layer has no dropout
+                d_1 = Dropout(params['dropout'])(d_1)
+
+        print(nodes)
+        sql_result['num_nodes'] = str(nodes)
 
     f_x = Dense(1)(d_1)
-
-    print(nodes)
-    sql_result['num_nodes'] = str(nodes)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
                       callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
@@ -66,10 +80,10 @@ def dense_train(space):
     adam = optimizers.Adam(lr=lr_val)
     model = Model(input_img, f_x)
     model.compile(adam, loss='mae')
+    model.summary()
 
     history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid),
                         callbacks=callbacks_list, verbose=1)
-    model.summary()
 
     # train_mae = model.evaluate(X_train, Y_train,  verbose=1)
     # valid_mae = model.evaluate(X_valid, Y_valid, verbose=1)
@@ -98,7 +112,6 @@ def eval(space):
     sql_result['finish_timing'] = dt.datetime.now()
 
     print('sql_result_before writing: ', sql_result)
-    exit(0)
     hpot['all_results'].append(sql_result.copy())
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
@@ -175,12 +188,12 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
-    sql_result['name'] = 'with ind code -small space'
+    sql_result['name'] = 'with ind code -fix space'
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True)
 
-    for add_ind_code in [0, 1, 2]: # 1 means add industry code as X
+    for add_ind_code in [0, 2, 1]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 

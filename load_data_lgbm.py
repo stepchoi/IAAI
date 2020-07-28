@@ -164,6 +164,11 @@ class load_data:
         start = testing_period - relativedelta(years=10)    # train df = 40 quarters
 
         self.sector = full_period(self.sector)
+
+        print(self.sector.shape)
+        self.sector = self.sector.loc[not(self.sector['ibes_qcut_as_x'].isnull())]
+        print(self.sector.shape)
+
         # self.sector['lookback_y_{}'.format(y_type)] = self.sector['y_{}'.format(y_type)].shift(20)
         # self.sector.iloc[self.sector.groupby('identifier').head(20),'lookback_y_{}'.format(y_type)]
         # full_hist_comp = self.sector.loc[self.sector['period_end']==start, 'identifier'].to_list()
