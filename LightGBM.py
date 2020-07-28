@@ -273,7 +273,7 @@ if __name__ == "__main__":
 
     # default parser
     macro_monthly = True # remember to change main.csv
-    resume = True      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
@@ -292,12 +292,12 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
+    for icb_code in [0]:   # roll over industries (first 2 icb code)
 
         if icb_code < 10:
             sql_result['name'] = 'ibes_industry_only ws -smaller space'  # name = labeling the experiments
         else:
-            sql_result['name'] = 'ibes_new industry_only ws -indi space3'  # name = labeling the experiments
+            sql_result['name'] = 'ibes_new industry_only ws -indi space3,1'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code

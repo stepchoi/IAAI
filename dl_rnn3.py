@@ -109,82 +109,95 @@ def rnn_train(space): #functional
         # join the return sequence and forecast state
         f_x = Concatenate(axis=1)([g_1, g_1_2, g_2, g_2_2])
         f_x = Dense(lookback + 1)(f_x)  # nodes = len return sequence +  1 for the forecast state
-        # f_x = Flatten()(f_x)
         f_x = Dense(1)(f_x)
 
     model = Model([input_img, input_img2], f_x) # input BOTH images as an ARRAY
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
-    callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')
+    callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
+                      callbacks.EarlyStopping(monitor='val_loss', patience=50,mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
-
-    history = model.fit([X_train, eps_train], Y_train, epochs=200, batch_size=params['batch_size'],
-                        validation_data=([X_valid, eps_valid], Y_valid), verbose=1)
     model.summary()
 
-    train_mae = model.evaluate([X_train, eps_train], Y_train,  verbose=1)
-    valid_mae = model.evaluate([X_valid, eps_valid], Y_valid, verbose=1)
-    test_mae = model.evaluate([X_test, eps_test], Y_test, verbose=1)
-    Y_test_pred = model.predict([X_test, eps_test])
+    history = model.fit([X_train, eps_train], Y_train, epochs=200, batch_size=params['batch_size'],
+                        validation_data=([X_valid, eps_valid], Y_valid), verbose=1, callbacks=callbacks_list)
 
-    return train_mae, valid_mae, test_mae, Y_test_pred, history
+    Y_test_pred = model.predict(X_test)
+    Y_train_pred = model.predict(X_train)
+    Y_valid_pred = model.predict(X_valid)
+
+    return Y_test_pred, Y_train_pred, Y_valid_pred, history
+
 
 def eval(space):
-    ''' train & evaluate each of the rnn model '''
+    ''' train & evaluate each of the dense model '''
 
-    train_mae, valid_mae, test_mae, Y_test_pred, history = rnn_train(space)     # train model
+    Y_test_pred, Y_train_pred, Y_valid_pred, history = rnn_train(space)
 
-    result = {'mae_train': train_mae,   # save results in dict
-              'mae_valid': valid_mae,
-              'mae_test': test_mae,
+    result = {'mae_train': mean_absolute_error(Y_train, Y_train_pred),
+              'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+              'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+              'r2_train': r2_score(Y_train, Y_train_pred),
+              'r2_valid': r2_score(Y_valid, Y_valid_pred),
+              'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
 
-    sql_result.update(space)            # update sql_results (dict written to DB)
+    sql_result.update(space)
     sql_result.update(result)
-    sql_result['finish_timing'] = dt.datetime.now()     # record training finish time
+    sql_result['finish_timing'] = dt.datetime.now()
 
     print('sql_result_before writing: ', sql_result)
+    hpot['all_results'].append(sql_result.copy())
 
-    with engine.connect() as conn:  # save training results
-        pd.DataFrame(sql_result, index=[0]).to_sql('results_rnn3', con=conn, index=False, if_exists='append')
+    with engine.connect() as conn:
+        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn', con=conn, index=False,
+                                                                if_exists='append', method='multi')
     engine.dispose()
+
+    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_history'] = history
+        hpot['best_trial'] = sql_result['trial_lgbm']
 
     sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
 
-def HPOT(space, max_evals = 10):
+
+def HPOT(space, max_evals=10):
     ''' use hyperopt on each set '''
 
-    hpot['best_mae'] = 1        # record best training (min mae_valid) in each hyperopt
+    hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
+    hpot['all_results'] = []
 
-    trials = Trials()           # use HPOT for 10 trials find minimal mae_valid
-    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials, verbose=False)
+    trials = Trials()
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
     print(hpot['best_stock_df'])
 
-    with engine.connect() as conn:      # save best trial per stock prediction to DB
-        hpot['best_stock_df'].to_sql('results_rnn3_stock', con=conn, index=False, if_exists='append')
+    with engine.connect() as conn:
+        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append',
+                                                 method='multi')
+        hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_history'])  # plot training history
+    # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
 
     sql_result['trial_hpot'] += 1
 
     return best
 
-def plot_history(history):
+
+def plot_history(history, trial, mae):
     ''' plot the training loss history '''
 
     history_dict = history.history
-    epochs = range(10, len(history_dict['loss'])+1)
+    epochs = range(10, len(history_dict['loss']) + 1)
 
     plt.plot(epochs, history_dict['loss'][9:], 'bo', label='training loss')
     plt.plot(epochs, history_dict['val_loss'][9:], 'b', label='validation loss')
@@ -193,8 +206,9 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_rnn_{}.png'.format(sql_result['trial_lgbm']))
+    plt.savefig('results_rnn/plot_cnn_dnn_{} {}.png'.format(trial, round(mae, 4)))
     plt.close()
+
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
@@ -203,9 +217,13 @@ def pred_to_sql(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['icb_code'] = [sql_result['icb_code']] * len(test_id)
+    df['testing_period'] = [sql_result['testing_period']] * len(test_id)
+    df['cv_number'] = [sql_result['cv_number']] * len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
+
 
 if __name__ == "__main__":
 

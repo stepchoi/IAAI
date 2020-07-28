@@ -181,8 +181,6 @@ class load_data:
 
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
-        train_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
-                                  (self.sector['period_end'] < testing_period)]['identifier'].to_list()
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
         test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list()
 
