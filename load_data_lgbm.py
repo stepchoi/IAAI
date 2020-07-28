@@ -166,7 +166,7 @@ class load_data:
         self.sector = full_period(self.sector)
 
         print(self.sector.shape)
-        self.sector = self.sector.loc[not(self.sector['ibes_qcut_as_x'].isnull())]
+        self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
         print(self.sector.shape)
 
         # self.sector['lookback_y_{}'.format(y_type)] = self.sector['y_{}'.format(y_type)].shift(20)
