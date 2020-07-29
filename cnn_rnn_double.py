@@ -60,6 +60,10 @@ def rnn_train(space): #functional
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
+    input_img2 = Input(shape=(lookback, 1))          #JUST EARNINGS %
+
+    ''' should we add cnn for eps only model? '''
+
 
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
@@ -67,26 +71,46 @@ def rnn_train(space): #functional
 
     g_1 = Reshape((lookback, kernel_size))(c_1) # reshape for GRU
 
-    #GRU part ---------------------------------
+    # GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
-        extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
+        extra = dict(return_sequences=True)  # need to iterative
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)),
+                             8))  # nodes grow at 2X or stay same - at least 8 nodes
 
         if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
-            g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
+            g_1_2 = GRU(temp_nodes, **extra)(g_1)  # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
+            # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
+            # g_1 = Flatten()(g_1)
 
-    g_1 = Flatten()(g_1)    # convert 3d sequence(?,?,1) -> 2d (?,?)
+    # second GRU
+    for i in range(params['num_gru_layer2']):
+        extra = dict(return_sequences=True)  # need to iterative
+        temp_nodes2 = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)),
+                              4))  # nodes grow at 2X or stay same - at least 4 nodes
+        if i == params['num_gru_layer'] - 1:
+            extra = dict(return_sequences=False)  # last layer does not output the whole sequence
+            g_2_2 = GRU(temp_nodes2, **extra)(g_2)  # this is the forecast state
+            extra = dict(return_sequences=True)
+            g_2 = GRU(1, dropout=0, **extra)(g_2)
+        elif i == 0:
+            # extra.update(input_shape=(lookback, number_of_kernels * 2))
+            g_2 = GRU(temp_nodes2, **extra)(input_img2)
+        else:
+            g_2 = GRU(temp_nodes2, dropout=params['gru_dropout'], **extra)(g_2)
+            g_2 = Flatten()(g_2)
 
-    #join the return sequence and forecast state
-    f_x = Concatenate(axis=1)([g_1, g_1_2])
+    g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
+    g_2 = Flatten()(g_2)
+
+    # join the return sequence and forecast state
+    f_x = Concatenate(axis=1)([g_1, g_1_2, g_2, g_2_2])
     f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
     f_x = Dense(1)(f_x)
 
