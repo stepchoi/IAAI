@@ -172,7 +172,7 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd, small_training=True):
+    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd, small_training=True, eps_only=False):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
@@ -199,8 +199,9 @@ class load_data:
         # 2. split and standardize train / test X
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
                                                            'icb_industry', 'y_ni', 'y_ibes', 'y_rev'})    # define x_fields
-
-        if exclude_fwd == True:
+        if eps_only == True:
+            x_col = {'eps1tr12', 'fn_8001'}
+        elif exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
 
         # 2.1. slice data for sample period + lookback period
@@ -293,13 +294,16 @@ if __name__ == '__main__':
     testing_period = dt.datetime(2013, 6, 30)
     qcut_q = 10
     exclude_fwd = False
+    small_training = True
+    eps_only = True
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
                                                                                  exclude_fwd=exclude_fwd,
                                                                                  y_type='ibes',
-                                                                                 small_training=True)
+                                                                                 small_training=small_training,
+                                                                                 eps_only=eps_only)
 
     print(x_col)
     print(train_x.shape, X_test.shape)

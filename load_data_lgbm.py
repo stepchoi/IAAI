@@ -311,8 +311,8 @@ if __name__ == '__main__':
     chron_valid = False
 
     # these are parameters used to load_data
-    icb_code = 0
-    testing_period = dt.datetime(2013,3,31)
+    icb_code = 2
+    testing_period = dt.datetime(2018,3,31)
     qcut_q = 10
     y_type = 'ibes'
 
