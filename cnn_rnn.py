@@ -26,8 +26,8 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
-parser.add_argument('--exclude_fwd', type=bool, action='store_true')
-parser.add_argument('--eps_only', type=bool, action='store_true')
+parser.add_argument('--exclude_fwd', default=False, action='store_true')
+parser.add_argument('--eps_only', default=False, action='store_true')
 args = parser.parse_args()
 
 space = {
