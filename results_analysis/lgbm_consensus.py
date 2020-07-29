@@ -15,6 +15,13 @@ indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 6
                501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
+idd = '00130H105'
+edd = '2003-06-30'
+def check_id(df):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
+        print(df.loc[(df['identifier'] ==idd) & (df['period_end']==edd)].sort_values(['period_end']))
+    exit(0)
+
 def download_add_detail(r_name, table_name):
     ''' download from DB TABLE results_lightgbm_stock '''
 
@@ -32,7 +39,7 @@ def download_add_detail(r_name, table_name):
         trial_lgbm = set(result_all['trial_lgbm'])
 
         try:
-            result_stock = pd.read_csv('results_lgbm/compare_with_ibes/stocks_all.csv')
+            result_stock = pd.read_csv('results_analysis/compare_with_ibes/stocks_all.csv')
             print('local version run - stock_all')
         except:
             # read corresponding part of DB TABLE results_lightgbm_stock
@@ -96,6 +103,7 @@ class eps_to_yoy:
 
         self.ibes['y_consensus'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']     # use ibes fwd & ttm for Y estimation
 
+
         self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
 
         # for name, g in self.ibes.groupby('icb_sector'):
@@ -107,12 +115,12 @@ def yoy_to_median(yoy):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
 
     try:    # read cut_bins from DB TABLE results_bins_new
-        bins_df = pd.read_csv('results_lgbm/results_bins_new.csv')
+        bins_df = pd.read_csv('results_analysis/results_bins_new.csv')
         print('local version run - results_bins ')
     except:
         with engine.connect() as conn:
             bins_df = pd.read_sql('SELECT * from results_bins_new', conn)
-            bins_df.to_csv('results_lgbm/results_bins_new.csv', index=False)
+            bins_df.to_csv('results_analysis/results_bins_new.csv', index=False)
         engine.dispose()
 
     def to_median(part_series, cut_bins_dict):
@@ -171,12 +179,12 @@ class download:
         ''' Download 1: download lightgbm results for stocks '''
 
         try:
-            detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(self.r_name))
+            detail_stock = pd.read_csv('results_analysis/compare_with_ibes/stock_{}.csv'.format(self.r_name))
             detail_stock = date_type(detail_stock, date_col='testing_period')
             print('local version run - stock_{}'.format(self.r_name), detail_stock.shape)
         except:
             detail_stock = download_add_detail(self.r_name,'results_lightgbm_stock')
-            detail_stock.to_csv('results_lgbm/compare_with_ibes/stock_{}.csv'.format(self.r_name), index=False)
+            detail_stock.to_csv('results_analysis/compare_with_ibes/stock_{}.csv'.format(self.r_name), index=False)
 
         return detail_stock
 
@@ -184,12 +192,12 @@ class download:
         ''' Download 2: download ibes_data and organize to YoY '''
 
         try:
-            yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
+            yoy = pd.read_csv('results_analysis/compare_with_ibes/ibes_yoy.csv')
             yoy = date_type(yoy)
             print('local version run - ibes_yoy')
         except:
             yoy = eps_to_yoy().merge_and_calc()
-            yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
+            yoy.to_csv('results_analysis/compare_with_ibes/ibes_yoy.csv', index=False)
 
         return yoy
 
@@ -197,29 +205,29 @@ class download:
         ''' convert ibes to median '''
 
         try:
-            yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes_median.csv')
+            yoy_med = pd.read_csv('results_analysis/compare_with_ibes/ibes_median.csv')
             yoy_med = date_type(yoy_med)
             print('local version run - ibes_median')
         except:
             yoy = self.download_ibes()
             yoy_med = yoy_to_median(yoy)                            # STEP2: convert ibes YoY to qcut / median
-            yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes_median.csv', index=False)
+            yoy_med.to_csv('results_analysis/compare_with_ibes/ibes_median.csv', index=False)
 
         return yoy_med
 
-    def merge_stock_ibes(self):
+    def merge_stock_ibes(self, agg_type='median'):
         ''' combine all prediction together '''
 
         # convert datetime
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
-        # print(self.detail_stock.shape)
-        # base_list = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv',
-        #                         usecols=['identifier', 'testing_period'])
-        # base_list = date_type(base_list, 'testing_period')
-        # self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
-        # print(self.detail_stock.shape)
+        print(self.detail_stock.shape)
+        base_list = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+                                usecols=['identifier', 'testing_period'])
+        base_list = date_type(base_list, 'testing_period')
+        self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
+        print(self.detail_stock.shape)
 
         if 'entire' in r_name: # for entire
             print('------ convert entire ------')
@@ -232,9 +240,15 @@ class download:
         self.detail_stock = self.detail_stock.drop_duplicates(
             subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
 
-        # use median for cross listing & multiple cross-validation
-        self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                       'x_type','y_type']).median()['pred'].reset_index(drop=False)
+        # use median/mean for cross listing & multiple cross-validation
+        if agg_type == 'mean':
+            self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
+                                                           'x_type','y_type']).mean()['pred'].reset_index(drop=False)
+        elif agg_type == 'median':
+            self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
+                                                           'x_type', 'y_type']).median()['pred'].reset_index(drop=False)
+        else:
+            exit(1)
 
         self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
@@ -249,7 +263,7 @@ class download:
         # print(mean_absolute_error(yoy_merge['y_ibes'], yoy_merge['y_consensus']))
         # exit(0)
 
-        # df=yoy_merge.loc[(yoy_merge['icb_code']==11) & (yoy_merge['cv_number']==5)]
+        # df=yoy_merge.loc[(yoy_merge['icb_code']==11) & (yoy_merge
         # check ={}
         # for name, g in yoy_merge.groupby(['icb_code','testing_period','cv_number']):
         #     check[name] = {}
@@ -266,7 +280,7 @@ class download:
         # df.to_csv('#check_mae4.csv')
 
         return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
-                                       'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut']]) # 'exclude_fwd -> x_type
+                                       'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']]) # 'exclude_fwd -> x_type
 
 class calc_mae_write():
 
@@ -286,7 +300,7 @@ class calc_mae_write():
             self.name = name
             self.merge = g
 
-            self.writer = pd.ExcelWriter('results_lgbm/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
+            self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -344,7 +358,7 @@ class calc_mae_write():
         df = pd.DataFrame(industry_dict).T
         print(df.T)
 
-        return df
+        return df[['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2','consensus_r2','consensus_r2_org','len']]
 
     def part_mae(self, df):
         ''' calculate different mae for groups of sample '''
@@ -353,6 +367,7 @@ class calc_mae_write():
         dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
+        dict['consensus_r2_org'] = r2_score(df['y_ibes'], df['y_consensus'])
         if 'ibes' in self.name:
             dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])
             dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
@@ -410,7 +425,7 @@ def label_industry_name(df):
 def combine():
     ''' combine average of different trial to save csv for comparison'''
 
-    os.chdir('results_lgbm/compare_with_ibes')
+    os.chdir('results_analysis/compare_with_ibes')
 
     average = []
 
@@ -429,7 +444,7 @@ def combine():
     avg_df = pd.concat(average, axis=0)
     avg_df = avg_df.filter(sorted(avg_df.columns.to_list())).reset_index()
     avg_df['index'] = avg_df['index'].replace(['1','2','6'],['entire','industry','sector'])
-    avg_df = avg_df.set_index(['index']).sort_values(['lgbm'])
+    avg_df = avg_df.set_index(['index'])#.sort_values(['lgbm'])
 
     def find_col(k):
         return [x for x in avg_df.columns if k in x]
@@ -470,8 +485,8 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
-    # df1 = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space.csv')
-    # df2 = pd.read_csv('results_lgbm/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv')
+    # df1 = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space.csv')
+    # df2 = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv')
     # print(df1.shape)
     # print(df2.shape)
     #
@@ -491,12 +506,15 @@ if __name__ == "__main__":
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_new industry_only ws -indi space3', 'ibes_new industry_only ws -indi space', 'ibes_new industry_only ws -indi space2', 'ibes_entire_only ws -smaller space', 'ibes_sector_only ws',
-                   'ibes_new industry_monthly -new', 'ibes_new industry_all x', 'ibes_entire_only ws -small space']
+    r_name_list = ['ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
 
     for r_name in r_name_list:
-        yoy_merge = download(r_name).merge_stock_ibes()
+        try:
+            yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
+            calc_mae_write(yoy_merge, tname=r_name)
+        except:
+            continue
 
         # import matplotlib.pyplot as plt
         # yoy_merge['res_consensus'] = yoy_merge['y_consensus_qcut'] - yoy_merge['y_ibes_qcut']
@@ -509,8 +527,6 @@ if __name__ == "__main__":
         #
         # exit(0)
 
-        calc_mae_write(yoy_merge, tname=r_name)
-        break
 
     combine()
 

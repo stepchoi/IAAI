@@ -8,7 +8,7 @@ from miscel import date_type, check_dup
 from collections import Counter
 import os
 
-from results_lgbm.lgbm_consensus import yoy_to_median, eps_to_yoy, label_sector, calc_mae_write, combine
+from results_analysis.lgbm_consensus import yoy_to_median, eps_to_yoy, label_sector, calc_mae_write, combine
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -17,13 +17,13 @@ def download_ibes_median():
     ''' Download ibes_data and organize to YoY and convert to qcut median '''
 
     try:
-        yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes_median.csv')
+        yoy_med = pd.read_csv('results_analysis/compare_with_ibes/ibes_median.csv')
         yoy_med = date_type(yoy_med)
         print('local version run - ibes_median')
     except:
         yoy = eps_to_yoy().merge_and_calc()
         yoy_med = yoy_to_median(yoy)  # STEP2: convert ibes YoY to qcut / median
-        yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes_median.csv', index=False)
+        yoy_med.to_csv('results_analysis/compare_with_ibes/ibes_median.csv', index=False)
 
     return yoy_med
 
@@ -31,7 +31,7 @@ def download_stock():
     ''' Download results_dense2_stock for stocks '''
 
     try:
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name))
+        detail_stock = pd.read_csv('results_analysis/compare_with_ibes/dense_stock_{}.csv'.format(r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
         print('local version run - stock_{}'.format(r_name))
     except:
@@ -51,7 +51,7 @@ def download_stock():
         engine.dispose()
 
         detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')  # map training information to stock data
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/dense_stock_{}.csv'.format(r_name), index=False)
+        detail_stock.to_csv('results_analysis/compare_with_ibes/dense_stock_{}.csv'.format(r_name), index=False)
         print('detial_stock shape: ', detail_stock)
 
     print(detail_stock)

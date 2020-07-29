@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GroupShuffleSplit
 from collections import Counter
-from results_lgbm.lgbm_consensus import eps_to_yoy
+from results_analysis.lgbm_consensus import eps_to_yoy
 from miscel import date_type
 import gc
 from miscel import check_dup
@@ -178,7 +178,6 @@ class load_data:
         self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
-
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         print('test_df: ', self.test.shape)

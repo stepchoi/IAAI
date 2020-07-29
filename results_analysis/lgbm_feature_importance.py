@@ -45,21 +45,21 @@ class download:
 
     def download_part(self, r_name):
         try:  # STEP1: download lightgbm results for feature importance
-            importance = pd.read_csv('results_lgbm/feature_importance/total_{}.csv'.format(r_name))
+            importance = pd.read_csv('results_analysis/feature_importance/total_{}.csv'.format(r_name))
             print('local version run - total_{}'.format(r_name))
         except:
             importance = download_result_features(r_name)
-            importance.to_csv('results_lgbm/feature_importance/total_{}.csv'.format(r_name), index=False)
+            importance.to_csv('results_analysis/feature_importance/total_{}.csv'.format(r_name), index=False)
         return importance
 
     def download_complete(self):
 
         try:  # STEP1: download lightgbm results for feature importance
-            importance = pd.read_csv('results_lgbm/feature_importance/total_ibes.csv')
+            importance = pd.read_csv('results_analysis/feature_importance/total_ibes.csv')
             print('local version run - total_ibes')
         except:
             importance = download_result_features()
-            importance.to_csv('results_lgbm/feature_importance/total_ibes.csv', index=False)
+            importance.to_csv('results_analysis/feature_importance/total_ibes.csv', index=False)
         return importance
 
     def finish(self):
@@ -98,7 +98,7 @@ def org_describe(feature_info, importance_type='split', tname=''):
 
     for by_rank in [True]:  # default calculate ranking importance
 
-        writer = pd.ExcelWriter('results_lgbm/feature_importance/describe_ibes_{}{}.xlsx'.format(rank_name[by_rank], tname))
+        writer = pd.ExcelWriter('results_analysis/feature_importance/describe_ibes_{}{}.xlsx'.format(rank_name[by_rank], tname))
 
         for name, g in feature_info.groupby(['y_type', 'x_type']):
             org_by_type(g, by_rank).to_excel(writer, '_'.join(name))

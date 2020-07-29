@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, mean_absolute_error
 from tqdm import tqdm
-from results_lgbm.lgbm_consensus import eps_to_yoy
+from results_analysis.lgbm_consensus import eps_to_yoy
 
 ''' classification'''
 
@@ -54,7 +54,7 @@ def act_lgbm_ibes(yoy_ibes_median, update):
     ''' combine all prediction together '''
 
     if update !=1 :     # No Update
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes_class_stock.csv')
+        detail_stock = pd.read_csv('results_analysis/compare_with_ibes/ibes_class_stock.csv')
         print('local version run - detail_stock')
 
     elif update == 1:   # Update stock specific results from FB
@@ -72,7 +72,7 @@ def act_lgbm_ibes(yoy_ibes_median, update):
         engine.dispose()
 
         detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes_class_stock.csv', index=False)
+        detail_stock.to_csv('results_analysis/compare_with_ibes/ibes_class_stock.csv', index=False)
 
     # convert datetime
     detail_stock['testing_period'] = pd.to_datetime(detail_stock['testing_period'], format='%Y-%m-%d')
@@ -116,7 +116,7 @@ def calc_accu(yoy_merge):
     df[['testing_period', 'icb_code']] = df['index'].str.split('_', expand=True)
     df = df.filter(['icb_code','testing_period', 'cv_number','ibes','lgbm','len'])
 
-    df.to_csv('results_lgbm/compare_with_ibes/ibes_class_accuracy.csv', index=False)
+    df.to_csv('results_analysis/compare_with_ibes/ibes_class_accuracy.csv', index=False)
 
 def main(update=0):
     ''' main function: clean ibes + calculate mae '''
@@ -124,40 +124,40 @@ def main(update=0):
     ''' main function: clean ibes + calculate mae '''
 
     try:    # STEP1: download ibes_data and organize to YoY
-        yoy = pd.read_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv')
+        yoy = pd.read_csv('results_analysis/compare_with_ibes/ibes_yoy.csv')
         yoy['period_end'] = pd.to_datetime(yoy['period_end'], format='%Y-%m-%d')
         print('local version run - 1. ibes_yoy ')
     except:
         yoy = eps_to_yoy().merge_and_calc()
-        yoy.to_csv('results_lgbm/compare_with_ibes/ibes_yoy.csv', index=False)
+        yoy.to_csv('results_analysis/compare_with_ibes/ibes_yoy.csv', index=False)
 
     try:    # STEP2: convert ibes YoY to qcut / median
-        yoy_med = pd.read_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv')
+        yoy_med = pd.read_csv('results_analysis/compare_with_ibes/ibes2_yoy_median.csv')
         print('local version run - 2. ibes_median ')
     except:
         yoy_med = yoy_to_median(yoy, industry)  # Update every time for new cut_bins
-        yoy_med.to_csv('results_lgbm/compare_with_ibes/ibes2_yoy_median.csv', index=False)
+        yoy_med.to_csv('results_analysis/compare_with_ibes/ibes2_yoy_median.csv', index=False)
 
     try:    # STEP3: download lightgbm results for stocks
-        detail_stock = pd.read_csv('results_lgbm/compare_with_ibes/ibes3_detail_stock.csv')
+        detail_stock = pd.read_csv('results_analysis/compare_with_ibes/ibes3_detail_stock.csv')
         detail_stock['testing_period'] = pd.to_datetime(detail_stock['testing_period'], format='%Y-%m-%d')
         print('local version run - 3. detail_stock')
     except:
         detail_stock = download_result_stock()
-        detail_stock.to_csv('results_lgbm/compare_with_ibes/ibes3_detail_stock.csv', index=False)
+        detail_stock.to_csv('results_analysis/compare_with_ibes/ibes3_detail_stock.csv', index=False)
 
     try:    # STEP4: combine lightgbm and ibes results
-        yoy_merge = pd.read_csv('results_lgbm/compare_with_ibes/ibes4_yoy_merge.csv')   # delete this file for stock results update
+        yoy_merge = pd.read_csv('results_analysis/compare_with_ibes/ibes4_yoy_merge.csv')   # delete this file for stock results update
         print('local version run - 4. yoy_merge')
     except:
         yoy_merge = act_lgbm_ibes(detail_stock, yoy_med)
-        yoy_merge.to_csv('results_lgbm/compare_with_ibes/ibes4_yoy_merge.csv', index=False)
+        yoy_merge.to_csv('results_analysis/compare_with_ibes/ibes4_yoy_merge.csv', index=False)
 
     df = calc_mae(yoy_merge, industry, ibes_act)  # STEP5: calculate MAE
 
     name = {True:{True:'ibesttm_industry', False:'ibesttm_sector'}, False: {True:'wsttm_industry', False:'wsttm_sector'}}
     print('save to file name: ibes5_mae_{}'.format(name[ibes_act][industry]))
-    df.to_csv('results_lgbm/compare_with_ibes/ibes5_mae_{}.csv'.format(name[ibes_act][industry]), index=False)
+    df.to_csv('results_analysis/compare_with_ibes/ibes5_mae_{}.csv'.format(name[ibes_act][industry]), index=False)
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'

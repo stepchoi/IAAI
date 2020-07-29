@@ -172,20 +172,27 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd):
+    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd, small_training=True):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
         start_train_y = testing_period - relativedelta(years=10)    # train df = 40 quarters
         self.sector = full_period(self.sector).sort_values(['period_end', 'identifier']).reset_index(drop=True)  # fill in for non-sequential records
 
+        # self.sector.loc[
+        #     (start_train_y <= self.sector['period_end']) &  # extract array for 10y Y records for training set
+        #     (self.sector['period_end'] < testing_period)][['identifier', 'period_end', 'y_ibes', 'eps1fd12', 'fn_8001']].to_csv('rnn_training_len.csv', index=False)
+        # exit(0)
+
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
         train_filter = self.sector.loc[(start_train_y <= self.sector['period_end']) &  # filter samples with consensus prediction
-                                       (self.sector['period_end'] < testing_period)]['eps1fd12']
-        test_y = self.sector.loc[self.sector['period_end'] == testing_period]['eps1fd12']   # filter samples with consensus prediction
-        test_filter = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
-        test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list()
+                                       (self.sector['period_end'] < testing_period)][['eps1fd12','fn_8001']]
+        train_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &  # training sets id
+                                       (self.sector['period_end'] < testing_period)]['identifier'].to_list()
+        test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]   # filter samples with consensus prediction
+        test_filter = self.sector.loc[self.sector['period_end'] == testing_period][['eps1fd12','fn_8001']]    # 1q Y records for testing set
+        test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list() # testing sets id
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)  # qcut & convert to median for training / testing
 
@@ -225,21 +232,27 @@ class load_data:
         train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
         test_x = to_3d(test_2dx_info, [0])
 
+        print(np.isnan(train_filter.values))
+        print(np.isnan(train_filter.values).all(axis=1))
+
         # 2.4. remove samples without Y
-        train_mask = np.logical_or(np.isnan(train_y[:, 0]), np.isnan(train_filter.values)) # y_ibes / eps1fd12 is not np.nan
+        if small_training == True: # using samples with consensus prediction
+            train_mask = np.logical_or(np.isnan(train_y[:, 0]), np.isnan(train_filter.values).all(axis=1)) # y_ibes / eps1fd12 is not np.nan
+            test_mask = np.logical_or(np.isnan(test_y[:, 0]), np.isnan(test_filter.values).all(axis=1))
+        else:
+            train_mask = np.isnan(train_y[:, 0])
+            test_mask = np.isnan(test_y[:, 0])
+
         train_x = train_x[~train_mask]  # remove y = nan
+        train_id = np.array(train_id)[~train_mask]
         train_y = train_y[~train_mask]
 
-        test_mask = np.logical_or(np.isnan(test_y[:, 0]), np.isnan(test_filter.values)) # y_ibes / eps1fd12 is not np.nan
         test_x = test_x[~test_mask]
         test_id = np.array(test_id)[~test_mask]    # records identifier for testing set for TABLE results_rnn_stock
         test_y = test_y[~test_mask]
 
         # 3. split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set
-        group_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &
-                                   (self.sector['period_end'] < testing_period)].mask)['identifier']
-
-        cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
+        cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = train_id)
 
         return train_x, train_y, test_x, test_y, cv, test_id, x_col
 
@@ -284,7 +297,12 @@ if __name__ == '__main__':
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
     train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
-                                                                                 exclude_fwd=exclude_fwd, y_type='ibes')
+                                                                                 exclude_fwd=exclude_fwd,
+                                                                                 y_type='ibes',
+                                                                                 small_training=True)
+
+    print(train_x.shape, X_test.shape)
+    exit(0)
 
     # lgbm_id = pd.read_csv('lgbm_id.csv')
     # lgbm_id['lgbm_id'] = [str(x).zfill(9) for x in lgbm_id['lgbm_id']]

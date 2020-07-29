@@ -22,7 +22,7 @@ def download(r_name, best='best'):
 
     try: # update if newer results is downloaded
         print('lgbm_{}|{}.csv'.format(best, r_name))
-        results = pd.read_csv('results_lgbm/params_tuning/lgbm_{}|{}.csv'.format(best, r_name))
+        results = pd.read_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name))
         print('local version run - {}.csv'.format(r_name))
 
     except:
@@ -31,7 +31,7 @@ def download(r_name, best='best'):
             results = pd.read_sql(query, con=conn)
         engine.dispose()
 
-        results.to_csv('results_lgbm/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
+        results.to_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
 
     calc_correl(results) # check correlation
 
@@ -55,12 +55,12 @@ def calc_correl(results):
 
     print(pd.DataFrame(correls))
 
-    # pd.DataFrame(correls).to_csv('results_lgbm/params_tuning/results_correl.csv')
+    # pd.DataFrame(correls).to_csv('results_analysis/params_tuning/results_correl.csv')
 
 def calc_average(df, params, r_name, model='lgbm'):
     ''' calculate mean of each variable in db '''
 
-    writer = pd.ExcelWriter('results_lgbm/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
+    writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
 
     for c in set(df['icb_code']):
         sub_df = df.loc[df['icb_code']==c]
@@ -133,14 +133,14 @@ def plot_boxplot(df, r_name=None):
     # fig_test.tight_layout()
     fig_all.tight_layout()
 
-    # fig_test.savefig('results_lgbm/params_tuning/plot_{}_test.png'.format(r_name))
-    fig_all.savefig('results_lgbm/params_tuning/plot_{}_all.png'.format(r_name))
-    pd.concat(des_df_list, axis=0).to_csv('results_lgbm/params_tuning/{}_describe.csv'.format(r_name), index=False)
+    # fig_test.savefig('results_analysis/params_tuning/plot_{}_test.png'.format(r_name))
+    fig_all.savefig('results_analysis/params_tuning/plot_{}_all.png'.format(r_name))
+    pd.concat(des_df_list, axis=0).to_csv('results_analysis/params_tuning/{}_describe.csv'.format(r_name), index=False)
 
 def compare_valid():
-    chron_v = pd.read_csv('results_lgbm/results_chron_valid.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
+    chron_v = pd.read_csv('results_analysis/results_chron_valid.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
                                                                          'mae_valid', 'mae_test', 'exclude_fwd'])
-    group_v = pd.read_csv('results_lgbm/results_regression.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
+    group_v = pd.read_csv('results_analysis/results_regression.csv', usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
                                                                         'mae_valid', 'mae_test', 'exclude_fwd'])
     def clean(df, valid_type):
         df_best = df.iloc[df.groupby(['trial_hpot'])['mae_valid'].idxmin()]
@@ -153,7 +153,7 @@ def compare_valid():
     df_list.append(clean(chron_v, 'chron'))
     df_list.append(clean(group_v, 'stock'))
     final = pd.concat(df_list, axis=0)
-    final.to_csv('results_lgbm/compare_valid.csv', index=False)
+    final.to_csv('results_analysis/compare_valid.csv', index=False)
 
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
