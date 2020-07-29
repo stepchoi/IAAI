@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import gc
 import argparse
 import pandas as pd
 import datetime as dt
@@ -259,6 +260,7 @@ if __name__ == "__main__":
             print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
             HPOT(space, 10)
+            gc.collect()
             cv_number += 1
 
 
