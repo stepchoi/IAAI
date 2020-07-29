@@ -7,6 +7,7 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from tensorflow.python.keras import callbacks, optimizers, regularizers
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Dense, Dropout, Input
+from tensorflow.python.keras import backend as K
 from sklearn.metrics import r2_score, mean_absolute_error
 
 from sqlalchemy import create_engine
@@ -119,6 +120,7 @@ def eval(space):
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_history'] = history
 
+    K.clear_session()
     sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
@@ -186,14 +188,14 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2013,12,31)
     sample_no = 25
-    sql_result['name'] = 'with ind code -fix space'
+    sql_result['name'] = 'new with indi code -fix space'
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True)
 
-    for add_ind_code in [0, 2, 1]: # 1 means add industry code as X
+    for add_ind_code in [1, 2]: # 1 means add industry code as X
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
 

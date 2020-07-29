@@ -181,7 +181,10 @@ class load_data:
 
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
-        test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
+        train_filter = self.sector.loc[(start_train_y <= self.sector['period_end']) &  # filter samples with consensus prediction
+                                       (self.sector['period_end'] < testing_period)]['eps1fd12']
+        test_y = self.sector.loc[self.sector['period_end'] == testing_period]['eps1fd12']   # filter samples with consensus prediction
+        test_filter = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]    # 1q Y records for testing set
         test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list()
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)  # qcut & convert to median for training / testing
@@ -223,15 +226,18 @@ class load_data:
         test_x = to_3d(test_2dx_info, [0])
 
         # 2.4. remove samples without Y
-        train_x = train_x[~np.isnan(train_y[:, 0])]  # remove y = nan
-        train_y = train_y[~np.isnan(train_y[:, 0])]
-        test_x = test_x[~np.isnan(test_y[:, 0])]
-        test_id = np.array(test_id)[~np.isnan(test_y[:, 0])]    # records identifier for testing set for TABLE results_rnn_stock
-        test_y = test_y[~np.isnan(test_y[:, 0])]
+        train_mask = np.logical_or(np.isnan(train_y[:, 0]), np.isnan(train_filter.values)) # y_ibes / eps1fd12 is not np.nan
+        train_x = train_x[~train_mask]  # remove y = nan
+        train_y = train_y[~train_mask]
+
+        test_mask = np.logical_or(np.isnan(test_y[:, 0]), np.isnan(test_filter.values)) # y_ibes / eps1fd12 is not np.nan
+        test_x = test_x[~test_mask]
+        test_id = np.array(test_id)[~test_mask]    # records identifier for testing set for TABLE results_rnn_stock
+        test_y = test_y[~test_mask]
 
         # 3. split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set
         group_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &
-                                   (self.sector['period_end'] < testing_period)].dropna(subset=['y_{}'.format(y_type)])['identifier']
+                                   (self.sector['period_end'] < testing_period)].mask)['identifier']
 
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = group_id)
 
