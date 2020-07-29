@@ -25,10 +25,16 @@ tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--name', type=str, default='trial')
 parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--eps_only', default=False, action='store_true')
 args = parser.parse_args()
+
+'''
+python3 cnn_rnn.py --name eps_only_0 --eps_only
+python3 cnn_rnn.py --name exclude_fwd_0 --exclude_fwd
+'''
 
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
