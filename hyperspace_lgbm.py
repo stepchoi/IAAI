@@ -145,10 +145,14 @@ def find_hyperspace(sql_result):
 
     if sql_result['icb_code'] < 10:
         return space[0]
-    elif sql_result['icb_code'] >= 10:
-        try:
-            return space[sql_result['icb_code']]
-        except:
-            return space[0]
+    elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
+        return space[sql_result['icb_code']]
+    elif sql_result['icb_code'] >= 100:
+        sector_2_ind = {301010: 30, 101020: 11, 201030: 20, 302020: 30, 351020: 35, 502060: 51, 552010: 51, 651010: 65,
+                        601010: 60, 502050: 51, 101010: 11, 501010: 51, 201020: 20, 502030: 51, 401010: 40, 999999: 0}
+        print(sector_2_ind[sql_result['icb_code']])
+        return space[sector_2_ind[sql_result['icb_code']]]
 
-
+if __name__ == '__main__':
+    sql_result = {'icb_code': 999}
+    print(find_hyperspace(sql_result))
