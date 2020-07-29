@@ -9,6 +9,7 @@ from sklearn.metrics import r2_score, mean_absolute_error
 from tensorflow.python.keras import callbacks, optimizers, initializers
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
+from tensorflow.python.keras import backend as K
 
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
@@ -155,6 +156,7 @@ def eval(space):
         hpot['best_history'] = history
         hpot['best_trial'] = sql_result['trial_lgbm']
 
+    K.clear_session()
     sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']

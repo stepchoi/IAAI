@@ -187,11 +187,11 @@ class load_data:
         train_y = self.sector.loc[(start_train_y <= self.sector['period_end']) &    # extract array for 10y Y records for training set
                                   (self.sector['period_end'] < testing_period)]['y_{}'.format(y_type)]
         train_filter = self.sector.loc[(start_train_y <= self.sector['period_end']) &  # filter samples with consensus prediction
-                                       (self.sector['period_end'] < testing_period)][['eps1fd12','fn_8001']]
+                                       (self.sector['period_end'] < testing_period)][['eps1fd12','fn_8001','fn_18263']]
         train_id = self.sector.loc[(start_train_y <= self.sector['period_end']) &  # training sets id
                                        (self.sector['period_end'] < testing_period)]['identifier'].to_list()
         test_y = self.sector.loc[self.sector['period_end'] == testing_period]['y_{}'.format(y_type)]   # filter samples with consensus prediction
-        test_filter = self.sector.loc[self.sector['period_end'] == testing_period][['eps1fd12','fn_8001']]    # 1q Y records for testing set
+        test_filter = self.sector.loc[self.sector['period_end'] == testing_period][['eps1fd12','fn_8001','fn_18263']]
         test_id = self.sector.loc[self.sector['period_end'] == testing_period]['identifier'].to_list() # testing sets id
 
         train_y, test_y = self.y_qcut(train_y, test_y, qcut_q)  # qcut & convert to median for training / testing
@@ -233,12 +233,12 @@ class load_data:
         test_x = to_3d(test_2dx_info, [0])
 
         print(np.isnan(train_filter.values))
-        print(np.isnan(train_filter.values).all(axis=1))
+        print(np.isnan(train_filter.values).any(axis=1))
 
         # 2.4. remove samples without Y
         if small_training == True: # using samples with consensus prediction
-            train_mask = np.logical_or(np.isnan(train_y[:, 0]), np.isnan(train_filter.values).all(axis=1)) # y_ibes / eps1fd12 is not np.nan
-            test_mask = np.logical_or(np.isnan(test_y[:, 0]), np.isnan(test_filter.values).all(axis=1))
+            train_mask = np.logical_or(np.isnan(train_y[:, 0]), np.isnan(train_filter.values).any(axis=1)) # y_ibes / eps1fd12 is not np.nan
+            test_mask = np.logical_or(np.isnan(test_y[:, 0]), np.isnan(test_filter.values).any(axis=1))
         else:
             train_mask = np.isnan(train_y[:, 0])
             test_mask = np.isnan(test_y[:, 0])
@@ -292,7 +292,7 @@ if __name__ == '__main__':
     add_ind_code = 0
     testing_period = dt.datetime(2013, 6, 30)
     qcut_q = 10
-    exclude_fwd = True
+    exclude_fwd = False
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
@@ -301,6 +301,7 @@ if __name__ == '__main__':
                                                                                  y_type='ibes',
                                                                                  small_training=True)
 
+    print(x_col)
     print(train_x.shape, X_test.shape)
     exit(0)
 
