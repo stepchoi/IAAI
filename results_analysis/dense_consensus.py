@@ -92,7 +92,7 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'with ind code -small space'
+    r_name = 'new with ind code -small space'
     tname = 'dense2_fixed_space'
 
     yoy_merge = merge_ibes_stock()
@@ -100,4 +100,4 @@ if __name__ == "__main__":
 
     calc_mae_write(yoy_merge, tname=tname)
 
-    combine()
+    # combine()
