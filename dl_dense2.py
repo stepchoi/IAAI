@@ -192,7 +192,7 @@ if __name__ == "__main__":
     sample_no = 25
     # sql_result['name'] = 'new with indi code -fix space'
     sql_result['name'] = 'new industry model -fix space'
-    resume = True
+    resume = False
 
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-    for add_ind_code in indi_industry_new: # 1 means add industry code as X
+    for add_ind_code in [0,2]: # 1 means add industry code as X
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 
@@ -224,10 +224,12 @@ if __name__ == "__main__":
 
             # resume for those unfinished in between for dense-1/2/3
             try:
-                if undone[add_ind_code][str(testing_period)]!=1:
+                if undone[str(add_ind_code)][str(testing_period)]!=1:
                     continue
             except:
                 continue
+
+            print('----------> start from', add_ind_code, testing_period)
 
             # if qcut_q==10:
             try:
@@ -258,6 +260,5 @@ if __name__ == "__main__":
             except:
                 continue
 
-    print(ll)
 
 

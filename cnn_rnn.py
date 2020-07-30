@@ -36,7 +36,7 @@ python3 cnn_rnn.py --exclude_fwd
 '''
 
 space = {
-    'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
+    'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
