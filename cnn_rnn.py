@@ -25,15 +25,14 @@ tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--name', type=str, default='trial')
 parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--eps_only', default=False, action='store_true')
 args = parser.parse_args()
 
 '''
-python3 cnn_rnn.py --name eps_only_0 --eps_only
-python3 cnn_rnn.py --name exclude_fwd_0 --exclude_fwd
+python3 cnn_rnn.py --eps_only
+python3 cnn_rnn.py --exclude_fwd
 '''
 
 space = {
@@ -237,7 +236,7 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'without ibes -2'
+    sql_result['name'] = 'small_training_{}_{}_{}'.format(args.exclude_fwd, args.eps_only, args.add_ind_code)
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
 
     data = load_data(macro_monthly=True)
@@ -245,6 +244,8 @@ if __name__ == "__main__":
     add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 mesns add sector code as X
     data.split_entire(add_ind_code=add_ind_code)
     sql_result['icb_code'] = add_ind_code
+
+    print(sql_result)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
         testing_period = period_1 + i * relativedelta(months=3)
