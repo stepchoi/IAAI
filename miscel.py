@@ -54,10 +54,22 @@ if __name__ == '__main__':
     #     # print((i-mult_start+1)//mult_freq)
     #     print(i, temp_nodes)
 
+    import datetime as dt
+    from dateutil.relativedelta import relativedelta
+
+    ll = pd.read_csv('ll.csv', index_col='Unnamed: 0')
+    ll = ll.fillna(0).to_dict()
+    lll = {}
+
+    for i in ll.keys():
+        lll[i] = {}
+        for t in ll[i].keys():
+            if ll[i][t] < 5:
+                lll[i][t] = 1
+
+    print(lll)
 
 
-    df_c = df.replace([np.inf, np.inf], np.nan)
-    # print(df_c.isnull().sum() - df.isnull().sum())
 
 
 

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import datetime as dt
+from dateutil.relativedelta import relativedelta
 import ast
 import os
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
@@ -11,7 +12,6 @@ from tensorflow.python.keras import backend as K
 from sklearn.metrics import r2_score, mean_absolute_error
 
 from sqlalchemy import create_engine
-from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
@@ -198,6 +198,10 @@ if __name__ == "__main__":
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True)
 
+    undone = {'0': {'2013-03-31 00:00:00': 1, '2013-09-30 00:00:00': 1, '2013-12-31 00:00:00': 1, '2014-12-31 00:00:00': 1,
+                    '2015-03-31 00:00:00': 1, '2015-12-31 00:00:00': 1, '2016-03-31 00:00:00': 1},
+              '2': {'2013-03-31 00:00:00': 1, '2013-06-30 00:00:00': 1, '2016-09-30 00:00:00': 1}}
+
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
     for add_ind_code in indi_industry_new: # 1 means add industry code as X
@@ -208,6 +212,7 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
+            # resume from last records in DB
             if resume == True:
 
                 if {'icb_code': add_ind_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
@@ -216,6 +221,13 @@ if __name__ == "__main__":
                 else:
                     print('Not yet resume: params done', add_ind_code, testing_period)
                     continue
+
+            # resume for those unfinished in between for dense-1/2/3
+            try:
+                if undone[add_ind_code][str(testing_period)]!=1:
+                    continue
+            except:
+                continue
 
             # if qcut_q==10:
             try:
@@ -245,5 +257,7 @@ if __name__ == "__main__":
                     cv_number += 1
             except:
                 continue
+
+    print(ll)
 
 
