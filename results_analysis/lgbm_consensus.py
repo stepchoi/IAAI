@@ -506,7 +506,7 @@ if __name__ == "__main__":
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_sector_only ws -indi space', 'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
+    r_name_list = ['ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space', 'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
 
     for r_name in r_name_list:
@@ -515,6 +515,7 @@ if __name__ == "__main__":
             calc_mae_write(yoy_merge, tname=r_name)
         except:
             continue
+        break
 
         # import matplotlib.pyplot as plt
         # yoy_merge['res_consensus'] = yoy_merge['y_consensus_qcut'] - yoy_merge['y_ibes_qcut']
