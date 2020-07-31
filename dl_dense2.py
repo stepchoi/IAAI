@@ -180,31 +180,31 @@ if __name__ == "__main__":
     hpot = {}
 
     # default settings to
-    exclude_fwd = True
+    exclude_fwd = False
     use_median = True
     chron_valid = False
-    ibes_qcut_as_x = False
+    ibes_qcut_as_x = True
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
-    # sql_result['name'] = 'new with indi code -fix space'
-    sql_result['name'] = 'new industry model -fix space'
+    sql_result['name'] = 'all x -fix space'
+    # sql_result['name'] = 'new industry model -fix space'
     resume = False
 
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True)
 
-    undone = {'0': {'2013-03-31 00:00:00': 1, '2013-09-30 00:00:00': 1, '2013-12-31 00:00:00': 1, '2014-12-31 00:00:00': 1,
-                    '2015-03-31 00:00:00': 1, '2015-12-31 00:00:00': 1, '2016-03-31 00:00:00': 1},
-              '2': {'2013-03-31 00:00:00': 1, '2013-06-30 00:00:00': 1, '2016-09-30 00:00:00': 1}}
+    # undone = {'0': {'2013-03-31 00:00:00': 1, '2013-09-30 00:00:00': 1, '2013-12-31 00:00:00': 1, '2014-12-31 00:00:00': 1,
+    #                 '2015-03-31 00:00:00': 1, '2015-12-31 00:00:00': 1, '2016-03-31 00:00:00': 1},
+    #           '2': {'2013-03-31 00:00:00': 1, '2013-06-30 00:00:00': 1, '2016-09-30 00:00:00': 1}}
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-    for add_ind_code in [0,2]: # 1 means add industry code as X
+    for add_ind_code in [0]: # 1 means add industry code as X
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 
@@ -222,14 +222,14 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', add_ind_code, testing_period)
                     continue
 
-            # resume for those unfinished in between for dense-1/2/3
-            try:
-                if undone[str(add_ind_code)][str(testing_period)]!=1:
-                    continue
-            except:
-                continue
+            # # resume for those unfinished in between for dense-1/2/3
+            # try:
+            #     if undone[str(add_ind_code)][str(testing_period)]!=1:
+            #         continue
+            # except:
+            #     continue
 
-            print('----------> start from', add_ind_code, testing_period)
+            # print('----------> start from', add_ind_code, testing_period)
 
             # if qcut_q==10:
             try:

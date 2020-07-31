@@ -259,7 +259,7 @@ if __name__ == "__main__":
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
-    period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
+    period_1 = dt.datetime(2014, 9, 30)     # starting point for first testing set
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
@@ -274,15 +274,15 @@ if __name__ == "__main__":
     # default parser
     macro_monthly = True # remember to change main.csv
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
-    sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
+    sample_no = 1      # number of training/testing period go over ( 25 = until 2019-3-31)
 
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
-    load_data_params['exclude_fwd'] = True
-    load_data_params['ibes_qcut_as_x'] = False
+    load_data_params['exclude_fwd'] = False
+    load_data_params['ibes_qcut_as_x'] = True
     # sql_result['objective'] = base_space['objective'] = 'regression_l2'
-    sql_result['x_type'] = 'fwdepsqcut'
+    sql_result['x_type'] = 'ni'
 
     # update load_data pa
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
@@ -292,9 +292,9 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in [999999]:   # roll over industries (first 2 icb code)
+    for icb_code in [40]:   # roll over industries (first 2 icb code)
 
-        sql_result['name'] = 'ibes_sector_only ws -indi space'  # name = labeling the experiments
+        sql_result['name'] = 'ibes_new industry_all x -indi space'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
