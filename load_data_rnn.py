@@ -119,17 +119,21 @@ def yoy(df):
               'fn_2999', 'fn_3101', 'fn_3255', 'fn_3501', 'fn_5085', 'fn_8001']     # replace fn_18263 (ws net income) with eps1tr12 (ibes eps)
 
     df = full_period(df)  # fill in non sequential records
+
+    df['eps_rnn'] = (df['eps1tr12'] - df['eps1tr12'].shift(4))/(df['fn_8001'].shift(4))*(df['fn_5192'].shift(4))
+    df.loc[df.groupby('identifier').head(4).index, 'eps_rnn'] = np.nan     # avoid calculation with different identifier
+
+    # df[['identifier', 'period_end', 'eps_rnn', 'eps1tr12', 'fn_8001', 'fn_5192']].to_csv('#simple_rnn1.csv')
+    # exit(0)
+
     df[ws_col] = (df[ws_col] / df[ws_col].shift(4)).sub(1)  # calculate YoY using (T0 - T-4)/T-4
     df.loc[df.groupby('identifier').head(4).index, ws_col] = np.nan     # avoid calculation with different identifier
-
-    df['eps_rnn'] = (df['eps1tr12'] - df['eps1tr12'].shift(4))/df['fn_8001']
-    df.loc[df.groupby('identifier').head(4).index, 'eps_rnn'] = np.nan     # avoid calculation with different identifier
 
     df[ws_col] = trim_outlier(df[ws_col])   # use 100% as maximum values -> avoid inf
     df = df.dropna(subset=ws_col, how='all')
     # print(df.describe().T[['min','max']])
 
-    return df.filter(['identifier', 'period_end'] + ws_col)
+    return df.filter(['identifier', 'period_end'] + ws_col + ['eps_rnn'])
 
 class load_data:
     ''' main function:
@@ -145,12 +149,15 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            try:
-                self.main.to_csv('preprocess/main_rnn.csv', index=False)
-            except:
-                pass
+            # # try:
+            #      self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            # # except:
+            # #     pass
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
+
+        self.main[['identifier', 'period_end', 'y_ibes', 'eps_rnn']].to_csv('#simple_rnn.csv')
+        exit(0)
 
         # define self objects
         self.cut_bins = {}
@@ -201,7 +208,7 @@ class load_data:
 
         # 2. split and standardize train / test X
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
-                                                           'icb_industry', 'y_ni', 'y_ibes', 'y_rev'})    # define x_fields
+                                                           'icb_industry', 'y_ni', 'y_ibes', 'y_rev', 'eps_rnn'})    # define x_fields
         if eps_only == True:
             x_col = {'eps_rnn'}
         elif exclude_fwd == True:
@@ -235,9 +242,6 @@ class load_data:
 
         train_x = to_3d(train_2dx_info, range(40))  # convert to 3d array
         test_x = to_3d(test_2dx_info, [0])
-
-        print(np.isnan(train_filter.values))
-        print(np.isnan(train_filter.values).any(axis=1))
 
         # 2.4. remove samples without Y
         if small_training == True: # using samples with consensus prediction
