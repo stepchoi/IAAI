@@ -32,7 +32,6 @@ args = parser.parse_args()
 space = {
     'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
@@ -56,17 +55,9 @@ def rnn_train(space): #functional
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
 
-    kernel_size =params['kernel_size'] # of different "scenario"
     num_nodes = params['gru_nodes']
 
-    #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
-    input_img = Input(shape=(lookback, x_fields, 1))
-
-    #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
-    c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
-    c_1 = LeakyReLU(alpha=0.1)(c_1)
-
-    g_1 = Reshape((lookback, kernel_size))(c_1) # reshape for GRU
+    input_img = Input(shape=(lookback, x_fields))     # equivalent to input_img
 
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
@@ -79,8 +70,7 @@ def rnn_train(space): #functional
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
-            g_1 = GRU(temp_nodes, **extra)(g_1)
+            g_1 = GRU(temp_nodes, **extra)(input_img)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
 
