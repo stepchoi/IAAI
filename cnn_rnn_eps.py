@@ -237,7 +237,6 @@ if __name__ == "__main__":
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
         print(x_col)
-        X_test = np.expand_dims(X_test, axis=3)
 
         cv_number = 1
         for train_index, test_index in cv:

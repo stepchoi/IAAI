@@ -122,6 +122,9 @@ def yoy(df):
     df[ws_col] = (df[ws_col] / df[ws_col].shift(4)).sub(1)  # calculate YoY using (T0 - T-4)/T-4
     df.loc[df.groupby('identifier').head(4).index, ws_col] = np.nan     # avoid calculation with different identifier
 
+    df['eps_rnn'] = (df['eps1tr12'] - df['eps1tr12'].shift(4))/df['fn_8001']
+    df.loc[df.groupby('identifier').head(4).index, 'eps_rnn'] = np.nan     # avoid calculation with different identifier
+
     df[ws_col] = trim_outlier(df[ws_col])   # use 100% as maximum values -> avoid inf
     df = df.dropna(subset=ws_col, how='all')
     # print(df.describe().T[['min','max']])
@@ -200,7 +203,7 @@ class load_data:
         x_col = list(set(self.sector.columns.to_list()) - {'identifier', 'period_end', 'icb_sector', 'market',
                                                            'icb_industry', 'y_ni', 'y_ibes', 'y_rev'})    # define x_fields
         if eps_only == True:
-            x_col = {'eps1tr12', 'fn_8001'}
+            x_col = {'eps_rnn'}
         elif exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
 

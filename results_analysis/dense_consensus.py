@@ -69,10 +69,10 @@ def merge_ibes_stock():
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type'], keep='last')
 
-    # print('------ convert entire ------')
-    # detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
-    # detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
-    # detail_stock['icb_code'] = 0
+    print('------ convert entire ------')
+    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+    detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
     detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
@@ -92,7 +92,7 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'new industry model -fix space'
+    r_name = 'new with indi code -fix space'
     tname = 'dense2'
 
     yoy_merge = merge_ibes_stock()
