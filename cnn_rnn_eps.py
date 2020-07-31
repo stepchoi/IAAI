@@ -34,7 +34,7 @@ space = {
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
-    'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_nodes': hp.choice('gru_nodes', [1, 2, 4]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
     'activation': hp.choice('activation', ['tanh']),
@@ -50,7 +50,7 @@ def rnn_train(space): #functional
     print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
-    x_fields = X_train.shape[2]    # x_fields differ depending on whether include ibes ratios
+    x_fields = 1                    # x_fields = past earning
 
     #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
     #pseudo-code---------------------------------------------------------------------------------------------------------
@@ -58,9 +58,10 @@ def rnn_train(space): #functional
     num_nodes = params['gru_nodes']
 
     input_img = Input(shape=(lookback, x_fields))     # equivalent to input_img
+    g_1 = input_img
 
     #GRU part ---------------------------------
-    for i in range(params['num_gru_layer']):
+    for i in range(1, params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
         temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
 
@@ -70,7 +71,7 @@ def rnn_train(space): #functional
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-            g_1 = GRU(temp_nodes, **extra)(input_img)
+            g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
 
@@ -92,7 +93,7 @@ def rnn_train(space): #functional
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
+    history = model.fit(X_train, Y_train, epochs=10, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
     # def gradient_importance(seq, model):
@@ -134,12 +135,12 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    # with engine.connect() as conn:
-    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn_eps', con=conn, index=False,
-    #                                                             if_exists='append', method='multi')
-    # engine.dispose()
-    #
-    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    with engine.connect() as conn:
+        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn_eps', con=conn, index=False,
+                                                                if_exists='append', method='multi')
+    engine.dispose()
+
+    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -242,9 +243,9 @@ if __name__ == "__main__":
         for train_index, test_index in cv:
             sql_result['cv_number'] = cv_number
 
-            X_train = np.expand_dims(train_x[train_index], axis=3)
+            X_train = train_x[train_index]
             Y_train = train_y[train_index]
-            X_valid = np.expand_dims(train_x[test_index], axis=3)
+            X_valid = train_x[test_index]
             Y_valid = train_y[test_index]
 
             print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)

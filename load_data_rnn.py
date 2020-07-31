@@ -156,8 +156,8 @@ class load_data:
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
-        self.main[['identifier', 'period_end', 'y_ibes', 'eps_rnn']].to_csv('#simple_rnn.csv')
-        exit(0)
+        # self.main[['identifier', 'period_end', 'y_ibes', 'eps_rnn']].to_csv('#simple_rnn.csv')
+        # exit(0)
 
         # define self objects
         self.cut_bins = {}
