@@ -65,7 +65,7 @@ class load_data:
         # 2.2. standardize data
         train_2dx_info = train_2dx_info.groupby(['identifier','period_end'])['eps_rnn'].median().unstack()
 
-        train_2dx_info = convert_to_median(train_2dx_info, testing_period) # convert x/y to median based on lgbm records
+        train_2dx_info.iloc[:,:] = convert_to_median(train_2dx_info, testing_period) # convert x/y to median based on lgbm records
 
         return train_2dx_info
 
@@ -98,8 +98,8 @@ if __name__ == '__main__':
     small_training = True
     eps_only = True
 
-    data = load_data(testing_period)
-    train_x = data.split_train_test()
+    data = load_data()
+    train_x = data.split_train_test(testing_period)
 
     print(train_x.shape)
 

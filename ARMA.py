@@ -63,7 +63,7 @@ def auto_arma_all(train_x):
 
     mae = []
     for i in range(len(train_x)):
-
+        print('---------------------------------->', i)
         try:
             mae.append(auto_arma(train_x.values[i]))
         except:
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         sql_result['testing_period'] = testing_period
 
         train_x = data.split_train_test(testing_period)
-        train_x = train_x.loc[~train_x.iloc[:,-1].isnull()]
+        train_x = train_x[~train_x.iloc[:,-1].isnull()]
         train_x = train_x.fillna(0)
 
         df = auto_arma_all(train_x)
