@@ -56,20 +56,20 @@ def auto_arma(arr):
 
 def auto_arma_all(train_x):
 
-    mae = {}
+    mae = []
     for i in range(len(train_x)):
 
         try:
-            mae[train_x.index[i]] = auto_arma(train_x.values[i])
+            mae.append(auto_arma(train_x.values[i]))
         except:
-            mae[train_x.index[i]] = np.nan
+            mae.append(np.nan)
 
-        pd.DataFrame(mae, index='index')
-        exit(0)
+        df = pd.DataFrame(mae, index=train_x.index[:i+1])
+        print(df)
 
-        if i%500==0:
-            with engine.connect():
-                pd.DataFrame(mae, index='index').to_sql('')
+        # if i%500==0:
+        #     with engine.connect():
+        #         pd.DataFrame(mae, index='index').to_sql('')
 
 
         print(i, mae[-1])

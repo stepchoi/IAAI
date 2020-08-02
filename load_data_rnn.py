@@ -143,16 +143,8 @@ class load_data:
     def __init__(self, macro_monthly):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
-        try:
-            main = pd.read_csv('preprocess/main_rnn.csv')
-            self.main = date_type(main)
-            print('local version run - main_rnn')
-        except:
-            self.main = read_data(macro_monthly)     # all YoY ratios
-            try:
-                 self.main.to_csv('preprocess/main_rnn.csv', index=False)
-            except:
-                pass
+
+        self.main = read_data(macro_monthly)     # all YoY ratios
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
