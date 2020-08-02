@@ -111,7 +111,7 @@ def rnn_train(space): #functional
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=1, batch_size=params['batch_size'],
+    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
 
     # def gradient_importance(seq, model):

@@ -56,16 +56,21 @@ def auto_arma(arr):
 
 def auto_arma_all(train_x):
 
-    mae = []
+    mae = {}
     for i in range(len(train_x)):
 
         try:
-            mae.append(auto_arma(train_x.values[i]))
+            mae[train_x.index[i]] = auto_arma(train_x.values[i])
         except:
-            mae.append(np.nan)
+            mae[train_x.index[i]] = np.nan
 
-        if i%100=0:
-            print(mae)
+        pd.DataFrame(mae)
+        exit(0)
+
+        if i%500==0:
+            with engine.connect():
+                df.DataFrame(mae)
+
 
         print(i, mae[-1])
 
