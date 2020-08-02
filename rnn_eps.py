@@ -27,6 +27,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
+parser.add_argument('--gpu_number', type=int, default=1)
 args = parser.parse_args()
 
 space = {
@@ -43,6 +44,23 @@ space = {
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
+
+def gpu_mac_address(args):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
+
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
+gpu_mac_address(args)
 
 def rnn_train(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
@@ -165,8 +183,8 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn_eps', con=conn, index=False, if_exists='append', method='multi')
-        hpot['best_stock_df'].to_sql('results_cnn_rnn_eps_stock', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_rnn_eps', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_rnn_eps_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history

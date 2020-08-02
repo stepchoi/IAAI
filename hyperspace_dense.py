@@ -43,7 +43,7 @@ space_fix = {
 
 def find_hyperspace(sql_result):
 
-    if 'big' in sql_result['name']:
+    if 'large' in sql_result['name']:
         return space_big
     elif 'small' in sql_result['name']:
         return space_small
