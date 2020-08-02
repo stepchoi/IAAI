@@ -47,6 +47,7 @@ engine = create_engine(db_string)
 
 def gpu_mac_address(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
+    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = 'true'
 
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
