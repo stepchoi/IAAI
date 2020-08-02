@@ -149,7 +149,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'with ind code -small space'
+    r_name = 'new with indi code -fix space'
 
     results = download(r_name=r_name)
     calc_average(results, params=params, r_name=r_name, model='dense2')
@@ -159,7 +159,6 @@ if __name__ == "__main__":
     # compare_valid()
 
 
-    ''' download new dense results and CHECK !!!!!!!!!!!!!!!!!!!!!!!!!!'''
 
 
 

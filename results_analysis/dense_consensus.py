@@ -92,7 +92,7 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'new with indi code -fix space'
+    r_name = 'all x 0 -fix space'
     tname = 'dense2'
 
     yoy_merge = merge_ibes_stock()

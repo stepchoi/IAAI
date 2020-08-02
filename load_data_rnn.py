@@ -149,10 +149,10 @@ class load_data:
             print('local version run - main_rnn')
         except:
             self.main = read_data(macro_monthly)     # all YoY ratios
-            # # try:
-            #      self.main.to_csv('preprocess/main_rnn.csv', index=False)
-            # # except:
-            # #     pass
+            try:
+                 self.main.to_csv('preprocess/main_rnn.csv', index=False)
+            except:
+                pass
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
