@@ -64,12 +64,12 @@ def auto_arma_all(train_x):
         except:
             mae[train_x.index[i]] = np.nan
 
-        pd.DataFrame(mae)
+        pd.DataFrame(mae, index='index')
         exit(0)
 
         if i%500==0:
             with engine.connect():
-                df.DataFrame(mae)
+                pd.DataFrame(mae, index='index').to_sql('')
 
 
         print(i, mae[-1])
