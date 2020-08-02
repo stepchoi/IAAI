@@ -119,6 +119,7 @@ def eval(space):
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
         hpot['best_history'] = history
+        hpot['best_trial'] = sql_result['trial_lgbm']
 
     K.clear_session()
     sql_result['trial_lgbm'] += 1
@@ -160,7 +161,7 @@ def plot_history(history):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_dense/plot_dense_{}.png'.format(hpot['best_mae']))
+    plt.savefig('results_dense/plot_dense_{}_{}.png'.format(hpot['best_trial'], hpot['best_mae']))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
@@ -180,17 +181,17 @@ if __name__ == "__main__":
     hpot = {}
 
     # default settings to
-    exclude_fwd = False
+    exclude_fwd = True
     use_median = True
     chron_valid = False
-    ibes_qcut_as_x = True
+    ibes_qcut_as_x = False
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
-    sql_result['name'] = 'all x -fix space'
+    sql_result['name'] = 'try with code -small space'
     # sql_result['name'] = 'new industry model -fix space'
     resume = False
 
@@ -204,7 +205,7 @@ if __name__ == "__main__":
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-    for add_ind_code in [0]: # 1 means add industry code as X
+    for add_ind_code in [2]: # 1 means add industry code as X
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 

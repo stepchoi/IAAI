@@ -6,7 +6,7 @@ import pandas as pd
 from load_data_lgbm import load_data
 from dateutil.relativedelta import relativedelta
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
+from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score, mean_squared_error
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 
@@ -43,7 +43,7 @@ def lgbm_train(space):
     # plot_history(evals_result, gbm, sql_result['trial_lgbm'])
 
     # prediction on all sets
-    if space['objective'] == 'regression_l1':
+    if space['objective'] in ['regression_l1', 'regression_l2']:
         Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
         Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
         Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
@@ -67,6 +67,9 @@ def eval(space):
     result = {  'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
                 'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
                 'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
+                'mse_train': mean_squared_error(sample_set['train_yy'], Y_train_pred),
+                'mse_valid': mean_squared_error(sample_set['valid_y'], Y_valid_pred),
+                'mse_test': mean_squared_error(Y_test, Y_test_pred),  ##### write Y test
                 'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
                 'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
                 'r2_test': r2_score(Y_test, Y_test_pred),
@@ -132,7 +135,7 @@ def HPOT(space, max_evals):
 
     trials = Trials()
 
-    if space['objective'] in ('regression_l1', 'regression_l2'):
+    if space['objective'] in ['regression_l1', 'regression_l2']:
         best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     elif space['objective'] == 'multiclass':
         hpot['best_mae'] = 0  # record best training (min mae_valid) in each hyperopt
@@ -157,7 +160,11 @@ def HPOT(space, max_evals):
 def plot_history(evals_result, gbm, trial_num):
     ''' plot the training loss history '''
 
-    ax = lgb.plot_metric(evals_result, metric='l1')     # plot training / validation loss
+    try:
+        ax = lgb.plot_metric(evals_result, metric='l1')     # plot training / validation loss
+    except:
+        ax = lgb.plot_metric(evals_result, metric='l2')
+
 
     print(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'))
     ax.set_title('{}:{}:{}'.format(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'),
@@ -259,7 +266,7 @@ if __name__ == "__main__":
                    201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
-    period_1 = dt.datetime(2014, 9, 30)     # starting point for first testing set
+    period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
@@ -274,14 +281,14 @@ if __name__ == "__main__":
     # default parser
     macro_monthly = True # remember to change main.csv
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
-    sample_no = 1      # number of training/testing period go over ( 25 = until 2019-3-31)
+    sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
     load_data_params['exclude_fwd'] = False
     load_data_params['ibes_qcut_as_x'] = True
-    # sql_result['objective'] = base_space['objective'] = 'regression_l2'
+    sql_result['objective'] = base_space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'ni'
 
     # update load_data pa
@@ -292,9 +299,9 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in [40]:   # roll over industries (first 2 icb code)
+    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
 
-        sql_result['name'] = 'ibes_new industry_all x -indi space'  # name = labeling the experiments
+        sql_result['name'] = 'ibes_new industry_all x -mse'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
@@ -313,6 +320,7 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
+            # if sample_no==25:
             try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
                 sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
@@ -337,6 +345,7 @@ if __name__ == "__main__":
 
                     space = find_hyperspace(sql_result)
                     space.update(base_space)
+                    print(space)
 
                     HPOT(space, max_evals=10)   # start hyperopt
                     cv_number += 1
