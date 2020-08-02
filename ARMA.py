@@ -58,12 +58,16 @@ def auto_arma_all(train_x):
 
     mae = []
     for i in range(len(train_x)):
+
         try:
             mae.append(auto_arma(train_x.values[i]))
         except:
             mae.append(np.nan)
 
-        print(i, np.mean(mae))
+        if i%100=0:
+            print(mae)
+
+        print(i, mae[-1])
 
     print(mae)
     pd.DataFrame(mae, index=0).to_csv('mae.csv', index=False)
