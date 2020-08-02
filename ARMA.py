@@ -14,7 +14,7 @@ db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.
 engine = create_engine(db_string)
 
 def plot_arma(model):
-    ''' plot ARIMA results '''
+    '''  plot ARIMA model results '''
 
     print(model.summary())
     model.plot_diagnostics(figsize=(7, 5))
@@ -34,9 +34,9 @@ def plot_arma(model):
     # plt.show()
 
 def auto_arma(arr):
-    ''' finish auto_arma with each identifier with 60Q -> predict 1Q'''
+    ''' for each identifier: fit ARIMA model with 60Q data -> predict next 1Q '''
 
-    model = pm.auto_arima(arr[:-1], start_p=1, start_q=1,
+    model = pm.auto_arima(arr[:-1], start_p=1, start_q=1,                       # find best ARIMA model by stepwise search
                           test='adf',  # use adftest to find optimal 'd'
                           max_p=3, max_q=3,  # maximum p and q
                           m=1,  # frequency of series
@@ -50,26 +50,25 @@ def auto_arma(arr):
                           stepwise=True)
 
     # Forecast
-    n_periods = 1
-    fc, confint = model.predict(n_periods=n_periods, return_conf_int=True)
-    index_of_fc = np.arange(len(arr), len(arr) + n_periods)
+    n_periods = 1   # forecast next 1Q
+    fc, confint = model.predict(n_periods=n_periods, return_conf_int=True)  # fc = forecast; confint is for plotting
+    index_of_fc = np.arange(len(arr), len(arr) + n_periods) # use 61 as index for forecast
+    fc_series = pd.Series(fc, index=index_of_fc)   # make series for plotting purpose
 
-    # make series for plotting purpose
-    fc_series = pd.Series(fc, index=index_of_fc)
-
-    return abs(arr[-1] - fc_series.values[0])
+    return abs(arr[-1] - fc_series.values[0])   # calculate absolute difference
 
 def auto_arma_all(train_x):
+    ''' roll over all identifier to calculate mae '''
 
     mae = []
-    for i in range(len(train_x)):
+    for i in range(len(train_x)):   # roll over each identifier
         print('---------------------------------->', i)
         try:
             mae.append(auto_arma(train_x.values[i]))
         except:
             mae.append(np.nan)
 
-    df = pd.DataFrame(mae, index=train_x.index, columns=['mae'])
+    df = pd.DataFrame(mae, index=train_x.index, columns=['mae'])    # convert list of absolute_error to dataframe
     return df
 
 if __name__ == "__main__":
@@ -77,7 +76,7 @@ if __name__ == "__main__":
     sql_result = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2013,3,31)   # go through 25Q from 2013-03-31
     sample_no = 25
 
     # these are parameters used to load_data
@@ -87,14 +86,14 @@ if __name__ == "__main__":
         testing_period = period_1 + i * relativedelta(months=3)
         sql_result['testing_period'] = testing_period
 
-        train_x = data.split_train_test(testing_period)
-        train_x = train_x[~train_x.iloc[:,-1].isnull()]
-        train_x = train_x.fillna(0)
+        train_x = data.split_train_test(testing_period)     # load data for 61Q (60Q for train + 1Q for test)
+        train_x = train_x[~train_x.iloc[:,-1].isnull()]     # remove testing data with NaN for testing 1Q
+        train_x = train_x.fillna(0)     # fill NaN with 0 for all 60Q for train
 
         df = auto_arma_all(train_x)
-        df['testing_period'] = testing_period
+        df['testing_period'] = testing_period   # label date
 
-        with engine.connect() as conn:
+        with engine.connect() as conn:  # write to DB
             df.to_sql('results_arma_median', conn, if_exists='append', method='multi')
         engine.dispose()
 
