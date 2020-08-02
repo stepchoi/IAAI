@@ -80,10 +80,7 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,3,31)
     sample_no = 25
 
-    sql_result['eps_only'] = True
-
     # these are parameters used to load_data
-    sql_result['name'] = 'arma'
     data = load_data()
 
     for i in tqdm(range(sample_no)):  # roll over testing period
@@ -98,7 +95,7 @@ if __name__ == "__main__":
         df['testing_period'] = testing_period
 
         with engine.connect() as conn:
-            df.to_sql('results_arma', conn, if_exists='append', method='multi')
+            df.to_sql('results_arma_median', conn, if_exists='append', method='multi')
         engine.dispose()
 
 
