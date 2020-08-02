@@ -64,18 +64,8 @@ def auto_arma_all(train_x):
         except:
             mae.append(np.nan)
 
-        df = pd.DataFrame(mae, index=train_x.index[:i+1])
-        print(df)
-
-        # if i%500==0:
-        #     with engine.connect():
-        #         pd.DataFrame(mae, index='index').to_sql('')
-
-
-        print(i, mae[-1])
-
-    print(mae)
-    pd.DataFrame(mae, index=0).to_csv('mae.csv', index=False)
+    df = pd.DataFrame(mae, index=train_x.index, columns=['mae'])
+    return df
 
 if __name__ == "__main__":
 
@@ -102,6 +92,11 @@ if __name__ == "__main__":
         train_x = train_x.loc[~train_x.iloc[:,-1].isnull()]
         train_x = train_x.fillna(0)
 
-        auto_arma_all(train_x)
-        break
+        df = auto_arma_all(train_x)
+        df['testing_period'] = testing_period
+
+        with engine.connect() as conn:
+            df.to_sql('results_arma', conn, if_exists='append', method='multi')
+        engine.dispose()
+
 
