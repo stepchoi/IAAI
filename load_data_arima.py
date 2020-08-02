@@ -56,66 +56,53 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self):
+    def __init__(self, testing_period):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
         self.main = read_data()     # all YoY ratios
+        self.main = convert_to_median(self.main, testing_period)
         self.cut_bins = {}
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
+        self.testing_period = testing_period
 
-    def split_entire(self, add_ind_code=0):   # we always use entire samples for training
-        ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''
-        self.sector = self.main
-
-    def split_train_test(self, testing_period, qcut_q=10):
+    def split_train_test(self):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
-        start_train_y = testing_period - relativedelta(years=10)    # train df = 40 quarters
-        self.sector = full_period(self.sector).sort_values(['period_end', 'identifier']).reset_index(drop=True)  # fill in for non-sequential records
+        self.sector = full_period(self.sector).sort_values(['period_end','identifier']).reset_index(drop=True)  # fill in for non-sequential records
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback
-
-        train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) & (self.sector['period_end'] <= testing_period)] # extract df for X
-
+        train_2dx_info = self.sector.loc[(start_train <= self.sector['period_end']) &
+                                         (self.sector['period_end'] <= self.testing_period)] # extract df for X
         # 2.2. standardize data
         train_2dx_info = train_2dx_info.groupby(['identifier','period_end'])['eps_rnn'].median().unstack()
 
         return train_2dx_info
 
-    def standardize_x(self, train_x, test_x):
-        ''' tandardize x with train_x fit '''
+def convert_to_median(df, testing_period):
+    '''  convert Y in qcut format to medians with med_train from training set'''
 
-        scaler = StandardScaler().fit(train_x)
-        train_x = scaler.transform(train_x)
-        test_x = scaler.transform(test_x)
+    with engine.connect() as conn:
+        bins_df = pd.read_sql('SELECT * from results_bins_new WHERE icb_code=1', conn)
+    engine.dispose()
 
-        return train_x, test_x
+    cut_bins_dict = bins_df.loc[bins_df['testing_period']==testing_period]
 
-    def y_qcut(self, train_y, test_y, qcut_q):
-        ''' qcut y '''
+    cut_bins = cut_bins_dict['cut_bins'].strip('[]').split(',')   # convert string {1, 2, 3....} to list
+    med_test = cut_bins_dict['med_train'].strip('[]').split(',')
 
-        ''' convert qcut bins to median of each group '''
+    cut_bins[0] = -np.inf  # convert cut_bins into [-inf, ... , inf]
+    cut_bins[-1] = np.inf
+    cut_bins = [float(x) for x in cut_bins]     # convert string in list to float
+    med_test = [float(x) for x in med_test]
 
-        self.cut_bins = {}
+    arr_q = pd.cut(df, bins=cut_bins, labels=False)  # cut original series into 0, 1, .... (bins * n)
+    arr_q = arr_q.replace(range(int(cut_bins_dict['qcut_q'])), med_test).values  # replace 0, 1, ... into median
 
-        # cut original series into 0, 1, .... (bins * n)
-        train_y_qcut, self.cut_bins['cut_bins'] = pd.qcut(train_y, q=qcut_q, retbins=True, labels=False)
-        test_y_qcut = pd.cut(test_y, bins=self.cut_bins['cut_bins'], labels=False)
-
-        # calculate median on train_y for each qcut group
-        df = pd.DataFrame(np.vstack((train_y, np.array(train_y_qcut)))).T   # concat original series / qcut series
-        self.cut_bins['med_train'] = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
-
-        # replace 0, 1, ... into median
-        train_y = pd.DataFrame(train_y_qcut).replace(range(qcut_q), self.cut_bins['med_train']).values
-        test_y = pd.DataFrame(test_y_qcut).replace(range(qcut_q), self.cut_bins['med_train']).values
-
-        return train_y, test_y
-
+    return arr_q  # return converted Y and median of all groups
 
 if __name__ == '__main__':
 
@@ -134,11 +121,4 @@ if __name__ == '__main__':
     print(train_x.shape, X_test.shape)
     exit(0)
 
-    for train_index, test_index in cv:
-        X_train = train_x[train_index]
-        Y_train = train_y[train_index]
-        X_valid = train_x[test_index]
-        Y_valid = train_y[test_index]
-
-        print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
