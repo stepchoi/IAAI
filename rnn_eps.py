@@ -32,6 +32,7 @@ space = {
     'learning_rate': hp.choice('lr', [1, 2]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'num_gru_layer': hp.choice('num_gru_layer', [2, 3, 4]),     # number of layers # drop 1
+
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [1, 2]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.1, 0.25]),

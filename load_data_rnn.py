@@ -175,7 +175,7 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd, small_training=True, eps_only=False):
+    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd=False, small_training=True, eps_only=False):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y

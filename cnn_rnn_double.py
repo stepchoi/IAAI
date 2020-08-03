@@ -30,16 +30,20 @@ parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--gpu_number', type=int, default=1)
 args = parser.parse_args()
 
-
-
 space = {
     'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
-    'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
+
+    'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
+
+    'num_gru_layer2': hp.choice('num_gru_layer2', [2, 3, 4]),  # number of layers # drop 1
+    'gru_nodes_mult2': hp.choice('gru_nodes_mult2', [0, 1]),  # nodes growth rate *1 or *2
+    'gru_nodes2': hp.choice('gru_nodes2', [1, 2]),  # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_dropout2': hp.choice('gru_drop2', [0.1, 0.25]),
 
     'activation': hp.choice('activation', ['tanh']),
     'batch_size': hp.choice('batch_size', [64, 128, 512]), # drop 1024
@@ -80,6 +84,7 @@ def rnn_train(space): #functional
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
+    input_img2 = Input(shape=(lookback, 1))
 
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
@@ -90,7 +95,7 @@ def rnn_train(space): #functional
     #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
         extra = dict(return_sequences=True) # need to iterative
-        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 4)) # nodes grow at 2X or stay same - at least 8 nodes
 
         if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
@@ -98,19 +103,34 @@ def rnn_train(space): #functional
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
 
-    g_1 = Flatten()(g_1)    # convert 3d sequence(?,?,1) -> 2d (?,?)
+    # second GRU
+    for i in range(params['num_gru_layer2']):
+        extra = dict(return_sequences=True)  # need to iterative
+        temp_nodes2 = int(max(params['gru_nodes2'] * (2 ** (params['gru_nodes_mult2'] * i)), 1))  # nodes grow at 2X or stay same - at least 4 nodes
+        if i == params['num_gru_layer2'] - 1:
+            extra = dict(return_sequences=False)  # last layer does not output the whole sequence
+            g_2_2 = GRU(temp_nodes2, **extra)(g_2)  # this is the forecast state
+            extra = dict(return_sequences=True)
+            g_2 = GRU(1, dropout=0, **extra)(g_2)
+        elif i == 0:
+            g_2 = GRU(temp_nodes2, **extra)(input_img2)
+        else:
+            g_2 = GRU(temp_nodes2, dropout=params['gru_dropout2'], **extra)(g_2)
+            g_2 = Flatten()(g_2)
+
+    g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
+    g_2 = Flatten()(g_2)
 
     #join the return sequence and forecast state
-    f_x = Concatenate(axis=1)([g_1, g_1_2])
+    f_x = Concatenate(axis=1)([g_1, g_1_2, g_2, g_2_2])
     f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
     f_x = Dense(1)(f_x)
 
-    model = Model(input_img, f_x)
+    model = Model([input_img, input_img2], f_x)
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
@@ -121,12 +141,12 @@ def rnn_train(space): #functional
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=50, batch_size=params['batch_size'],
-                        validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
+    history = model.fit([X_train, X_train_eps], Y_train, epochs=50, batch_size=params['batch_size'],
+                        validation_data=([X_valid, X_valid_eps], Y_valid), verbose=1, callbacks=callbacks_list)
 
-    Y_test_pred = model.predict(X_test)
-    Y_train_pred = model.predict(X_train)
-    Y_valid_pred = model.predict(X_valid)
+    Y_test_pred = model.predict([X_test, X_test_eps])
+    Y_train_pred = model.predict([X_train, X_train_eps])
+    Y_valid_pred = model.predict([X_valid, X_valid_eps])
 
     return Y_test_pred, Y_train_pred, Y_valid_pred, history
 
@@ -151,12 +171,12 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    # with engine.connect() as conn:
-    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
-    #                                                             if_exists='append', method='multi')
-    # engine.dispose()
-    #
-    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    with engine.connect() as conn:
+        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
+                                                                if_exists='append', method='multi')
+    engine.dispose()
+
+    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -181,8 +201,8 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
-        hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_rnn_double', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_rnn_double_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
@@ -204,7 +224,7 @@ def plot_history(history, trial, mae):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_rnn/plot_cnn_dnn_{} {}.png'.format(trial, round(mae,4)))
+    plt.savefig('results_rnn/plot_rnn_double_{} {}.png'.format(trial, round(mae,4)))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
@@ -227,9 +247,9 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2017,6,30)
+    period_1 = dt.datetime(2013,4,1)
     sample_no = 25
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False}
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd}
     print(load_data_params)
 
     sql_result['exclude_fwd'] = args.exclude_fwd
@@ -238,7 +258,7 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
     sql_result['name'] = 'small_training_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
-    db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
+    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_double', first=True)
 
     data = load_data(macro_monthly=True)
 
@@ -249,11 +269,13 @@ if __name__ == "__main__":
     print(sql_result)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3)
+        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
         sql_result['testing_period'] = testing_period
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
-        print(x_col)
+        train_x_eps, train_y, X_test_eps, Y_test, cv, test_id, x_col = data.split_train_test(testing_period,
+                                                                                             **load_data_params,
+                                                                                             eps_only=True)
         X_test = np.expand_dims(X_test, axis=3)
 
         cv_number = 1
@@ -261,11 +283,15 @@ if __name__ == "__main__":
             sql_result['cv_number'] = cv_number
 
             X_train = np.expand_dims(train_x[train_index], axis=3)
+            X_train_eps = train_x_eps[train_index]
             Y_train = train_y[train_index]
             X_valid = np.expand_dims(train_x[test_index], axis=3)
+            X_valid_eps = train_x_eps[test_index]
             Y_valid = train_y[test_index]
 
-            print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+            print(X_train.shape, X_train_eps.shape, Y_train.shape,
+                  X_valid.shape, X_valid_eps.shape, Y_valid.shape,
+                  X_test.shape, X_test_eps.shape, Y_test.shape)
 
             HPOT(space, 10)
             gc.collect()
