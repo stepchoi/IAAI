@@ -120,7 +120,6 @@ def rnn_train(space): #functional
             g_2 = GRU(temp_nodes2, **extra)(input_img2)
         else:
             g_2 = GRU(temp_nodes2, dropout=params['gru_dropout2'], **extra)(g_2)
-            g_2 = Flatten()(g_2)
 
     g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
     g_2 = Flatten()(g_2)
@@ -171,12 +170,12 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    with engine.connect() as conn:
-        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
-                                                                if_exists='append', method='multi')
-    engine.dispose()
-
-    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    # with engine.connect() as conn:
+    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_double', con=conn, index=False,
+    #                                                             if_exists='append', method='multi')
+    # engine.dispose()
+    #
+    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -219,10 +218,12 @@ def plot_history(history, trial, mae):
 
     plt.plot(epochs, history_dict['loss'][9:], 'bo', label='training loss')
     plt.plot(epochs, history_dict['val_loss'][9:], 'b', label='validation loss')
-    plt.title('dense - training and validation loss')
+    plt.title('rnn_double - training and validation loss')
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.legend()
+    plt.show()
+    exit(0)
 
     plt.savefig('results_rnn/plot_rnn_double_{} {}.png'.format(trial, round(mae,4)))
     plt.close()
@@ -257,8 +258,9 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'small_training_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_double', first=True)
+    rname = {False: '_exclude_fwd', True: ''}
+    sql_result['name'] = 'official_{}_{}'.format(rname[args.exclude_fwd], args.add_ind_code)
+    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_double')
 
     data = load_data(macro_monthly=True)
 
