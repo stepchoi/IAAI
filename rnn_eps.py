@@ -31,15 +31,15 @@ parser.add_argument('--gpu_number', type=int, default=1)
 args = parser.parse_args()
 
 space = {
-    'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
+    'learning_rate': hp.choice('lr', [1, 2]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
+    'num_gru_layer': hp.choice('num_gru_layer', [2, 3, 4]),     # number of layers # drop 1
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
-    'gru_nodes': hp.choice('gru_nodes', [1, 2, 4]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
-    'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
+    'gru_nodes': hp.choice('gru_nodes', [1, 2]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_dropout': hp.choice('gru_drop', [0.1, 0.25]),
 
     'activation': hp.choice('activation', ['tanh']),
-    'batch_size': hp.choice('batch_size', [64, 128, 512]), # drop 1024
+    'batch_size': hp.choice('batch_size', [128]), # drop 64, 512, 1024
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
