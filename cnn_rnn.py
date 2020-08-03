@@ -50,7 +50,6 @@ engine = create_engine(db_string)
 
 def gpu_mac_address(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
-
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
@@ -124,18 +123,6 @@ def rnn_train(space): #functional
 
     history = model.fit(X_train, Y_train, epochs=50, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
-
-    # def gradient_importance(seq, model):
-    #     seq = tf.Variable(seq[np.newaxis, :, :], dtype=tf.float32)
-    #     with tf.GradientTape() as tape:
-    #         predictions = model(seq)
-    #     grads = tape.gradient(predictions, seq)
-    #     grads = tf.reduce_mean(grads, axis=1).numpy()[0]
-    #
-    #     return grads
-    #
-    # gradient_importance()
-
 
     Y_test_pred = model.predict(X_test)
     Y_train_pred = model.predict(X_train)
