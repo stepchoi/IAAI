@@ -118,27 +118,15 @@ def rnn_train(space): #functional
     # end of pseudo-code--------------------------------------------------------------------------------------------------
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
-                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
+                      callbacks.EarlyStopping(monitor='val_loss', patience=10, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'],
+    history = model.fit(X_train, Y_train, epochs=50, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
-
-    # def gradient_importance(seq, model):
-    #     seq = tf.Variable(seq[np.newaxis, :, :], dtype=tf.float32)
-    #     with tf.GradientTape() as tape:
-    #         predictions = model(seq)
-    #     grads = tape.gradient(predictions, seq)
-    #     grads = tf.reduce_mean(grads, axis=1).numpy()[0]
-    #
-    #     return grads
-    #
-    # gradient_importance()
-
 
     Y_test_pred = model.predict(X_test)
     Y_train_pred = model.predict(X_train)

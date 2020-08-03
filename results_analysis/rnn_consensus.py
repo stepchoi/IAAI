@@ -31,7 +31,7 @@ def download_stock():
     ''' Download results_dense2_stock for stocks '''
 
     try:
-        detail_stock = pd.read_csv('results_analysis/compare_with_ibes/rnn_stock_{}.csv'.format(r_name))
+        detail_stock = pd.read_csv('results_analysis/compare_with_ibes/{}_stock_{}.csv'.format(tname, r_name))
         detail_stock = date_type(detail_stock, date_col='testing_period')
         print('local version run - stock_{}'.format(r_name))
     except:
@@ -40,9 +40,14 @@ def download_stock():
         with engine.connect() as conn:
             # read DB TABLE results_lightgbm data for given "name"
             if r_name == 'all':
-                result_all = pd.read_sql(
-                    "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
-                    "FROM results_{} WHERE trial_lgbm > 181".format(tname, r_name), conn)       # change for results_rnn_eps
+                if tname == 'cnn_rnn':
+                    result_all = pd.read_sql(
+                        "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
+                        "FROM results_{} WHERE trial_lgbm > 181".format(tname, r_name), conn)       # change for results_rnn_eps
+                elif tname =='rnn_eps':
+                    result_all = pd.read_sql(
+                        "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
+                        "FROM results_{}".format(tname, r_name), conn)  # change for results_rnn_eps
             else:
                 result_all = pd.read_sql(
                     "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
@@ -58,7 +63,7 @@ def download_stock():
 
         stock_label = ['trial_lgbm', 'icb_code', 'testing_period', 'cv_number']
         detail_stock = result_stock.merge(result_all, on=stock_label, how='inner')  # map training information to stock data
-        detail_stock.to_csv('results_analysis/compare_with_ibes/rnn_stock_{}.csv'.format(r_name), index=False)
+        detail_stock.to_csv('results_analysis/compare_with_ibes/{}_stock_{}.csv'.format(tname, r_name), index=False)
         print('detial_stock shape: ', detail_stock)
 
     print(detail_stock)
@@ -71,15 +76,21 @@ def merge_ibes_stock():
     yoy_med = download_ibes_median()
     detail_stock = download_stock()
 
-    detail_stock['x_type'] = 'fwdepsqcut'
     detail_stock['y_type'] = 'ibes'
+
+    if tname == 'cnn_rnn':
+        detail_stock['exclude_fwd'] = detail_stock['exclude_fwd'].fillna(False)     # exclude_fwd default is False
+        x_type_dic = {False: 'ni', True: 'fwdepsqcut'}  # False means all_x (include ibes); True means no ibes data
+        detail_stock['x_type'] = [x_type_dic[x] for x in detail_stock['exclude_fwd']]   # convert to x_type name
+    elif tname == 'rnn_eps':
+        detail_stock['x_type'] = 'fwdepsqcut'
 
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type'], keep='last')
 
     print('------ convert entire ------')
-    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
-    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] += '-industry_code'   # 1 means include industry_code_x
+    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] += '-sector_code'     # 2 means include sector_code_x
     detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
@@ -87,12 +98,14 @@ def merge_ibes_stock():
         'pred'].reset_index(drop=False)
 
     detail_stock['icb_code'] = detail_stock['icb_code'].astype(float)  # convert icb_code to int
+
     yoy_med['icb_code'] = yoy_med['icb_code'].astype(float)
 
     # merge (stock prediction) with (ibes consensus median)
     yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
                                         right_on=['identifier', 'period_end', 'y_type', 'icb_code'],
                                         suffixes=('_lgbm', '_ibes'))
+
 
     return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
                                    'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']])
@@ -134,11 +147,9 @@ if __name__ == "__main__":
     organize()
 
     r_name = 'all'
-    tname = 'cnn_rnn' # or rnn_eps
+    tname = 'rnn_eps' # or rnn_eps
 
     yoy_merge = merge_ibes_stock()
-    print(yoy_merge)
-
     calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))
 
     combine()
