@@ -227,7 +227,7 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2017,6,30)
+    period_1 = dt.datetime(2017,10
     sample_no = 25
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False}
     print(load_data_params)
@@ -249,7 +249,7 @@ if __name__ == "__main__":
     print(sql_result)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3)
+        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
         sql_result['testing_period'] = testing_period
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)

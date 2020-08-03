@@ -299,7 +299,7 @@ if __name__ == '__main__':
     data.split_entire(add_ind_code)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3)
+        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
         print(testing_period)
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
