@@ -216,7 +216,7 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2015, 10, 1)
+    period_1 = dt.datetime(2016, 1, 1)
     sample_no = 25
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': True}
     print(load_data_params)
