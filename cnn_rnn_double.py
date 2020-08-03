@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import gc
 import argparse
 import pandas as pd
 import datetime as dt
@@ -25,11 +26,14 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
-parser.add_argument('--exclude_fwd', type=bool)
+parser.add_argument('--exclude_fwd', default=False, action='store_true')
+parser.add_argument('--gpu_number', type=int, default=1)
 args = parser.parse_args()
 
+
+
 space = {
-    'learning_rate': hp.choice('lr', [1, 2, 3, 4, 5]), # drop 7
+    'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
     'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
@@ -43,6 +47,22 @@ space = {
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
+
+def gpu_mac_address(args):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
+gpu_mac_address(args)
 
 def rnn_train(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
@@ -60,10 +80,6 @@ def rnn_train(space): #functional
 
     #CNN - use one conv layer to encode the 2D vector into 2D lookback X 1 vector
     input_img = Input(shape=(lookback, x_fields, 1))
-    input_img2 = Input(shape=(lookback, 1))          #JUST EARNINGS %
-
-    ''' should we add cnn for eps only model? '''
-
 
     #reduce the 2D vector in lookback X 1 where the ONE number indicated one of num_kern financial "scenarios"
     c_1 = Conv2D(kernel_size, (1, x_fields), strides=(1, x_fields), padding='valid', name='conv1')(input_img)
@@ -71,46 +87,26 @@ def rnn_train(space): #functional
 
     g_1 = Reshape((lookback, kernel_size))(c_1) # reshape for GRU
 
-    # GRU part ---------------------------------
+    #GRU part ---------------------------------
     for i in range(params['num_gru_layer']):
-        extra = dict(return_sequences=True)  # need to iterative
-        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)),
-                             8))  # nodes grow at 2X or stay same - at least 8 nodes
+        extra = dict(return_sequences=True) # need to iterative
+        temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8)) # nodes grow at 2X or stay same - at least 8 nodes
 
         if i == params['num_gru_layer'] - 1:
             extra = dict(return_sequences=False)  # last layer does not output the whole sequence
-            g_1_2 = GRU(temp_nodes, **extra)(g_1)  # this is the forecast state
+            g_1_2 = GRU(temp_nodes, **extra)(g_1) # this is the forecast state
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-            # extra.update(input_shape=(lookback, number_of_kernels * 2))
+        # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
-            # g_1 = Flatten()(g_1)
 
-    # second GRU
-    for i in range(params['num_gru_layer2']):
-        extra = dict(return_sequences=True)  # need to iterative
-        temp_nodes2 = int(max(params['gru_nodes'] * (2 ** (params['num_gru_layer'] * i)),
-                              4))  # nodes grow at 2X or stay same - at least 4 nodes
-        if i == params['num_gru_layer'] - 1:
-            extra = dict(return_sequences=False)  # last layer does not output the whole sequence
-            g_2_2 = GRU(temp_nodes2, **extra)(g_2)  # this is the forecast state
-            extra = dict(return_sequences=True)
-            g_2 = GRU(1, dropout=0, **extra)(g_2)
-        elif i == 0:
-            # extra.update(input_shape=(lookback, number_of_kernels * 2))
-            g_2 = GRU(temp_nodes2, **extra)(input_img2)
-        else:
-            g_2 = GRU(temp_nodes2, dropout=params['gru_dropout'], **extra)(g_2)
-            g_2 = Flatten()(g_2)
+    g_1 = Flatten()(g_1)    # convert 3d sequence(?,?,1) -> 2d (?,?)
 
-    g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
-    g_2 = Flatten()(g_2)
-
-    # join the return sequence and forecast state
-    f_x = Concatenate(axis=1)([g_1, g_1_2, g_2, g_2_2])
+    #join the return sequence and forecast state
+    f_x = Concatenate(axis=1)([g_1, g_1_2])
     f_x = Dense(lookback + 1)(f_x) #nodes = len return sequence +  1 for the forecast state
     f_x = Dense(1)(f_x)
 
@@ -231,14 +227,17 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2017,6,30)
     sample_no = 25
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd}
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False}
+    print(load_data_params)
+
     sql_result['exclude_fwd'] = args.exclude_fwd
+    sql_result['eps_only'] = False
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'without ibes -2'
+    sql_result['name'] = 'small_training_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
 
     data = load_data(macro_monthly=True)
@@ -246,6 +245,8 @@ if __name__ == "__main__":
     add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 mesns add sector code as X
     data.split_entire(add_ind_code=add_ind_code)
     sql_result['icb_code'] = add_ind_code
+
+    print(sql_result)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
         testing_period = period_1 + i * relativedelta(months=3)
@@ -267,6 +268,7 @@ if __name__ == "__main__":
             print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
             HPOT(space, 10)
+            gc.collect()
             cv_number += 1
 
 
