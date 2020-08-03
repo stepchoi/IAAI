@@ -6,12 +6,6 @@ import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import r2_score, mean_absolute_error
-
-from tensorflow.python.keras import callbacks, optimizers, initializers
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
-from tensorflow.python.keras import backend as K
-
 from sqlalchemy import create_engine
 from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
@@ -20,15 +14,19 @@ from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--add_ind_code', type=int, default=0)
+parser.add_argument('--gpu_number', type=int, default=1)
+args = parser.parse_args()
+
+from tensorflow.python.keras import callbacks, optimizers, initializers
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
+from tensorflow.python.keras import backend as K
+
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--add_ind_code', type=int, default=0)
-parser.add_argument('--exclude_fwd', default=False, action='store_true')
-parser.add_argument('--gpu_number', type=int, default=1)
-args = parser.parse_args()
 
 space = {
     'learning_rate': hp.choice('lr', [1, 2]), # drop 7
@@ -114,18 +112,6 @@ def rnn_train(space): #functional
 
     history = model.fit(X_train, Y_train, epochs=50, batch_size=params['batch_size'],
                         validation_data=(X_valid, Y_valid), verbose=1, callbacks=callbacks_list)
-
-    # def gradient_importance(seq, model):
-    #     seq = tf.Variable(seq[np.newaxis, :, :], dtype=tf.float32)
-    #     with tf.GradientTape() as tape:
-    #         predictions = model(seq)
-    #     grads = tape.gradient(predictions, seq)
-    #     grads = tf.reduce_mean(grads, axis=1).numpy()[0]
-    #
-    #     return grads
-    #
-    # gradient_importance()
-
 
     Y_test_pred = model.predict(X_test)
     Y_train_pred = model.predict(X_train)
@@ -230,19 +216,19 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2015,9,30)
+    period_1 = dt.datetime(2015, 10, 1)
     sample_no = 25
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': True}
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': True}
     print(load_data_params)
 
-    sql_result['exclude_fwd'] = args.exclude_fwd
+    sql_result['exclude_fwd'] = False
     sql_result['eps_only'] = True
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
 
     rname = {False: '_exclude_fwd', True: ''}
-    sql_result['name'] = 'small_training{}{}'.format(args.add_ind_code, rname[args.exclude_fwd])
+    sql_result['name'] = 'small_training{}'.format(args.add_ind_code)
     db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_eps')
 
     data = load_data(macro_monthly=True)
@@ -254,11 +240,10 @@ if __name__ == "__main__":
     print(sql_result)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3)
+        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
         sql_result['testing_period'] = testing_period
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
-        print(x_col)
 
         cv_number = 1
         for train_index, test_index in cv:

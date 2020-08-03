@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GroupShuffleSplit
 from collections import Counter
 import gc
+from tqdm import tqdm
 
 from miscel import check_dup, date_type
 from preprocess.ratios import worldscope, full_period, trim_outlier
@@ -290,38 +291,28 @@ class load_data:
 if __name__ == '__main__':
 
     add_ind_code = 0
-    testing_period = dt.datetime(2013, 6, 30)
-    qcut_q = 10
-    exclude_fwd = False
-    small_training = True
-    eps_only = True
+    period_1 = dt.datetime(2015, 12, 31)
+    sample_no = 25
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': True}
 
     data = load_data(macro_monthly=True)
     data.split_entire(add_ind_code)
-    train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, qcut_q,
-                                                                                 exclude_fwd=exclude_fwd,
-                                                                                 y_type='ibes',
-                                                                                 small_training=small_training,
-                                                                                 eps_only=eps_only)
 
-    print(x_col)
-    print(train_x.shape, X_test.shape)
-    exit(0)
+    for i in tqdm(range(sample_no)):  # roll over testing period
+        testing_period = period_1 + i * relativedelta(months=3)
+        print(testing_period)
 
-    # lgbm_id = pd.read_csv('lgbm_id.csv')
-    # lgbm_id['lgbm_id'] = [str(x).zfill(9) for x in lgbm_id['lgbm_id']]
-    #
-    # c = pd.merge(lgbm_id, pd.DataFrame(test_id, columns=['rnn_id']), left_on=['lgbm_id'], right_on=['rnn_id'],
-    #              how='outer', suffixes= ['','_new'])
-    # c.to_csv('rnn_lgbm_id.csv', index=False)
-    # print(x_col)
-    # print(len(test_id), idd in test_id)
+        train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+        print(X_test.shape)
+        continue
 
-    for train_index, test_index in cv:
-        X_train = train_x[train_index]
-        Y_train = train_y[train_index]
-        X_valid = train_x[test_index]
-        Y_valid = train_y[test_index]
+        for train_index, test_index in cv:
 
-        print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+            X_train = train_x[train_index]
+            Y_train = train_y[train_index]
+            X_valid = train_x[test_index]
+            Y_valid = train_y[test_index]
+
+            print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+            continue
 
