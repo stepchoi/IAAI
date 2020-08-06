@@ -69,10 +69,21 @@ def merge_ibes_stock():
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type'], keep='last')
 
-    print('------ convert entire ------')
-    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
-    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
-    detail_stock['icb_code'] = 0
+    # decide base list -> identifier + period_end appeared in both lgbm and rnn models
+    lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+                       usecols=['identifier', 'testing_period'])    # read lgbm testing samples
+    rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
+                      usecols=['identifier', 'testing_period'])     # read rnn testing samples
+    base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner')
+    base_list = date_type(base_list, 'testing_period')
+
+    detail_stock = detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
+    print(detail_stock.shape)
+
+    # print('------ convert entire ------')
+    # detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+    # detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+    # detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
     detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
@@ -92,12 +103,13 @@ def merge_ibes_stock():
 
 if __name__ == "__main__":
 
-    r_name = 'all x 0 -fix space'
+    r_name_list = ['all x 0 -fix space', 'new with indi code -fix space',
+                    'compare large space']
+    r_name = 'new industry model -fix space'
     tname = 'dense2'
 
+    # for i in r_name:
     yoy_merge = merge_ibes_stock()
-    print(yoy_merge)
-
     calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))
 
     combine()

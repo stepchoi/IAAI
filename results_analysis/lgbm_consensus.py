@@ -223,9 +223,15 @@ class download:
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
         print(self.detail_stock.shape)
-        base_list = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
-                                usecols=['identifier', 'testing_period'])
+
+        # decide base list -> identifier + period_end appeared in both lgbm and rnn models
+        lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+                           usecols=['identifier', 'testing_period'])
+        rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
+                          usecols=['identifier', 'testing_period'])
+        base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner')
         base_list = date_type(base_list, 'testing_period')
+
         self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
         print(self.detail_stock.shape)
 
@@ -258,26 +264,18 @@ class download:
                                             right_on=['identifier', 'period_end','y_type', 'icb_code'],
                                             suffixes=('_lgbm', '_ibes'))
 
-        # print(r2_score(yoy_merge['y_ibes_qcut'], yoy_merge['y_consensus_qcut']))
-        # print(r2_score(yoy_merge['y_ibes'], yoy_merge['y_consensus']))
-        # print(mean_absolute_error(yoy_merge['y_ibes'], yoy_merge['y_consensus']))
+        # c = yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut'].values == yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut-industry_code'].values
+        # print(c)
+        # print(yoy_merge.columns)
+        # print(c.sum(axis=0))
         # exit(0)
 
-        # df=yoy_merge.loc[(yoy_merge['icb_code']==11) & (yoy_merge
-        # check ={}
-        # for name, g in yoy_merge.groupby(['icb_code','testing_period','cv_number']):
-        #     check[name] = {}
-        #     check[name]['consensus'] = mean_absolute_error(g['y_consensus_qcut'], g['y_ibes_qcut'])
-        #     check[name]['lgbm'] = mean_absolute_error(g['pred'], g['y_ibes_qcut'])
-        # df = pd.DataFrame(check).T
-        # print(df.mean())
+        # new = {}
+        # new['consensus'] = mean_absolute_error(yoy_merge_1['y_consensus_qcut'], yoy_merge_1['y_ibes_qcut'])
+        # new['lgbm'] = mean_absolute_error(yoy_merge_1['pred'], yoy_merge_1['y_ibes_qcut'])
+        # print(i, r_name, new)
+
         # exit(0)
-        #
-        new = {}
-        new['consensus'] = mean_absolute_error(yoy_merge['y_consensus_qcut'], yoy_merge['y_ibes_qcut'])
-        new['lgbm'] = mean_absolute_error(yoy_merge['pred'], yoy_merge['y_ibes_qcut'])
-        print(r_name, new)
-        # df.to_csv('#check_mae4.csv')
 
         return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
                                        'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']]) # 'exclude_fwd -> x_type
@@ -449,9 +447,8 @@ def combine():
     def find_col(k):
         return [x for x in avg_df.columns if k in x]
 
-    avg_df[find_col('mae') + find_col('len')].to_excel(writer, 'average_mae')    # write to files
-    avg_df[find_col('mse')].to_excel(writer, 'average_mse')
-    avg_df[find_col('r2')].to_excel(writer, 'average_r2')
+    avg_df[['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2',
+            'consensus_r2','consensus_r2_org','len']].to_excel(writer, 'average_mae')    # write to files
 
     print('save to file name: #compare_all.xlsx')
     writer.save()
@@ -504,15 +501,15 @@ if __name__ == "__main__":
 
 
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
-    # r_name = 'ibes_entire_only ws -small space'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_new industry_all x -mse', 'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space', 'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
+    r_name_list = ['ibes_sector_all x', 'ibes_new industry_all x -mse', 'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
+                   'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
+    r_name = 'ibes_sector_all x'      # name in DB results_lightgbm
 
-    for r_name in ['ibes_new industry_all x -mse']:
-        # try:
-        yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
-        calc_mae_write(yoy_merge, tname=r_name)
+    # for r_name in r_name_list:
+    yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
+    calc_mae_write(yoy_merge, tname=r_name)
 
 
         # import matplotlib.pyplot as plt

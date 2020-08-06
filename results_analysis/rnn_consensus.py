@@ -44,7 +44,7 @@ def download_stock():
                     result_all = pd.read_sql(
                         "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
                         "FROM results_{} WHERE trial_lgbm > 181".format(tname, r_name), conn)       # change for results_rnn_eps
-                elif tname =='rnn_eps':
+                else:
                     result_all = pd.read_sql(
                         "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
                         "FROM results_{}".format(tname, r_name), conn)  # change for results_rnn_eps
@@ -78,12 +78,23 @@ def merge_ibes_stock():
 
     detail_stock['y_type'] = 'ibes'
 
-    if tname == 'cnn_rnn':
+    # decide base list -> identifier + period_end appeared in both lgbm and rnn models
+    lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+                       usecols=['identifier', 'testing_period'])
+    rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
+                      usecols=['identifier', 'testing_period'])
+    base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner')
+    base_list = date_type(base_list, 'testing_period')
+
+    detail_stock = detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
+    print(detail_stock.shape)
+
+    if tname == 'rnn_eps':
+        detail_stock['x_type'] = 'fwdepsqcut'
+    else:
         detail_stock['exclude_fwd'] = detail_stock['exclude_fwd'].fillna(False)     # exclude_fwd default is False
         x_type_dic = {False: 'ni', True: 'fwdepsqcut'}  # False means all_x (include ibes); True means no ibes data
         detail_stock['x_type'] = [x_type_dic[x] for x in detail_stock['exclude_fwd']]   # convert to x_type name
-    elif tname == 'rnn_eps':
-        detail_stock['x_type'] = 'fwdepsqcut'
 
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type'], keep='last')
@@ -146,8 +157,8 @@ if __name__ == "__main__":
 
     organize()
 
-    r_name = 'all'
-    tname = 'rnn_eps' # or rnn_eps
+    r_name = 'small_training_False_0'
+    tname = 'cnn_rnn' # or rnn_eps
 
     yoy_merge = merge_ibes_stock()
     calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))

@@ -33,20 +33,19 @@ args = parser.parse_args()
 space = {
     'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
+    'kernel_size': hp.choice('kernel_size', [128, 384]), #CNN kernel size - num of different "scenario"
 
-    'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
+    'num_gru_layer': hp.choice('num_gru_layer', [3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
-    'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
-    'num_gru_layer2': hp.choice('num_gru_layer2', [2, 3, 4]),  # number of layers # drop 1
+    'num_gru_layer2': hp.choice('num_gru_layer2', [2]),  # number of layers # drop 1
     'gru_nodes_mult2': hp.choice('gru_nodes_mult2', [0, 1]),  # nodes growth rate *1 or *2
-    'gru_nodes2': hp.choice('gru_nodes2', [1, 2]),  # start with possible 4 nodes -- 8, 8, 16 combination possible
-    'gru_dropout2': hp.choice('gru_drop2', [0.1, 0.25]),
+    'gru_nodes2': hp.choice('gru_nodes2', [2]),  # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_dropout2': hp.choice('gru_drop2', [0.25]),
 
     'activation': hp.choice('activation', ['tanh']),
-    'batch_size': hp.choice('batch_size', [64, 128, 512]), # drop 1024
+    'batch_size': hp.choice('batch_size', [128, 512]), # drop 1024
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -71,6 +70,7 @@ gpu_mac_address(args)
 def rnn_train(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
     params = space.copy()
+    params['gru_dropout'] = params['gru_nodes']/16      # gru dropout=0.25 when nodes=4; gru dropout=0.5 when nodes=8
     print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
