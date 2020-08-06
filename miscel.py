@@ -17,10 +17,15 @@ def check_dup(df, index_col=['identifier','period_end'], ex=True):
         print('exit from check_dup')
         exit(0)
 
-def date_type(df, date_col='period_end'):
+def date_type(df, date_col='period_end', format=''):
     ''' convert period_end columns to datetime type '''
 
-    for fmt in ['%d/%m/%Y', '%Y-%m-%d', '%Y%m%d']:
+    if format == '':
+        fmt_list = ['%d/%m/%Y', '%Y-%m-%d', '%Y%m%d']
+    else:
+        fmt_list = [format]
+
+    for fmt in fmt_list:
         try:
             df[date_col] = pd.to_datetime(df[date_col], format=fmt)
             break

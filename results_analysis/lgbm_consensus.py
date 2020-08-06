@@ -15,6 +15,8 @@ indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 6
                501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
+compare_using_old_ibes = True
+
 idd = '00130H105'
 edd = '2003-06-30'
 def check_id(df):
@@ -67,6 +69,9 @@ class eps_to_yoy:
         try:    # read ibes data + clean Y
             self.ibes = pd.read_csv('preprocess/ibes_data.csv', usecols = ['identifier','period_end',
                                                                            'EPS1FD12','EPS1TR12'])
+            if compare_using_old_ibes == True:
+                self.ibes = pd.read_csv('ibes_data_old.csv')
+
             self.ibes.columns = ['identifier', 'period_end', 'eps1fd12', 'eps1tr12']
             self.actual = pd.read_csv('preprocess/clean_ratios.csv', usecols = ['identifier', 'period_end','y_ni'])
             print('local version run - ibes / clean_ratios (actual) ')
@@ -90,13 +95,18 @@ class eps_to_yoy:
         self.ibes = date_type(self.ibes)     # convert period_end column to datetime type
         self.actual = date_type(self.actual)
         self.ws = date_type(self.ws)
+        print(self.ibes)
+        print(self.actual)
+        print(self.ws)
+
 
         # map common share outstanding & market cap to ibes estimations
         self.ibes = self.ibes.merge(self.ws, on=['identifier', 'period_end'])
         self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])
 
         # calculate YoY (Y)
-        self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')    # order df in chron order
+        if compare_using_old_ibes == True:
+            self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')    # order df in chron order
 
         self.ibes['y_ibes'] = (self.ibes['eps1tr12'].shift(-4) - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
         self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan     # use ibes ttm for Y
@@ -192,12 +202,15 @@ class download:
         ''' Download 2: download ibes_data and organize to YoY '''
 
         try:
+            if compare_using_old_ibes == True:
+                exit(0)
             yoy = pd.read_csv('results_analysis/compare_with_ibes/ibes_yoy.csv')
             yoy = date_type(yoy)
             print('local version run - ibes_yoy')
         except:
             yoy = eps_to_yoy().merge_and_calc()
-            yoy.to_csv('results_analysis/compare_with_ibes/ibes_yoy.csv', index=False)
+            if compare_using_old_ibes != True:
+                yoy.to_csv('results_analysis/compare_with_ibes/ibes_yoy.csv', index=False)
 
         return yoy
 
@@ -205,13 +218,17 @@ class download:
         ''' convert ibes to median '''
 
         try:
+            if compare_using_old_ibes == True:
+                exit(0)
             yoy_med = pd.read_csv('results_analysis/compare_with_ibes/ibes_median.csv')
             yoy_med = date_type(yoy_med)
             print('local version run - ibes_median')
         except:
             yoy = self.download_ibes()
             yoy_med = yoy_to_median(yoy)                            # STEP2: convert ibes YoY to qcut / median
-            yoy_med.to_csv('results_analysis/compare_with_ibes/ibes_median.csv', index=False)
+
+            if compare_using_old_ibes != True:
+                yoy_med.to_csv('results_analysis/compare_with_ibes/ibes_median.csv', index=False)
 
         return yoy_med
 
@@ -502,10 +519,11 @@ if __name__ == "__main__":
 
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_sector_all x', 'ibes_new industry_all x -mse', 'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
+    r_name_list = ['ibes_industry_all x -exclude_stock','ibes_sector_all x', 'ibes_new industry_all x -mse',
+                   'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
                    'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
-    r_name = 'ibes_sector_all x'      # name in DB results_lightgbm
+    r_name = 'ibes_new industry_only ws -indi space3'      # name in DB results_lightgbm
 
     # for r_name in r_name_list:
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
@@ -523,8 +541,8 @@ if __name__ == "__main__":
         #
         # exit(0)
 
-
-    combine()
+    if compare_using_old_ibes != True:
+        combine()
 
 
 
