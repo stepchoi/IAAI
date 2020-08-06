@@ -290,7 +290,7 @@ if __name__ == "__main__":
     # sql_result['objective'] = base_space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
-    # update load_data pa
+    # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
     sql_result['y_type'] = load_data_params['y_type']
 
