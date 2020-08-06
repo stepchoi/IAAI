@@ -59,7 +59,6 @@ class worldscope:
         self.ws['period_end'] = self.ws.apply(lambda x: x['last_year_end'] +
                                                         pd.offsets.MonthEnd(x['frequency_number']*3), axis=1)
 
-
         return self.ws.drop(['last_year_end','fiscal_year_end','year','frequency_number','fiscal_quarter_end'], axis=1)
 
     def fill_missing_ws(self):
@@ -188,10 +187,8 @@ def full_period(df, index_col='identifier', date_format=None):
     full_period = pd.DataFrame(columns=set(df[index_col]), index=date_list)
     full_period = full_period.unstack().reset_index(drop=False).iloc[:, :2]
     full_period.columns = [index_col, 'period_end']
-    # print(full_period)
 
     df_full_period = pd.merge(full_period, df, on=[index_col, 'period_end'], how='left')
-
     print('# full records length: {}={}*{} '.format(len(df_full_period), len(set(df[index_col])), len(date_list)))
 
     return df_full_period

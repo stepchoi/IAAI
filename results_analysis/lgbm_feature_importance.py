@@ -123,7 +123,7 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_new industry_only ws -indi space']
+    r_name = ['ibes_new industry_only ws -indi space3']
 
     feature = download(r_name).finish()
     # feature = pd.read_csv('201030 feature importance.csv')

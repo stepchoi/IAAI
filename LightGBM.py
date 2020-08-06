@@ -276,7 +276,8 @@ if __name__ == "__main__":
                         'chron_valid': False,
                         'y_type': 'ibes',
                         'qcut_q': 10,
-                        'ibes_qcut_as_x': False}
+                        'ibes_qcut_as_x': False,
+                        'exclude_stock': True}
 
     # default parser
     macro_monthly = True # remember to change main.csv
@@ -286,10 +287,10 @@ if __name__ == "__main__":
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
-    load_data_params['exclude_fwd'] = False
-    load_data_params['ibes_qcut_as_x'] = True
-    sql_result['objective'] = base_space['objective'] = 'regression_l2'
-    sql_result['x_type'] = 'ni'
+    load_data_params['exclude_fwd'] = True
+    load_data_params['ibes_qcut_as_x'] = False
+    # sql_result['objective'] = base_space['objective'] = 'regression_l2'
+    sql_result['x_type'] = 'fwdepsqcut'
 
     # update load_data pa
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
@@ -301,7 +302,7 @@ if __name__ == "__main__":
 
     for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
 
-        sql_result['name'] = 'ibes_new industry_all x -mse'  # name = labeling the experiments
+        sql_result['name'] = 'ibes_industry_all x -exclude_stock'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code

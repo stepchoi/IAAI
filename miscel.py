@@ -20,10 +20,12 @@ def check_dup(df, index_col=['identifier','period_end'], ex=True):
 def date_type(df, date_col='period_end'):
     ''' convert period_end columns to datetime type '''
 
-    try:
-        df[date_col] = pd.to_datetime(df[date_col], format='%d/%m/%Y')
-    except:
-        df[date_col] = pd.to_datetime(df[date_col], format='%Y-%m-%d')
+    for fmt in ['%d/%m/%Y', '%Y-%m-%d', '%Y%m%d']:
+        try:
+            df[date_col] = pd.to_datetime(df[date_col], format=fmt)
+            break
+        except:
+            continue
 
     return df
 

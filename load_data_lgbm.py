@@ -157,17 +157,14 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
         start = testing_period - relativedelta(years=10)    # train df = 40 quarters
 
-        self.sector = full_period(self.sector)
-
-        print(self.sector.shape)
+        self.sector = full_period(date_type(self.sector))
         self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
-        print(self.sector.shape)
 
         # self.sector['lookback_y_{}'.format(y_type)] = self.sector['y_{}'.format(y_type)].shift(20)
         # self.sector.iloc[self.sector.groupby('identifier').head(20),'lookback_y_{}'.format(y_type)]
@@ -200,6 +197,11 @@ class load_data:
                 x = df.drop(id_col + y_col + fwd_eps_col + fwd_col, axis=1)
                 if ibes_qcut_as_x == False:
                     x = x.drop(['ibes_qcut_as_x'], axis=1)
+
+            print(x)
+            if exclude_stock == True:
+                x = x.drop(['stock_return_1qa'], axis=1)
+
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
 
@@ -273,10 +275,11 @@ class load_data:
 
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False, ibes_qcut_as_x=False):
+    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False,
+                  ibes_qcut_as_x=False, exclude_stock=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
@@ -329,7 +332,11 @@ if __name__ == '__main__':
                                                                       exclude_fwd=exclude_fwd,
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,
-                                                                      ibes_qcut_as_x=ibes_qcut_as_x)
+                                                                      ibes_qcut_as_x=ibes_qcut_as_x,
+                                                                      exclude_stock=True)
+
+    print(sorted(feature_names))
+
     print('test_id: ', len(test_id))
     pd.DataFrame(test_id, columns=['lgbm_id']).to_csv('lgbm_id.csv', index=False)
     print(pd.DataFrame(test_id, columns=['lgbm_id']))
