@@ -30,8 +30,6 @@ parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--gpu_number', type=int, default=1)
 args = parser.parse_args()
 
-
-
 space = {
     'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
@@ -227,7 +225,7 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2017,10,1)
+    period_1 = dt.datetime(2018,1,1)
     sample_no = 25
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False}
     print(load_data_params)
