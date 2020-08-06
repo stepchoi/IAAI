@@ -33,14 +33,14 @@ args = parser.parse_args()
 space = {
     'learning_rate': hp.choice('lr', [2, 3]), # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [32, 128, 384]), #CNN kernel size - num of different "scenario"
-    'num_gru_layer': hp.choice('num_gru_layer', [1, 2, 3]),     # number of layers # drop 1, 2
+    'kernel_size': hp.choice('kernel_size', [64, 256, 384]), #CNN kernel size - num of different "scenario"
+    'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
     'activation': hp.choice('activation', ['tanh']),
-    'batch_size': hp.choice('batch_size', [64, 128, 512]), # drop 1024
+    'batch_size': hp.choice('batch_size', [128, 512]), # drop 1024
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -96,7 +96,6 @@ def rnn_train(space): #functional
             extra = dict(return_sequences=True)
             g_1 = GRU(1, dropout=0, **extra)(g_1)
         elif i == 0:
-        # extra.update(input_shape=(lookback, number_of_kernels * 2))
             g_1 = GRU(temp_nodes, **extra)(g_1)
         else:
             g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
@@ -235,7 +234,7 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'small_training_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
+    sql_result['name'] = 'adj_space_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
 
     data = load_data(macro_monthly=True)

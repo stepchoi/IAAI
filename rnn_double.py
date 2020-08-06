@@ -259,7 +259,7 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
     rname = {False: '_exclude_fwd', True: ''}
-    sql_result['name'] = 'official_{}_{}'.format(rname[args.exclude_fwd], args.add_ind_code)
+    sql_result['name'] = 'adj_space_{}_{}'.format(rname[args.exclude_fwd], args.add_ind_code)
     db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_double')
 
     data = load_data(macro_monthly=True)
