@@ -271,7 +271,7 @@ if __name__ == "__main__":
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
     hpot = {}           # storing data for best trials in each Hyperopt
-    load_data_params = {'exclude_fwd': False,
+    load_data_params = {'exclude_fwd': True,
                         'use_median': True,
                         'chron_valid': False,
                         'y_type': 'ibes',
@@ -287,8 +287,6 @@ if __name__ == "__main__":
     data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
-    load_data_params['exclude_fwd'] = True
-    load_data_params['ibes_qcut_as_x'] = False
     # sql_result['objective'] = base_space['objective'] = 'regression_l2'
     sql_result['x_type'] = 'fwdepsqcut'
 
