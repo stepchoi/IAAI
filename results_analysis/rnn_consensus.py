@@ -157,8 +157,8 @@ if __name__ == "__main__":
 
     organize()
 
-    r_name = 'small_training_False_0'
-    tname = 'cnn_rnn' # or rnn_eps
+    r_name = 'adj_space__exclude_fwd_2'
+    tname = 'rnn_double' # or rnn_eps
 
     yoy_merge = merge_ibes_stock()
     calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))

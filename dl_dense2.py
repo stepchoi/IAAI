@@ -3,6 +3,8 @@ import pandas as pd
 import datetime as dt
 from dateutil.relativedelta import relativedelta
 import ast
+import argparse
+
 import os
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from tensorflow.python.keras import callbacks, optimizers, regularizers
@@ -22,6 +24,12 @@ import matplotlib.pyplot as plt
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--sp_only', default=False, action='store_true')
+args = parser.parse_args()
+
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -197,7 +205,7 @@ if __name__ == "__main__":
 
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
-    data = load_data(macro_monthly=True)
+    data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # undone = {'0': {'2013-03-31 00:00:00': 1, '2013-09-30 00:00:00': 1, '2013-12-31 00:00:00': 1, '2014-12-31 00:00:00': 1,
     #                 '2015-03-31 00:00:00': 1, '2015-12-31 00:00:00': 1, '2016-03-31 00:00:00': 1},

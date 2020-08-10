@@ -25,6 +25,21 @@ def check_id(df, id=idd):
         print(df.loc[df['identifier'] ==id, ['period_end', 'y_ibes']].sort_values(['period_end']))
     exit(0)
 
+def filter_sp_only(df):
+    ''' select members from S&P500 index for training '''
+
+    with engine.connect() as conn:
+        sp = pd.read_sql('SELECT * FROM dl_value_universe', conn)       # read index-ticker-id mapping from DB
+    engine.dispose()
+
+    sp = sp.loc[sp['index_ric']=='0#.SPX', 'identifier'].to_list()      # select SPX members
+
+    print(df.shape, len(set(df['identifier'])))
+    df = df.loc[df['identifier'].isin(sp)]                              # filter companies
+    print(df.shape, len(set(df['identifier'])))
+
+    return df
+
 class add_macro:
 
     def __init__(self, macro_monthly=True):
@@ -95,7 +110,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, macro_monthly=True):
+    def __init__(self, macro_monthly=True, sp_only=False):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -112,6 +127,9 @@ class load_data:
         self.main = self.main.dropna(subset=['icb_sector'])
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
         print('main_consensus: ', self.main.shape)
+
+        if sp_only==True:
+            self.main = filter_sp_only(self.main)
 
         # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
@@ -323,7 +341,7 @@ if __name__ == '__main__':
     ibes_qcut_as_x = True
     macro_monthly = True
 
-    data = load_data()
+    data = load_data(sp_only=True)
     # data.split_sector(icb_code)
     data.split_industry(icb_code, combine_ind=True)
 

@@ -15,7 +15,7 @@ indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 6
                501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-compare_using_old_ibes = True
+compare_using_old_ibes = False
 
 idd = '00130H105'
 edd = '2003-06-30'
@@ -107,6 +107,8 @@ class eps_to_yoy:
         # calculate YoY (Y)
         if compare_using_old_ibes == True:
             self.ibes = full_period(self.ibes, 'identifier', '%Y-%m-%d')    # order df in chron order
+            self.ibes['eps1fd12_1'] = self.ibes['eps1fd12'].shift(-4)
+            self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'eps1fd12_1'] = np.nan
 
         self.ibes['y_ibes'] = (self.ibes['eps1tr12'].shift(-4) - self.ibes['eps1tr12']) / self.ibes['fn_8001'] * self.ibes['fn_5192']
         self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan     # use ibes ttm for Y
@@ -315,7 +317,10 @@ class calc_mae_write():
             self.name = name
             self.merge = g
 
-            self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
+            if compare_using_old_ibes == True:
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_old_ibes.xlsx')
+            else:
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -523,7 +528,7 @@ if __name__ == "__main__":
                    'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
                    'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
-    r_name = 'ibes_new industry_only ws -indi space3'      # name in DB results_lightgbm
+    r_name = 'ibes_industry_all x -exclude_stock'      # name in DB results_lightgbm
 
     # for r_name in r_name_list:
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')

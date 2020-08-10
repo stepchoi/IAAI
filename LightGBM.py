@@ -2,6 +2,7 @@ import datetime as dt
 
 import lightgbm as lgb
 import numpy as np
+import argparse
 import pandas as pd
 from load_data_lgbm import load_data
 from dateutil.relativedelta import relativedelta
@@ -13,6 +14,12 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from hyperspace_lgbm import find_hyperspace
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--sp_only', default=False, action='store_true')
+args = parser.parse_args()
+
 
 base_space ={'objective': 'regression_l1',     # for regression
             'verbose': -1,
@@ -284,7 +291,7 @@ if __name__ == "__main__":
     resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
 
-    data = load_data(macro_monthly=macro_monthly)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    data = load_data(macro_monthly=macro_monthly, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     # FINAL 1: use ibes_y + without ibes data
     # sql_result['objective'] = base_space['objective'] = 'regression_l2'
