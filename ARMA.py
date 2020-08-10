@@ -36,7 +36,7 @@ def plot_arma(model):
 def auto_arma(arr):
     ''' for each identifier: fit ARIMA model with 60Q data -> predict next 1Q '''
 
-    model = pm.auto_arima(arr[:-1], start_p=1, start_q=1,                       # find best ARIMA model by stepwise search
+    model = pm.auto_arima(arr[:-4], start_p=1, start_q=1,                       # find best ARIMA model by stepwise search
                           test='adf',  # use adftest to find optimal 'd'
                           max_p=3, max_q=3,  # maximum p and q
                           m=1,  # frequency of series
@@ -50,25 +50,29 @@ def auto_arma(arr):
                           stepwise=True)
 
     # Forecast
-    n_periods = 1   # forecast next 1Q
+    n_periods = 4   # forecast next 1Q
     fc, confint = model.predict(n_periods=n_periods, return_conf_int=True)  # fc = forecast; confint is for plotting
     index_of_fc = np.arange(len(arr), len(arr) + n_periods) # use 61 as index for forecast
     fc_series = pd.Series(fc, index=index_of_fc)   # make series for plotting purpose
 
-    return abs(arr[-1] - fc_series.values[0])   # calculate absolute difference
+    return fc_series.values[3]   # calculate absolute difference
 
 def auto_arma_all(train_x):
     ''' roll over all identifier to calculate mae '''
 
-    mae = []
+    mae = {}
     for i in range(len(train_x)):   # roll over each identifier
         print('---------------------------------->', i)
         try:
-            mae.append(auto_arma(train_x.values[i]))
+            pred = auto_arma(train_x.values[i])
         except:
-            mae.append(np.nan)
+            pred = np.nan
 
-    df = pd.DataFrame(mae, index=train_x.index, columns=['mae'])    # convert list of absolute_error to dataframe
+        mae[train_x.index[i]] = {}
+        mae[train_x.index[i]]['y'] = train_x.values[i,-1]
+        mae[train_x.index[i]]['pred'] = pred
+
+    df = pd.DataFrame(mae).T    # convert list of absolute_error to dataframe
     return df
 
 if __name__ == "__main__":
@@ -86,7 +90,8 @@ if __name__ == "__main__":
         testing_period = period_1 + i * relativedelta(months=3)
         sql_result['testing_period'] = testing_period
 
-        train_x = data.split_train_test(testing_period)     # load data for 61Q (60Q for train + 1Q for test)
+        train_x = data.split_train_test(testing_period)     # load data for 64Q (60Q for train + 4Q for test)
+        print(train_x.shape)
         train_x = train_x[~train_x.iloc[:,-1].isnull()]     # remove testing data with NaN for testing 1Q
         train_x = train_x.fillna(0)     # fill NaN with 0 for all 60Q for train
 

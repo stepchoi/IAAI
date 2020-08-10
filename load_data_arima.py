@@ -60,8 +60,9 @@ class load_data:
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback
-        train_2dx_info = self.main.loc[(start_train <= self.main['period_end']) &
-                                         (self.main['period_end'] <= testing_period)] # extract df for X
+        end_train = testing_period + relativedelta(years=1)    # train df = 10y + 5y lookback
+        train_2dx_info = self.main.loc[(start_train < self.main['period_end']) &
+                                         (self.main['period_end'] <= end_train)] # extract df for X
         # 2.2. standardize data
         train_2dx_info = train_2dx_info.groupby(['identifier','period_end'])['eps_rnn'].median().unstack()
 
