@@ -28,6 +28,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
+parser.add_argument('--filter_best_col', default=False, action='store_true')
 args = parser.parse_args()
 
 
@@ -246,7 +247,8 @@ if __name__ == "__main__":
                                                                                   y_type=sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
                                                                                   use_median=use_median,
-                                                                                  chron_valid=chron_valid)
+                                                                                  chron_valid=chron_valid,
+                                                                                  filter_best_col=args.filter_best_col)
 
                 print(feature_names)
 
