@@ -19,6 +19,10 @@ engine = create_engine(db_string)
 indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                 501010, 201020, 502030, 401010]
 
+best_col = ['earnings_yield', 'fa_turnover', 'stock_return_1qa', 'gross_margin', 'stock_return_3qb', 'div_payout',
+            'sales_ts01', 'inv_turnover', 'ebitda_to_ev', 'capex_to_dda', 'ni_ts01', 'interest_to_earnings',
+            'ni_to_cfo', 'pretax_margin_ts01', 'cash_ratio'] # top 15 most important features for aggregate model
+
 idd = 'C156E0340'
 def check_id(df, id=idd):
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
@@ -175,7 +179,7 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, filter_best_col):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -217,8 +221,12 @@ class load_data:
                     x = x.drop(['ibes_qcut_as_x'], axis=1)
 
             print(x)
-            if exclude_stock == True:
+            if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
+
+            if filter_best_col == True:       # for trial with only top N important features (dense2)
+                x = x.filter(best_col)
+                print('------> Using top {} most important feature: '.format(len(best_col)), best_col)
 
             self.feature_names = x.columns.to_list()
             # print('check if exclude_fwd should be 46, we have ', x.shape)
@@ -294,7 +302,7 @@ class load_data:
         return gkf
 
     def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False,
-                  ibes_qcut_as_x=False, exclude_stock=False):
+                  ibes_qcut_as_x=False, exclude_stock=False, filter_best_col=False):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock)

@@ -528,7 +528,7 @@ if __name__ == "__main__":
                    'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
                    'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
-    r_name = 'ibes_industry_all x -exclude_stock'      # name in DB results_lightgbm
+    r_name = 'ibes_industry -sp500'      # name in DB results_lightgbm
 
     # for r_name in r_name_list:
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
