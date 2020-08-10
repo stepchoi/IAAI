@@ -18,6 +18,7 @@ from hyperspace_lgbm import find_hyperspace
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
+parser.add_argument('--exclude_stock', default=False, action='store_true')
 args = parser.parse_args()
 
 
@@ -284,7 +285,7 @@ if __name__ == "__main__":
                         'y_type': 'ibes',
                         'qcut_q': 10,
                         'ibes_qcut_as_x': False,
-                        'exclude_stock': True}
+                        'exclude_stock': args.exclude_stock}
 
     # default parser
     macro_monthly = True # remember to change main.csv
@@ -307,7 +308,7 @@ if __name__ == "__main__":
 
     for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
 
-        sql_result['name'] = 'ibes_industry_all x -exclude_stock'  # name = labeling the experiments
+        sql_result['name'] = 'ibes_industry -sp500'  # name = labeling the experiments
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
