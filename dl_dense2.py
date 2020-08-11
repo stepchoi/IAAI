@@ -29,6 +29,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
 parser.add_argument('--filter_best_col', type=int, default=0)
+parser.add_argument('--space_name', type=str, default='small')
 args = parser.parse_args()
 
 
@@ -200,7 +201,7 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 4
-    sql_result['name'] = 'top20 -mini space'
+    sql_result['name'] = 'top20 -{} space'.format(args.space_name)
     # sql_result['name'] = 'new industry model -fix space'
     resume = False
 
