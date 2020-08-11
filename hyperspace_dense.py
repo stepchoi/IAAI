@@ -58,6 +58,8 @@ space_fix = {
 
 def find_hyperspace(sql_result):
 
+    print('sql_result name: ', sql_result['name'])
+
     if 'large' in sql_result['name']:
         return space_big
     elif 'small' in sql_result['name']:
@@ -66,3 +68,5 @@ def find_hyperspace(sql_result):
         return space_fix
     elif 'mini' in sql_result['name']:
         return space_mini
+    else:
+        NameError('wrong name input')

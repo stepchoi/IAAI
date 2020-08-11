@@ -6,8 +6,8 @@ import ast
 import argparse
 
 import os
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
-from tensorflow.python.keras import callbacks, optimizers, regularizers
+from hyperopt import fmin, tpe, STATUS_OK, Trials
+from tensorflow.python.keras import callbacks, optimizers
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Dense, Dropout, Input
 from tensorflow.python.keras import backend as K
@@ -29,7 +29,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
 parser.add_argument('--filter_best_col', type=int, default=0)
-parser.add_argument('--space_name', type=str, default='small')
+parser.add_argument('--name_sql', required=True)
 args = parser.parse_args()
 
 
@@ -201,17 +201,12 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 4
-    sql_result['name'] = 'top20 -{} space'.format(args.space_name)
-    # sql_result['name'] = 'new industry model -fix space'
+    sql_result['name'] = args.name_sql
     resume = False
 
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
-
-    # undone = {'0': {'2013-03-31 00:00:00': 1, '2013-09-30 00:00:00': 1, '2013-12-31 00:00:00': 1, '2014-12-31 00:00:00': 1,
-    #                 '2015-03-31 00:00:00': 1, '2015-12-31 00:00:00': 1, '2016-03-31 00:00:00': 1},
-    #           '2': {'2013-03-31 00:00:00': 1, '2013-06-30 00:00:00': 1, '2016-09-30 00:00:00': 1}}
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
