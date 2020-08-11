@@ -1,6 +1,6 @@
 import datetime as dt
 
-import xgboost as xgb
+import lightgbm as lgb
 import numpy as np
 import argparse
 import pandas as pd

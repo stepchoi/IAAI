@@ -28,7 +28,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
-parser.add_argument('--filter_best_col', default=False, action='store_true')
+parser.add_argument('--filter_best_col', type=int, default=0)
 args = parser.parse_args()
 
 

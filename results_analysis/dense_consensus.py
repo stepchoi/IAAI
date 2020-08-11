@@ -80,10 +80,10 @@ def merge_ibes_stock():
     detail_stock = detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
     print(detail_stock.shape)
 
-    # print('------ convert entire ------')
-    # detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
-    # detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
-    # detail_stock['icb_code'] = 0
+    if not 'industry' in r_name:
+        detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+        detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+        detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
     detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
@@ -105,11 +105,11 @@ if __name__ == "__main__":
 
     r_name_list = ['all x 0 -fix space', 'new with indi code -fix space',
                     'compare large space']
-    r_name = 'sp500 -small space'
+    r_name = 'top15 -small space'
     tname = 'dense2'
 
     # for i in r_name:
     yoy_merge = merge_ibes_stock()
-    calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))
+    calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name), base_list_type='all')
 
     combine()

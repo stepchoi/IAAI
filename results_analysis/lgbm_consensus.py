@@ -115,11 +115,7 @@ class eps_to_yoy:
 
         self.ibes['y_consensus'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']     # use ibes fwd & ttm for Y estimation
 
-
         self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
-
-        # for name, g in self.ibes.groupby('icb_sector'):
-        #     print(name, len(g))
 
         return self.ibes
 
@@ -241,19 +237,6 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
-        print(self.detail_stock.shape)
-
-        # decide base list -> identifier + period_end appeared in both lgbm and rnn models
-        lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
-                           usecols=['identifier', 'testing_period'])
-        rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
-                          usecols=['identifier', 'testing_period'])
-        base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner')
-        base_list = date_type(base_list, 'testing_period')
-
-        self.detail_stock = self.detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
-        print(self.detail_stock.shape)
-
         if 'entire' in r_name: # for entire
             print('------ convert entire ------')
             self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
@@ -301,8 +284,23 @@ class download:
 
 class calc_mae_write():
 
-    def __init__(self, yoy_merge, tname=''):
+    def __init__(self, yoy_merge, tname='', base_list_type='all'):
         ''' calculate all MAE and save to local xlsx '''
+
+        # decide base list -> identifier + period_end appeared in both lgbm and rnn models
+        if base_list_type == 'all':
+            lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+                               usecols=['identifier', 'testing_period'])
+        elif base_list_type == 'sp':
+            lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_industry -sp500.csv',
+                               usecols=['identifier', 'testing_period'])
+
+        rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
+                          usecols=['identifier', 'testing_period'])
+        base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner').drop_duplicates()
+        base_list = date_type(base_list, 'testing_period')
+        yoy_merge = yoy_merge.merge(base_list, on=['identifier', 'testing_period'], how='inner')
+        print(yoy_merge)
 
         self.tname = tname
         # self.merge = yoy_merge
@@ -311,16 +309,17 @@ class calc_mae_write():
         yoy_merge['icb_type'] = [len(x) for x in yoy_merge['icb_code']]
         yoy_merge['icb_type'] = yoy_merge['icb_type'].astype(str)
 
-
         for name, g in yoy_merge.groupby(['y_type', 'icb_type']):
 
             self.name = name
             self.merge = g
 
-            if compare_using_old_ibes == True:
-                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_old_ibes.xlsx')
-            else:
+            if base_list_type == 'all':
                 self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
+            elif base_list_type == 'sp':
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}_sp500.xlsx'.format('_'.join(name),tname))
+            elif compare_using_old_ibes == True:
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_old_ibes.xlsx')
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -504,31 +503,14 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
-    # df1 = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space.csv')
-    # df2 = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space2.csv')
-    # print(df1.shape)
-    # print(df2.shape)
-    #
-    # merge_col = ['identifier','qcut_q','icb_code','testing_period','cv_number','exclude_fwd','y_type','x_type']
-    # print(df1.loc[df1.duplicated(merge_col, keep=False)])
-    # print(df2.loc[df2.duplicated(merge_col, keep=False)])
-    #
-    # d = pd.merge(df1, df2, on=merge_col, how='left', suffixes=['_1','_2'])
-    # print(d.isnull().sum())
-    # print(d.loc[d['pred_2'].isnull()])
-    #
-    # d.loc[d['pred_2'].isnull()].to_csv('#check.csv')
-    #
-    # exit(0)
-
-
     # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
     # r_name = 'ibes_new industry_monthly -new'
     r_name_list = ['ibes_industry_all x -exclude_stock','ibes_sector_all x', 'ibes_new industry_all x -mse',
                    'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
                    'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
 
-    r_name = 'ibes_industry -sp500'      # name in DB results_lightgbm
+    r_name = 'ibes_new industry_only ws -indi space3'      # name in DB results_lightgbm
+    r_name = 'ibes_new industry_only ws -indi space3'      # name in DB results_lightgbm
 
     # for r_name in r_name_list:
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')

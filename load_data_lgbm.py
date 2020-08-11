@@ -21,7 +21,7 @@ indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 
 
 best_col = ['earnings_yield', 'fa_turnover', 'stock_return_1qa', 'gross_margin', 'stock_return_3qb', 'div_payout',
             'sales_ts01', 'inv_turnover', 'ebitda_to_ev', 'capex_to_dda', 'ni_ts01', 'interest_to_earnings',
-            'ni_to_cfo', 'pretax_margin_ts01', 'cash_ratio'] # top 15 most important features for aggregate model
+            'ni_to_cfo', 'pretax_margin_ts01', 'cash_ratio', 'cfps_ts01','sales_ts13','ca_turnover','debt_to_asset','roe'] # top 15 most important features for aggregate model
 
 idd = 'C156E0340'
 def check_id(df, id=idd):
@@ -224,14 +224,10 @@ class load_data:
             if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
 
-            if filter_best_col == True:       # for trial with only top N important features (dense2)
-                x = x.filter(best_col)
-                print('------> Using top {} most important feature: '.format(len(best_col)), best_col)
+            if filter_best_col > 0:       # for trial with only top N important features (dense2)
+                x = x.filter(best_col[:filter_best_col])
 
             self.feature_names = x.columns.to_list()
-            # print('check if exclude_fwd should be 46, we have ', x.shape)
-
-            # print('x_col: ', x.columns)
             x = x.values
             y = {}
             for col in y_col:
