@@ -15,9 +15,10 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from hyperspace_lgbm import find_hyperspace
 
-base_space = {'objective': 'regression_l1',  # for regression
-              'verbose': -1,
-              'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
+base_space = {'objective': 'reg:pseudohubererror',  # for regression
+              'verbosity': 0,
+              'nthread': 12,
+              'eval_metric':'mae'}  # for the best speed, set this to the number of real CPU cores
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -33,16 +34,12 @@ def lgbm_train(space):
     lgb_eval = xgb.DMatrix(sample_set['valid_x'], label=sample_set['valid_y'])
 
     evals_result = {}
-    gbm = lgb.train(params,
-                    lgb_train,
-                    valid_sets=[lgb_eval, lgb_train],
-                    valid_names=['valid', 'train'],
+    gbm = xgb.train(params=params,
+                    dtrain=lgb_train,
+                    evals=[(lgb_eval,'valid'), (lgb_train,'train')],
+                    evals_result=evals_result,
                     num_boost_round=1000,
-                    early_stopping_rounds=150,
-                    feature_name=feature_names,
-                    evals_result=evals_result)
-
-    # plot_history(evals_result, gbm, sql_result['trial_lgbm'])
+                    early_stopping_rounds=150)
 
     # prediction on all sets
     if space['objective'] in ['regression_l1', 'regression_l2']:
@@ -96,7 +93,6 @@ def eval(space):
     sql_result['trial_lgbm'] += 1
 
     return result['mae_valid']
-
 
 def eval_classify(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
@@ -157,35 +153,11 @@ def HPOT(space, max_evals):
                                                  method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_plot'], hpot['best_model'], hpot['best_trial'])
-
     if sql_result['icb_code'] == 201030:
         hpot['best_model'].save_model('models_lgbm/model_201030_{}.txt'.format(hpot['best_trial']))
 
     sql_result['trial_hpot'] += 1
     # return best
-
-
-def plot_history(evals_result, gbm, trial_num):
-    ''' plot the training loss history '''
-
-    try:
-        ax = lgb.plot_metric(evals_result, metric='l1')  # plot training / validation loss
-    except:
-        ax = lgb.plot_metric(evals_result, metric='l2')
-
-    print(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'))
-    ax.set_title('{}:{}:{}'.format(sql_result['icb_code'], sql_result['testing_period'].strftime('%Y-%m'),
-                                   sql_result['x_type']))
-    fig = ax.get_figure()
-    fig.savefig('models_lgbm/plot_lgbm_eval_{}.png'.format(trial_num))
-    plt.close()
-
-    if sql_result['icb_code'] == 201030:
-        ax = lgb.plot_importance(gbm, max_num_features=20)  # plot feature importance
-        fig = ax.get_figure()
-        fig.savefig('models_lgbm/plot_lgbm_impt_{}.png'.format(trial_num))
-        plt.close()
 
 
 def to_sql_bins(cut_bins, write=True):
@@ -269,7 +241,6 @@ def pass_error():
                                                                                 index=False, if_exists='append')
     engine.dispose()
 
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -278,7 +249,7 @@ if __name__ == "__main__":
     parser.add_argument('--sp_only', default=False, action='store_true')
     parser.add_argument('--exclude_stock', default=False, action='store_true')
     parser.add_argument('--resume', default=False, action='store_true')
-    parser.add_argument('--exclude_fwd', default=True, action='store_false')
+    parser.add_argument('--exclude_fwd', default=False, action='store_true')
     parser.add_argument('--sample_type', default='industry')
     parser.add_argument('--sample_no', type=int, default=25)
     args = parser.parse_args()
@@ -292,6 +263,8 @@ if __name__ == "__main__":
                       999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     elif args.sample_type == 'entire':
         partitions = [0, 1, 2]
+    else:
+        NameError('wrong sample_type')
 
     period_1 = dt.datetime(2013, 3, 31)  # starting point for first testing set
 
@@ -315,7 +288,7 @@ if __name__ == "__main__":
     sql_result['objective'] = base_space['objective'] = args.objective
     x_type_map = {True: 'fwdepsqcut', False: 'ni'}  # True/False based on exclude_fwd
     sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = args.name_sql  # name = labeling the experiments
+    sql_result['name'] = 'xgb {} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)  # label experiment
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']  # number of Y classes
@@ -371,7 +344,19 @@ if __name__ == "__main__":
 
                     space = find_hyperspace(sql_result)
                     space.update(base_space)
-                    print(space)
+
+                    space['gamma'] = space['min_gain_to_split']
+                    space['subsample'] = space['bagging_fraction']
+                    space['lambda'] = space['lambda_l2']
+                    space['alpha'] = space['lambda_l1']
+                    space['colsample_bynode'] = space['feature_fraction']
+                    space['min_child_weight'] = space['min_data_in_leaf']
+                    space['booster'] = hp.choice('booster', ['gbtree', 'dart'])
+
+                    keys_to_remove = ['min_gain_to_split', 'bagging_fraction', 'lambda_l2', 'lambda_l1',
+                                      'boosting_type', 'feature_fraction','min_data_in_leaf', 'bagging_freq']
+                    for key in keys_to_remove:
+                        space.pop(key)
 
                     HPOT(space, max_evals=10)  # start hyperopt
                     cv_number += 1
