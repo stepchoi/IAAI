@@ -1,18 +1,14 @@
 import datetime as dt
-
 import xgboost as xgb
-import numpy as np
 import argparse
 import pandas as pd
-from load_data_lgbm import load_data
 from dateutil.relativedelta import relativedelta
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score, mean_squared_error
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
+from load_data_lgbm import load_data
 from hyperspace_lgbm import find_hyperspace
 
 base_space = {'objective': 'reg:pseudohubererror',  # for regression
