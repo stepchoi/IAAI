@@ -1,6 +1,6 @@
 import datetime as dt
 
-import lightgbm as gbm
+import lightgbm as lgb
 import numpy as np
 import argparse
 import pandas as pd
@@ -14,13 +14,6 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from hyperspace_lgbm import find_hyperspace
-
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--sp_only', default=False, action='store_true')
-# parser.add_argument('--exclude_stock', default=False, action='store_true')
-# args = parser.parse_args()
-
 
 base_space ={'objective': 'regression_l1',     # for regression
             'verbose': -1,
@@ -266,37 +259,48 @@ def pass_error():
 
 if __name__ == "__main__":
 
-    db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-    engine = create_engine(db_string)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--name_sql', required=True)
+    parser.add_argument('--objective', default='regression_l1')
+    parser.add_argument('--sp_only', default=False, action='store_true')
+    parser.add_argument('--exclude_stock', default=False, action='store_true')
+    parser.add_argument('--resume', default=False, action='store_true')
+    parser.add_argument('--exclude_fwd', default=True, action='store_false')
+    parser.add_argument('--sample_type', default='industry')
+    parser.add_argument('--sample_no', type=int, default=25)
+    args = parser.parse_args()
 
     # training / testing sets split par
-    indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                   201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
-    indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
-    indi_industry = [10, 15, 20, 30, 35, 40, 45, 50, 55, 60, 65]
+    if args.sample_type == 'industry':
+        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+    elif args.sample_type == 'sector':
+        partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                       201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
+    elif args.sample_type == 'entire':
+        partitions = [0,1,2]
+
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
     hpot = {}           # storing data for best trials in each Hyperopt
-    load_data_params = {'exclude_fwd': True,
+    resume = args.resume  # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    sample_no = args.sample_no  # number of training/testing period go over ( 25 = until 2019-3-31)
+
+    load_data_params = {'exclude_fwd': args.exclude_fwd,
                         'use_median': True,
                         'chron_valid': False,
                         'y_type': 'ibes',
                         'qcut_q': 10,
-                        'ibes_qcut_as_x': False,
+                        'ibes_qcut_as_x': not(args.exclude_fwd),
                         'exclude_stock': args.exclude_stock}
 
-    # default parser
-    macro_monthly = True # remember to change main.csv
-    resume = False      # change to True if want to resume from the last running as on DB TABLE lightgbm_results
-    sample_no = 25      # number of training/testing period go over ( 25 = until 2019-3-31)
+    data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    data = load_data(macro_monthly=macro_monthly, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
-
-    # FINAL 1: use ibes_y + without ibes data
-    # sql_result['objective'] = base_space['objective'] = 'regression_l2'
-    sql_result['x_type'] = 'fwdepsqcut'
+    sql_result['objective'] = base_space['objective'] = args.objective
+    x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
+    sql_result['x_type'] = x_type_map[args.exclude_fwd]
+    sql_result['name'] = args.name_sql  # name = labeling the experiments
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
@@ -306,9 +310,7 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in indi_industry_new:   # roll over industries (first 2 icb code)
-
-        sql_result['name'] = 'ibes_industry -sp500'  # name = labeling the experiments
+    for icb_code in partitions:   # roll over industries (first 2 icb code)
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
