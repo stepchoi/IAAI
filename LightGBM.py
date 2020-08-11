@@ -16,10 +16,10 @@ from sklearn.model_selection import train_test_split
 from hyperspace_lgbm import find_hyperspace
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--sp_only', default=False, action='store_true')
-parser.add_argument('--exclude_stock', default=False, action='store_true')
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--sp_only', default=False, action='store_true')
+# parser.add_argument('--exclude_stock', default=False, action='store_true')
+# args = parser.parse_args()
 
 
 base_space ={'objective': 'regression_l1',     # for regression
