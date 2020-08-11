@@ -1,23 +1,17 @@
 import datetime as dt
-
 import lightgbm as lgb
-import numpy as np
 import argparse
 import pandas as pd
-from load_data_lgbm import load_data
+
 from dateutil.relativedelta import relativedelta
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from hyperopt import fmin, tpe, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score, mean_squared_error
-from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
+from sqlalchemy import create_engine
 from tqdm import tqdm
-
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
-from hyperspace_lgbm import find_hyperspace
 
-base_space ={'objective': 'regression_l1',     # for regression
-            'verbose': -1,
-            'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
+from hyperspace_lgbm import find_hyperspace
+from load_data_lgbm import load_data
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -280,6 +274,9 @@ if __name__ == "__main__":
         partitions = [0,1,2]
 
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
+    base_space = {'objective': 'regression_l1',  # for regression
+                  'verbose': -1,
+                  'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results
@@ -300,7 +297,7 @@ if __name__ == "__main__":
     sql_result['objective'] = base_space['objective'] = args.objective
     x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
     sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = args.name_sql  # name = labeling the experiments
+    sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)  # label experiment
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes

@@ -29,6 +29,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
 parser.add_argument('--filter_best_col', type=int, default=0)
+parser.add_argument('--icb_code', type=int, default=0)
 parser.add_argument('--name_sql', required=True)
 args = parser.parse_args()
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
     sample_no = 4
-    sql_result['name'] = args.name_sql
+    sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)
     resume = False
 
 
@@ -210,7 +211,7 @@ if __name__ == "__main__":
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-    for add_ind_code in [2]: # 1 means add industry code as X
+    for add_ind_code in [args.icb_code]: # 1 means add industry code as X
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 
