@@ -301,7 +301,7 @@ class load_data:
                   ibes_qcut_as_x=False, exclude_stock=False, filter_best_col=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, filter_best_col)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
