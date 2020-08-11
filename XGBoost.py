@@ -42,21 +42,11 @@ def lgbm_train(space):
                     early_stopping_rounds=150)
 
     # prediction on all sets
-    if space['objective'] in ['regression_l1', 'regression_l2']:
-        Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
-        Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
-        Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
-
-    elif space['objective'] == 'multiclass':
-        Y_train_pred_softmax = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
-        Y_train_pred = [list(i).index(max(i)) for i in Y_train_pred_softmax]
-        Y_valid_pred_softmax = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
-        Y_valid_pred = [list(i).index(max(i)) for i in Y_valid_pred_softmax]
-        Y_test_pred_softmax = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
-        Y_test_pred = [list(i).index(max(i)) for i in Y_test_pred_softmax]
+    Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
+    Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
+    Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
 
     return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
-
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
@@ -94,40 +84,6 @@ def eval(space):
 
     return result['mae_valid']
 
-def eval_classify(space):
-    ''' train & evaluate LightGBM on given space by hyperopt trails '''
-
-    Y_train_pred, Y_valid_pred, Y_test_pred, gbm = lgbm_train(space)
-    Y_test = sample_set['test_y']
-
-    result = {
-        'mae_train': accuracy_score(sample_set['train_yy'], Y_train_pred),  # use column names of regression
-        'mae_valid': accuracy_score(sample_set['valid_y'], Y_valid_pred),
-        'mae_test': accuracy_score(Y_test, Y_test_pred),
-        'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
-        'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
-        'r2_test': r2_score(Y_test, Y_test_pred),
-        'status': STATUS_OK}
-
-    sql_result.update(space)  # update hyper-parameter used in model
-    sql_result.update(result)  # update result of model
-    sql_result.pop('num_class')
-    sql_result.pop('metric')
-    sql_result['finish_timing'] = dt.datetime.now()
-
-    hpot['all_results'].append(sql_result.copy())
-    print('sql_result_before writing: ', sql_result)
-
-    if result['mae_valid'] > hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
-        hpot['best_mae'] = result['mae_valid']
-        hpot['best_stock_df'] = to_sql_prediction(Y_test_pred)
-        hpot['best_importance'] = to_sql_importance(gbm)
-
-    sql_result['trial_lgbm'] += 1
-
-    return 1 - result['mae_valid']
-
-
 def HPOT(space, max_evals):
     ''' use hyperopt on each set '''
 
@@ -136,11 +92,7 @@ def HPOT(space, max_evals):
 
     trials = Trials()
 
-    if space['objective'] in ['regression_l1', 'regression_l2']:
-        best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    elif space['objective'] == 'multiclass':
-        hpot['best_mae'] = 0  # record best training (min mae_valid) in each hyperopt
-        best = fmin(fn=eval_classify, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     print(space['objective'], best)
 
     # write stock_pred for the best hyperopt records to sql
