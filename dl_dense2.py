@@ -25,12 +25,12 @@ import tensorflow as tf                             # avoid error in Tensorflow 
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--sp_only', default=False, action='store_true')
 parser.add_argument('--filter_best_col', type=int, default=0)
 args = parser.parse_args()
 
-print(args)
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -199,8 +199,8 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
-    sample_no = 21
-    sql_result['name'] = 'top15 -small space'
+    sample_no = 4
+    sql_result['name'] = 'top20 -mini space'
     # sql_result['name'] = 'new industry model -fix space'
     resume = False
 
@@ -214,7 +214,7 @@ if __name__ == "__main__":
 
     indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
 
-    for add_ind_code in [0]: # 1 means add industry code as X
+    for add_ind_code in [2]: # 1 means add industry code as X
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 
