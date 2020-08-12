@@ -1,5 +1,20 @@
 from hyperopt import hp
 
+space_xgb = {
+    'eta': hp.choice('eta', [0.01, 0.1, 0.3]), # remove 0.12
+    'booster': hp.choice('booster', ['dart']),
+    'max_depth': hp.choice('max_depth',[3, 8, 15]),
+    # 'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [125, 250]),  # remove 75
+    'min_child_weight': hp.choice('min_child_weight', [1, 5]), # remove 25, 50
+    'colsample_bytree': hp.choice('colsample_bytree', [0.9, 1]), # remove 0.7
+    'subsample': hp.choice('subsample', [0.8, 0.9]),
+    'gamma': hp.choice('gamma', [0.01, 0.1, 0.5]), # remove 0.08
+    'alpha': hp.choice('alpha', [0, 1, 5]),
+    'lambda': hp.choice('lambda', [0, 1, 5]), # remove 10
+    'tree_method': 'exact'
+}
+
 space = {}
 space[0] = {
     'eta': hp.choice('eta', [0.1, 0.12]),
@@ -134,21 +149,23 @@ space[65] = {
 
 def find_hyperspace(sql_result):
 
-    if sql_result['icb_code'] < 10:
-        return space[0]
-    elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
-        sp = space[sql_result['icb_code']]
-        if 'mse' in sql_result['name']:
-            sp.update({'gamma': hp.choice('gamma', [0, 0.001, 0.1]),
-                       'alpha': hp.choice('alpha', [0, 1, 5]),
-                       'lambda': hp.choice('lambda', [0, 1, 5]),
-                       })
-        return sp
-    elif sql_result['icb_code'] >= 100:
-        sector_2_ind = {301010: 30, 101020: 11, 201030: 20, 302020: 30, 351020: 35, 502060: 51, 552010: 51, 651010: 65,
-                        601010: 60, 502050: 51, 101010: 11, 501010: 51, 201020: 20, 502030: 51, 401010: 40, 999999: 0}
-        print(sector_2_ind[sql_result['icb_code']])
-        return space[sector_2_ind[sql_result['icb_code']]]
+    return space_xgb
+
+    # if sql_result['icb_code'] < 10:
+    #     return space[0]
+    # elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
+    #     sp = space[sql_result['icb_code']]
+    #     if 'mse' in sql_result['name']:
+    #         sp.update({'gamma': hp.choice('gamma', [0, 0.001, 0.1]),
+    #                    'alpha': hp.choice('alpha', [0, 1, 5]),
+    #                    'lambda': hp.choice('lambda', [0, 1, 5]),
+    #                    })
+    #     return sp
+    # elif sql_result['icb_code'] >= 100:
+    #     sector_2_ind = {301010: 30, 101020: 11, 201030: 20, 302020: 30, 351020: 35, 502060: 51, 552010: 51, 651010: 65,
+    #                     601010: 60, 502050: 51, 101010: 11, 501010: 51, 201020: 20, 502030: 51, 401010: 40, 999999: 0}
+    #     print(sector_2_ind[sql_result['icb_code']])
+    #     return space[sector_2_ind[sql_result['icb_code']]]
 
 if __name__ == '__main__':
     sql_result = {'icb_code': 999}
