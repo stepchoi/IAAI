@@ -232,7 +232,7 @@ if __name__ == "__main__":
                                                                                   chron_valid=chron_valid,
                                                                                   num_best_col=n)
                                                                                   # num_best_col=args.num_best_col)
-                    print(feature_names)
+                print(feature_names)
 
                 X_test = np.nan_to_num(sample_set['test_x'], nan=0)
                 Y_test = sample_set['test_y']
@@ -247,7 +247,6 @@ if __name__ == "__main__":
                     Y_valid = sample_set['train_y'][test_index]
 
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-
                     space = find_hyperspace(sql_result)
 
                     for inti_nodes in [2, 4, 8]:    # grid search for init nodes
