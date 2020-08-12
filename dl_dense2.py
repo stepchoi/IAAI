@@ -200,10 +200,6 @@ if __name__ == "__main__":
     exclude_fwd = args.exclude_fwd
     ibes_qcut_as_x = not(args.exclude_fwd)
 
-    # these are parameters used to load_data
-    sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, args.num_best_col,
-                                                                           args.icb_code, args.exclude_fwd)
-
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
@@ -234,6 +230,8 @@ if __name__ == "__main__":
                                                                                   num_best_col=n)
                                                                                   # num_best_col=args.num_best_col)
                 print(feature_names)
+                sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, n,
+                                                                                       args.icb_code, args.exclude_fwd)
 
                 X_test = np.nan_to_num(sample_set['test_x'], nan=0)
                 Y_test = sample_set['test_y']
