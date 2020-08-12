@@ -218,7 +218,8 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013, 3, 31)  # starting point for first testing set
     base_space = {'verbosity': 0,
                   'nthread': 12,
-                  'eval_metric': 'mae'}  # for the best speed, set this to the number of real CPU cores
+                  'eval_metric': 'mae',
+                  'grow_policy':'lossguide'}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
@@ -295,6 +296,16 @@ if __name__ == "__main__":
 
                     space = find_hyperspace(sql_result)
                     space.update(base_space)
+
+                    xgb_space_map = {'booster':'boosting_type','eta':'learning_rate','min_child_weight':'min_data_in_leaf',
+                                     'gamma':'min_gain_to_split','subsample':'bagging_fraction','colsample_bylevel':'feature_fraction',
+                                     'lambda':'lambda_l2', 'alpha':'lambda_l1'}
+                    for k, v in xgb_space_map.items():
+                        space[k] = space[v]
+                        space.pop(k)
+
+                    space.pop('bagging_freq')
+                    space['max_depth'] = hp.choice('max_depth',[8, 15, 20])
 
                     HPOT(space, max_evals=10)  # start hyperopt
                     cv_number += 1
