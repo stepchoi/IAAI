@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
-from hyperspace_lgbm import find_hyperspace
+from hyperspace_xgb import find_hyperspace
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -216,7 +216,8 @@ if __name__ == "__main__":
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
-                  'grow_policy':'lossguide'}  # for the best speed, set this to the number of real CPU cores
+                  'grow_policy':'lossguide',
+                  'max_depth': 20}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
@@ -276,18 +277,13 @@ if __name__ == "__main__":
             space = find_hyperspace(sql_result)
             space.update(base_space)
 
-            xgb_space_map = {'booster': 'boosting_type', 'eta': 'learning_rate', 'min_child_weight': 'min_data_in_leaf',
-                             'gamma': 'min_gain_to_split', 'subsample': 'bagging_fraction',
-                             'colsample_bylevel': 'feature_fraction',
-                             'lambda': 'lambda_l2', 'alpha': 'lambda_l1'}
-            for k, v in xgb_space_map.items():
-                space[k] = space[v]
-                space.pop(v)
-
-            space.pop('bagging_freq')
-            space['max_depth'] = 20
-            print(space)
-            # space['max_depth'] = hp.choice('max_depth',[8, 15, 20])
+            # xgb_space_map = {'booster': 'boosting_type', 'eta': 'learning_rate', 'min_child_weight': 'min_data_in_leaf',
+            #                  'gamma': 'min_gain_to_split', 'subsample': 'bagging_fraction',
+            #                  'colsample_bylevel': 'feature_fraction',
+            #                  'lambda': 'lambda_l2', 'alpha': 'lambda_l1'}
+            # for k, v in xgb_space_map.items():
+            #     space[k] = space[v]
+            #     space.pop(v)
 
             # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
