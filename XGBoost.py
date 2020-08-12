@@ -1,5 +1,6 @@
 import datetime as dt
 import xgboost as xgb
+import numpy as np
 import argparse
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -9,16 +10,10 @@ from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
-from hyperspace_lgbm import find_hyperspace
-
-base_space = {'objective': 'reg:pseudohubererror',  # for regression
-              'verbosity': 0,
-              'nthread': 12,
-              'eval_metric':'mae'}  # for the best speed, set this to the number of real CPU cores
+from hyperspace_xgb import find_hyperspace
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
-
 
 def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
@@ -29,18 +24,28 @@ def lgbm_train(space):
     lgb_train = xgb.DMatrix(sample_set['train_xx'], label=sample_set['train_yy'])
     lgb_eval = xgb.DMatrix(sample_set['valid_x'], label=sample_set['valid_y'])
 
+    def huber_approx_obj(preds, dtrain):
+        d = preds - dtrain.get_label()  # remove .get_labels() for sklearn
+        h = 1  # h is delta in the graphic
+        scale = 1 + (d / h) ** 2
+        scale_sqrt = np.sqrt(scale)
+        grad = d / scale_sqrt
+        hess = 1 / scale / scale_sqrt
+        return grad, hess
+
     evals_result = {}
     gbm = xgb.train(params=params,
                     dtrain=lgb_train,
                     evals=[(lgb_eval,'valid'), (lgb_train,'train')],
                     evals_result=evals_result,
                     num_boost_round=1000,
-                    early_stopping_rounds=150)
+                    early_stopping_rounds=150,
+                    obj=huber_approx_obj)
 
     # prediction on all sets
-    Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
-    Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
-    Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
+    Y_train_pred = gbm.predict(xgb.DMatrix(sample_set['train_xx']))
+    Y_valid_pred = gbm.predict(xgb.DMatrix(sample_set['valid_x']))
+    Y_test_pred = gbm.predict(xgb.DMatrix(sample_set['test_x']))
 
     return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
 
@@ -74,7 +79,7 @@ def eval(space):
         hpot['best_plot'] = evals_result
         hpot['best_model'] = gbm
         hpot['best_trial'] = sql_result['trial_lgbm']
-        hpot['best_importance'] = to_sql_importance(gbm)
+        # hpot['best_importance'] = to_sql_importance(gbm)
 
     sql_result['trial_lgbm'] += 1
 
@@ -89,20 +94,17 @@ def HPOT(space, max_evals):
     trials = Trials()
 
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    print(space['objective'], best)
+    # print(space['objective'], best)
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append',
+        hpot['best_stock_df'].to_sql('results_xgboost_stock', con=conn, index=False, if_exists='append',
                                      method='multi')
-        hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append',
-                                       method='multi')
-        pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append',
+        # hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append',
+        #                                method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_xgboost', con=conn, index=False, if_exists='append',
                                                  method='multi')
     engine.dispose()
-
-    if sql_result['icb_code'] == 201030:
-        hpot['best_model'].save_model('models_lgbm/model_201030_{}.txt'.format(hpot['best_trial']))
 
     sql_result['trial_hpot'] += 1
     # return best
@@ -144,8 +146,8 @@ def to_sql_importance(gbm):
 
     df = pd.DataFrame()
     df['name'] = feature_names  # column names
-    df['split'] = gbm.feature_importance(importance_type='split')  # split = # of appearance
-    df['gain'] = gbm.feature_importance(importance_type='gain')  # gain = total gain
+    print(gbm.get_fscore)
+    df['split'] = gbm.get_fscore()  # split = # of appearance
 
     df = df.set_index('name').T.reset_index(drop=False)
     df.columns = ['importance_type'] + df.columns.to_list()[1:]
@@ -193,7 +195,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name_sql', required=True)
-    parser.add_argument('--objective', default='regression_l1')
     parser.add_argument('--sp_only', default=False, action='store_true')
     parser.add_argument('--exclude_stock', default=False, action='store_true')
     parser.add_argument('--resume', default=False, action='store_true')
@@ -215,6 +216,9 @@ if __name__ == "__main__":
         NameError('wrong sample_type')
 
     period_1 = dt.datetime(2013, 3, 31)  # starting point for first testing set
+    base_space = {'verbosity': 0,
+                  'nthread': 12,
+                  'eval_metric': 'mae'}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
@@ -233,10 +237,9 @@ if __name__ == "__main__":
     data = load_data(macro_monthly=True,
                      sp_only=args.sp_only)  # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    sql_result['objective'] = base_space['objective'] = args.objective
     x_type_map = {True: 'fwdepsqcut', False: 'ni'}  # True/False based on exclude_fwd
     sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = 'xgb {} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)  # label experiment
+    sql_result['name'] = 'xgb {} -sample_type {} -x_type {}'.format(args.name_sql, args.sample_type, sql_result['x_type'])  # label experiment
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']  # number of Y classes
@@ -245,9 +248,9 @@ if __name__ == "__main__":
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
     db_last_param, sql_result = read_db_last(
-        sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+        sql_result, first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in partitions:  # roll over industries (first 2 icb code)
+    for icb_code in partitions[1:]:  # roll over industries (first 2 icb code)
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
@@ -292,19 +295,6 @@ if __name__ == "__main__":
 
                     space = find_hyperspace(sql_result)
                     space.update(base_space)
-
-                    space['gamma'] = space['min_gain_to_split']
-                    space['subsample'] = space['bagging_fraction']
-                    space['lambda'] = space['lambda_l2']
-                    space['alpha'] = space['lambda_l1']
-                    space['colsample_bynode'] = space['feature_fraction']
-                    space['min_child_weight'] = space['min_data_in_leaf']
-                    space['booster'] = hp.choice('booster', ['gbtree', 'dart'])
-
-                    keys_to_remove = ['min_gain_to_split', 'bagging_fraction', 'lambda_l2', 'lambda_l1',
-                                      'boosting_type', 'feature_fraction','min_data_in_leaf', 'bagging_freq']
-                    for key in keys_to_remove:
-                        space.pop(key)
 
                     HPOT(space, max_evals=10)  # start hyperopt
                     cv_number += 1

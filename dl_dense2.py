@@ -201,7 +201,7 @@ if __name__ == "__main__":
 
     # these are parameters used to load_data
     period_1 = dt.datetime(2013,3,31)
-    sample_no = 4
+    sample_no = 21
     sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)
     resume = False
 
@@ -238,8 +238,8 @@ if __name__ == "__main__":
 
             # print('----------> start from', add_ind_code, testing_period)
 
-            if qcut_q==10:
-            # try:
+            # if qcut_q==10:
+            try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                                   y_type=sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
@@ -265,8 +265,8 @@ if __name__ == "__main__":
                     space = find_hyperspace(sql_result)
                     HPOT(space, 10)
                     cv_number += 1
-            # except:
-            #     continue
+            except:
+                continue
 
 
 

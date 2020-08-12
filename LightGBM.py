@@ -326,8 +326,8 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            # if sample_no==25:
-            try:
+            if sample_no==25:
+            # try:
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
                 sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
@@ -358,7 +358,8 @@ if __name__ == "__main__":
 
                 # exit(0)
 
-            except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
+            else:
+            # except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
                 # exit(0)
                 pass_error()
                 cv_number += 1
