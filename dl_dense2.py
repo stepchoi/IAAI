@@ -200,7 +200,7 @@ if __name__ == "__main__":
     sql_result['y_type'] = 'ibes'
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2014,3,31)
     sample_no = 21
     sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)
     resume = False

@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
 
 from load_data_lgbm import load_data
-from hyperspace_xgb import find_hyperspace
+from hyperspace_lgbm import find_hyperspace
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -155,11 +155,10 @@ def to_sql_importance(gbm):
 
     return df
 
-
-def read_db_last(sql_result, results_table='results_lightgbm', first=False):
+def read_db_last(sql_result, results_table='results_xgboost'):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
-    if first == False:
+    try:
         with engine.connect() as conn:
             db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc LIMIT 1".format(results_table), conn)
         engine.dispose()
@@ -171,12 +170,11 @@ def read_db_last(sql_result, results_table='results_lightgbm', first=False):
         sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
         sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
         print('if resume from: ', db_last_param, '; sql last trial_lgbm: ', sql_result['trial_lgbm'])
-    else:
+    except:
         db_last_param = None
         sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
 
     return db_last_param, sql_result
-
 
 def pass_error():
     ''' continue loop when encounter error in trials '''
@@ -200,7 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', default=False, action='store_true')
     parser.add_argument('--exclude_fwd', default=False, action='store_true')
     parser.add_argument('--sample_type', default='industry')
-    parser.add_argument('--sample_no', type=int, default=25)
+    parser.add_argument('--sample_no', type=int, default=21)
     args = parser.parse_args()
 
     # training / testing sets split par
@@ -208,8 +206,7 @@ if __name__ == "__main__":
         partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     elif args.sample_type == 'sector':
         partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
-                      201020, 502030, 401010,
-                      999999]  # icb_code with > 1300 samples + rests in single big model (999999)
+                      201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     elif args.sample_type == 'entire':
         partitions = [0, 1, 2]
     else:
@@ -248,10 +245,9 @@ if __name__ == "__main__":
 
     ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    db_last_param, sql_result = read_db_last(
-        sql_result, first=True)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in partitions[1:]:  # roll over industries (first 2 icb code)
+    for icb_code in partitions:  # roll over industries (first 2 icb code)
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
@@ -271,50 +267,43 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            # if sample_no==25:
-            try:
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
-                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+            sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-                # print('23355L106' in test_id)
-                print(feature_names)
+            # print('23355L106' in test_id)
+            print(feature_names)
 
-                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            space = find_hyperspace(sql_result)
+            space.update(base_space)
 
-                cv_number = 1  # represent which cross-validation sets
-                for train_index, valid_index in cv:  # roll over 5 cross validation set
-                    sql_result['cv_number'] = cv_number
+            xgb_space_map = {'booster': 'boosting_type', 'eta': 'learning_rate', 'min_child_weight': 'min_data_in_leaf',
+                             'gamma': 'min_gain_to_split', 'subsample': 'bagging_fraction',
+                             'colsample_bylevel': 'feature_fraction',
+                             'lambda': 'lambda_l2', 'alpha': 'lambda_l1'}
+            for k, v in xgb_space_map.items():
+                space[k] = space[v]
+                space.pop(v)
 
-                    # when Resume = False: try split validation set from training set + start hyperopt
-                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                    sample_set['train_xx'] = sample_set['train_x'][train_index]  # train_x is in fact train & valid set
-                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                    sample_set['train_yy'] = sample_set['train_y'][train_index]
+            space.pop('bagging_freq')
+            space['max_depth'] = 20
+            print(space)
+            # space['max_depth'] = hp.choice('max_depth',[8, 15, 20])
 
-                    sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
-                    sql_result['valid_len'] = len(sample_set['valid_x'])
+            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-                    space = find_hyperspace(sql_result)
-                    space.update(base_space)
+            cv_number = 1  # represent which cross-validation sets
+            for train_index, valid_index in cv:  # roll over 5 cross validation set
+                sql_result['cv_number'] = cv_number
 
-                    xgb_space_map = {'booster':'boosting_type','eta':'learning_rate','min_child_weight':'min_data_in_leaf',
-                                     'gamma':'min_gain_to_split','subsample':'bagging_fraction','colsample_bylevel':'feature_fraction',
-                                     'lambda':'lambda_l2', 'alpha':'lambda_l1'}
-                    for k, v in xgb_space_map.items():
-                        space[k] = space[v]
-                        space.pop(k)
+                # when Resume = False: try split validation set from training set + start hyperopt
+                sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                sample_set['train_xx'] = sample_set['train_x'][train_index]  # train_x is in fact train & valid set
+                sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                    space.pop('bagging_freq')
-                    space['max_depth'] = hp.choice('max_depth',[8, 15, 20])
+                sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
+                sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                    HPOT(space, max_evals=10)  # start hyperopt
-                    cv_number += 1
-
-                # exit(0)
-
-            except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                # exit(0)
-                pass_error()
+                HPOT(space, max_evals=10)  # start hyperopt
                 cv_number += 1
-                continue
 
