@@ -8,6 +8,7 @@ from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score, mean_squared_error
 from sqlalchemy import create_engine, TIMESTAMP, TEXT, BIGINT, NUMERIC
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from load_data_lgbm import load_data
 from hyperspace_xgb import find_hyperspace
@@ -42,12 +43,32 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     obj=huber_approx_obj)
 
+    plot_xgb(gbm)
+
     # prediction on all sets
     Y_train_pred = gbm.predict(xgb.DMatrix(sample_set['train_xx']))
     Y_valid_pred = gbm.predict(xgb.DMatrix(sample_set['valid_x']))
     Y_test_pred = gbm.predict(xgb.DMatrix(sample_set['test_x']))
 
     return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
+
+def plot_xgb(model):
+    # retrieve performance metrics
+    results = model.evals_result()
+    epochs = len(results['valid']['error'])
+    x_axis = range(0, epochs)
+
+    # plot log loss
+    fig, ax = plt.subplots(figsize=(12, 12))
+    ax.plot(x_axis, results['valid']['error'])
+    ax.plot(x_axis, results['train']['error'])
+    ax.legend()
+
+    plt.ylabel('Log Loss')
+    plt.title('XGBoost Log Loss')
+    plt.show()
+    exit(0)
+
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''

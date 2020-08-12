@@ -14,10 +14,10 @@ def download_result_features(r_name=[]):
 
         # read DB TABLE results_lightgbm data for given "name"
         if r_name == []:
-            result_all = pd.read_sql("SELECT trial_lgbm, x_type, y_type,icb_code FROM results_lightgbm "
-                                     "WHERE y_type ='ibes", conn)
+            result_all = pd.read_sql("SELECT trial_lgbm, x_type, y_type,icb_code FROM results_{} "
+                                     "WHERE y_type ='ibes".format(tname), conn)
         else:
-            query_1 = text('SELECT trial_lgbm, x_type, y_type,icb_code FROM results_lightgbm WHERE (name IN :r_name)')
+            query_1 = text('SELECT trial_lgbm, x_type, y_type,icb_code FROM results_{} WHERE (name IN :r_name)'.format(tname))
             query_1 = query_1.bindparams(r_name=tuple(r_name))
             result_all = pd.read_sql(query_1, conn)
 
@@ -123,7 +123,10 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = ['ibes_entire_only ws -smaller space']
+    # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
+
+    # r_name = ['xgb xgb_space -sample_type industry -x_type fwdepsqcut']
+    tname = 'lightgbm'
 
     feature = download(r_name).finish()
     # feature = pd.read_csv('201030 feature importance.csv')

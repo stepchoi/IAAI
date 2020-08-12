@@ -324,6 +324,7 @@ class calc_mae_write():
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
             self.by_time().to_excel(self.writer, 'by_time')
+            self.by_nation().to_excel(self.writer, 'by_nation')
             self.average().to_excel(self.writer, 'average')
 
             print('save to file name: mae_{}｜{}.xlsx'.format('_'.join(name), tname))
@@ -358,6 +359,35 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['testing_period', 'x_type']):
+            industry_dict[name] = self.part_mae(g)
+
+        df = pd.DataFrame(industry_dict).T.unstack()
+        df.columns = ['_'.join(x) for x in df.columns.to_list()]
+        print(df)
+
+        return df
+
+    def by_nation(self):
+        ''' calculate equivalent per testing_period MAE '''
+
+        industry_dict = {}
+
+        def label_nation_sector(df):
+            ''' read files mapping icb_code & market '''
+
+            with engine.connect() as conn:
+                markets = pd.read_sql("SELECT index_ric, icb_sector, identifier FROM dl_value_universe "
+                                      "WHERE identifier IS NOT NULL", conn)
+            engine.dispose()
+
+            ratios = pd.merge(df, markets, on=['identifier'])
+            ratios['market'] = ratios['index_ric'].replace(['0#.CSI300', '0#.N225', '0#.SPX', '0#.HSLI'],
+                                                           ['CH', 'JP', 'US', 'HK'])
+            return ratios.drop(['index_ric'], axis=1)
+
+        merge_nation = label_nation_sector(self.merge)
+
+        for name, g in merge_nation.groupby(['market', 'x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
@@ -503,31 +533,12 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
-    # r_name = 'ibes_sector_only ws'      # name in DB results_lightgbm
-    # r_name = 'ibes_new industry_monthly -new'
-    r_name_list = ['ibes_industry_all x -exclude_stock','ibes_sector_all x', 'ibes_new industry_all x -mse',
-                   'ibes_new industry_all x -indi space', 'ibes_sector_only ws -indi space',
-                   'ibes_new industry_only ws -indi space3', 'ibes_entire_only ws -smaller space']
+    # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
+    r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
+    tname = 'lightgbm'
 
-    r_name = 'ibes_new industry_only ws -indi space3'      # name in DB results_lightgbm
-    r_name = 'xgb same_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
-    tname = 'xgboost'
-
-    # for r_name in r_name_list:
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, tname=r_name, base_list_type='all')
-
-
-        # import matplotlib.pyplot as plt
-        # yoy_merge['res_consensus'] = yoy_merge['y_consensus_qcut'] - yoy_merge['y_ibes_qcut']
-        # yoy_merge['res_pred'] = yoy_merge['pred'] - yoy_merge['y_ibes_qcut']
-        # plt.hist(yoy_merge['res_pred'], bins=1000, color='b', alpha=0.5, label='residual_lgbm')
-        # plt.hist(yoy_merge['res_consensus'], bins=1000, color='y', alpha=0.5, label='residual_consensus')
-        # plt.ylim(0,200)
-        # plt.legend()
-        # plt.show()
-        #
-        # exit(0)
 
     if compare_using_old_ibes != True:
         combine()
