@@ -220,14 +220,9 @@ class load_data:
 
         self.sector = full_period(date_type(self.sector))
         self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
-
-        # self.sector['lookback_y_{}'.format(y_type)] = self.sector['y_{}'.format(y_type)].shift(20)
-        # self.sector.iloc[self.sector.groupby('identifier').head(20),'lookback_y_{}'.format(y_type)]
-        # full_hist_comp = self.sector.loc[self.sector['period_end']==start, 'identifier'].to_list()
-        # self.sector = self.sector[self.sector['period_end'].isin(full_hist_comp)]
-        # print(start, len(full_hist_comp), full_hist_comp)
-
         self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
+
+
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
@@ -312,7 +307,6 @@ class load_data:
 
         self.cut_bins = {}
         self.sample_set['train_y'], self.sample_set['test_y'], self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
-
 
     def split_valid(self, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''

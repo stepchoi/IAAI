@@ -105,7 +105,8 @@ if __name__ == "__main__":
 
     r_name_list = ['all x 0 -fix space', 'new with indi code -fix space',
                     'compare large space']
-    r_name = 'small_space -best_col 10 -code 0'
+    # r_name = 'small_space -best_col 10 -code 0'
+    r_name = 'small_space -best_col 15 -code 0 -exclude_fwd True'
     tname = 'dense2'
 
     # for i in r_name:

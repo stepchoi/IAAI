@@ -23,7 +23,7 @@ space_small = {
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
     'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
-    'mult_freq': hp.choice('mult_freq', [2, 3]),         # nodes double frequency
+    'mult_freq': hp.choice('mult_freq', [1, 2, 3]),         # nodes double frequency
     'mult_start': hp.choice('mult_start', [2, 3]),       # first layer nodes number growth
 
     'activation': hp.choice('activation', ['relu',  'tanh']), # JUST relu for overfitting

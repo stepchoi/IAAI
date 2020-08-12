@@ -146,8 +146,6 @@ def HPOT(space, max_evals = 10):
 
     plot_history(hpot['best_history'])  # plot training history
 
-    sql_result['trial_hpot'] += 1
-
     return best
 
 def plot_history(history):
@@ -218,9 +216,7 @@ if __name__ == "__main__":
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
-            # resume from last records in DB
-            if args.resume == True:
-
+            if args.resume == True:     # resume from last records in DB
                 if {'icb_code': add_ind_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
                     args.resume = False
                     print('---------> Resume Training', add_ind_code, testing_period)
@@ -228,40 +224,38 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', add_ind_code, testing_period)
                     continue
 
-            # # resume for those unfinished in between for dense-1/2/3
-            # try:
-            #     if undone[str(add_ind_code)][str(testing_period)]!=1:
-            #         continue
-            # except:
-            #     continue
+            for n in [10, 20, 30, 40]:  # try top N features
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
+                                                                                  y_type=sql_result['y_type'],
+                                                                                  exclude_fwd=exclude_fwd,
+                                                                                  use_median=use_median,
+                                                                                  chron_valid=chron_valid,
+                                                                                  num_best_col=n)
+                                                                                  # num_best_col=args.num_best_col)
+                    print(feature_names)
 
-            # print('----------> start from', add_ind_code, testing_period)
+                X_test = np.nan_to_num(sample_set['test_x'], nan=0)
+                Y_test = sample_set['test_y']
 
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                              y_type=sql_result['y_type'],
-                                                                              exclude_fwd=exclude_fwd,
-                                                                              use_median=use_median,
-                                                                              chron_valid=chron_valid,
-                                                                              num_best_col=args.num_best_col)
+                cv_number = 1
+                for train_index, test_index in cv:
+                    sql_result['cv_number'] = cv_number
 
-            print(feature_names)
+                    X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
+                    Y_train = sample_set['train_y'][train_index]
+                    X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
+                    Y_valid = sample_set['train_y'][test_index]
 
-            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
-            Y_test = sample_set['test_y']
+                    print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-            cv_number = 1
-            for train_index, test_index in cv:
-                sql_result['cv_number'] = cv_number
+                    space = find_hyperspace(sql_result)
 
-                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                Y_train = sample_set['train_y'][train_index]
-                X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                Y_valid = sample_set['train_y'][test_index]
+                    for inti_nodes in [2, 4, 8]:    # grid search for init nodes
+                        space['init_nodes'] = inti_nodes
+                        HPOT(space, 10)
 
-                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                space = find_hyperspace(sql_result)
-                HPOT(space, 10)
-                cv_number += 1
+                    sql_result['trial_hpot'] += 1
+                    cv_number += 1
 
 
 
