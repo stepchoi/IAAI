@@ -43,8 +43,6 @@ def lgbm_train(space):
                     early_stopping_rounds=150,
                     obj=huber_approx_obj)
 
-    plot_xgb(gbm)
-
     # prediction on all sets
     Y_train_pred = gbm.predict(xgb.DMatrix(sample_set['train_xx']))
     Y_valid_pred = gbm.predict(xgb.DMatrix(sample_set['valid_x']))
@@ -52,23 +50,23 @@ def lgbm_train(space):
 
     return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
 
-def plot_xgb(model):
+def plot_xgb(results):
     # retrieve performance metrics
-    results = model.evals_result()
-    epochs = len(results['valid']['error'])
+    print(results)
+
+    epochs = len(results['valid']['mae'])-20
     x_axis = range(0, epochs)
 
     # plot log loss
-    fig, ax = plt.subplots(figsize=(12, 12))
-    ax.plot(x_axis, results['valid']['error'])
-    ax.plot(x_axis, results['train']['error'])
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.plot(x_axis, results['train']['mae'][20:], label='train')
+    ax.plot(x_axis, results['valid']['mae'][20:], label='valid')
     ax.legend()
 
     plt.ylabel('Log Loss')
-    plt.title('XGBoost Log Loss')
-    plt.show()
-    exit(0)
-
+    plt.title('xgboost: {}'.format(results['valid']['mae'][-1]))
+    fig.savefig('models_lgbm/plot_xgb_{}.png'.format(hpot['best_trial']))
+    plt.close()
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
@@ -116,6 +114,9 @@ def HPOT(space, max_evals):
 
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     # print(space['objective'], best)
+    print(best)
+
+    plot_xgb(hpot['best_plot'])
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
@@ -237,8 +238,7 @@ if __name__ == "__main__":
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
-                  'grow_policy':'lossguide',
-                  'max_depth': 20}  # for the best speed, set this to the number of real CPU cores
+                  'grow_policy':'lossguide'}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
@@ -321,6 +321,6 @@ if __name__ == "__main__":
                 sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
                 sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                HPOT(space, max_evals=10)  # start hyperopt
+                HPOT(space, max_evals=30)  # start hyperopt
                 cv_number += 1
 

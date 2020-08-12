@@ -202,7 +202,8 @@ if __name__ == "__main__":
     ibes_qcut_as_x = not(args.exclude_fwd)
 
     # these are parameters used to load_data
-    sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)
+    sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, args.num_best_col,
+                                                                           args.icb_code, args.exclude_fwd)
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
@@ -236,35 +237,31 @@ if __name__ == "__main__":
 
             # print('----------> start from', add_ind_code, testing_period)
 
-            # if qcut_q==10:
-            try:
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                                  y_type=sql_result['y_type'],
-                                                                                  exclude_fwd=exclude_fwd,
-                                                                                  use_median=use_median,
-                                                                                  chron_valid=chron_valid,
-                                                                                  filter_best_col=args.num_best_col)
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
+                                                                              y_type=sql_result['y_type'],
+                                                                              exclude_fwd=exclude_fwd,
+                                                                              use_median=use_median,
+                                                                              chron_valid=chron_valid,
+                                                                              num_best_col=args.num_best_col)
 
-                print(feature_names)
+            print(feature_names)
 
-                X_test = np.nan_to_num(sample_set['test_x'], nan=0)
-                Y_test = sample_set['test_y']
+            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
+            Y_test = sample_set['test_y']
 
-                cv_number = 1
-                for train_index, test_index in cv:
-                    sql_result['cv_number'] = cv_number
+            cv_number = 1
+            for train_index, test_index in cv:
+                sql_result['cv_number'] = cv_number
 
-                    X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                    Y_train = sample_set['train_y'][train_index]
-                    X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                    Y_valid = sample_set['train_y'][test_index]
+                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
+                Y_train = sample_set['train_y'][train_index]
+                X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
+                Y_valid = sample_set['train_y'][test_index]
 
-                    print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    space = find_hyperspace(sql_result)
-                    HPOT(space, 10)
-                    cv_number += 1
-            except:
-                continue
+                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+                space = find_hyperspace(sql_result)
+                HPOT(space, 10)
+                cv_number += 1
 
 
 

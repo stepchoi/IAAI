@@ -3,7 +3,7 @@ from hyperopt import hp
 space = {}
 space[0] = {
     'eta': hp.choice('eta', [0.1, 0.12]),
-    'booster': hp.choice('booster', ['gbdt', 'dart']),
+    'booster': hp.choice('booster', ['gbtree', 'dart']),
     'max_bin': hp.choice('max_bin', [255]),
     'num_leaves': hp.choice('num_leaves', [75, 125, 250]),
     'min_child_weight': hp.choice('min_child_weight', [25, 50]),
@@ -15,16 +15,17 @@ space[0] = {
 }
 
 space[11] = {
-    'eta': hp.choice('eta', [0.08, 0.1]), # remove 0.12
+    'eta': hp.choice('eta', [0.1, 0.5]), # remove 0.12
     'booster': hp.choice('booster', ['dart']),
-    'max_bin': hp.choice('max_bin', [255]),
+    'max_depth': hp.choice('max_depth',[8, 15]),
+    'max_bin': hp.choice('max_bin', [128, 256]),
     'num_leaves': hp.choice('num_leaves', [125, 250]),  # remove 75
-    'min_child_weight': hp.choice('min_child_weight', [10, 15]), # remove 25, 50
-    'colsample_bynode': hp.choice('colsample_bynode', [0.9, 1]), # remove 0.7
+    'min_child_weight': hp.choice('min_child_weight', [1, 5]), # remove 25, 50
+    'colsample_bytree': hp.choice('colsample_bytree', [0.9, 1]), # remove 0.7
     'subsample': hp.choice('subsample', [0.8, 0.9]),
-    'gamma': hp.choice('gamma', [0.01, 0.03]), # remove 0.08
-    'alpha': hp.choice('alpha', [15, 20]),
-    'lambda': hp.choice('lambda', [30, 50]), # remove 10
+    'gamma': hp.choice('gamma', [0.01, 0.1, 0.5]), # remove 0.08
+    'alpha': hp.choice('alpha', [1, 5]),
+    'lambda': hp.choice('lambda', [1, 5]), # remove 10
 }
 
 space[20] = {
@@ -94,7 +95,7 @@ space[45] = {
 
 space[51] = {
     'eta': hp.choice('eta', [0.03, 0.05]),
-    'booster': hp.choice('booster', ['gbdt']),
+    'booster': hp.choice('booster', ['gbtree']),
     'max_bin': hp.choice('max_bin', [255]),
     'num_leaves': hp.choice('num_leaves', [75, 125]), # np.arange(50, 200, 30, dtype=int)
     'min_child_weight': hp.choice('min_child_weight', [15, 25]),
@@ -107,7 +108,7 @@ space[51] = {
 
 space[60] = {
     'eta': hp.choice('eta', [0.06, 0.08]),
-    'booster': hp.choice('booster', ['gbdt']),
+    'booster': hp.choice('booster', ['gbtree']),
     'max_bin': hp.choice('max_bin', [255]),
     'num_leaves': hp.choice('num_leaves', [350, 400]), # np.arange(50, 200, 30, dtype=int)
     'min_child_weight': hp.choice('min_child_weight', [15, 25]),
