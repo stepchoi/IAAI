@@ -101,7 +101,10 @@ def org_describe(feature_info, importance_type='split', tname=''):
         writer = pd.ExcelWriter('results_analysis/feature_importance/describe_ibes_{}{}.xlsx'.format(rank_name[by_rank], tname))
 
         for name, g in feature_info.groupby(['y_type', 'x_type']):
-            org_by_type(g, by_rank).to_excel(writer, '_'.join(name))
+
+            df = org_by_type(g, by_rank)
+            print(df.index)
+            df.to_excel(writer, '_'.join(name))
 
         writer.save()
 
@@ -125,7 +128,7 @@ if __name__ == "__main__":
 
     # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
 
-    # r_name = ['xgb xgb_space -sample_type industry -x_type fwdepsqcut']
+    r_name = ['ibes_new industry_only ws -indi space3']
     tname = 'lightgbm'
 
     feature = download(r_name).finish()

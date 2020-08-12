@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import datetime as dt
-from results_analysis.lgbm_params_tuning import calc_correl, calc_average
+from results_analysis.lgbm_params_tuning import calc_correl
 
 params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult',
           'num_Dense_layer', 'num_nodes']
@@ -38,6 +38,34 @@ def download(r_name, best='best'):
     print(results.columns)
 
     return results
+
+def calc_average(df, r_name, model='lgbm'):
+    ''' calculate mean of each variable in db '''
+
+    writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
+
+    for c in set(df['icb_code']):
+        sub_df = df.loc[df['icb_code']==c]
+
+        df_list = []
+        # df_list.append(sub_df.mean()['mae_test'])
+        for p in params:
+            try:
+                des_df = sub_df.groupby(p).mean()['mae_test'].reset_index()  # calculate means of each subset
+                des_df['len'] = sub_df.groupby(p).count().reset_index()['mae_test']
+                des_df.columns = ['subset', 'mae_test', 'len']
+                des_df['params'] = p
+                des_df = des_df.sort_values(by=['mae_test'], ascending=True)
+                print(des_df)
+
+                # std_arr = df.groupby(p).std()[['mae_train', 'mae_valid', 'mae_test']].values  # calculate std of each subset
+                # des_df[['mae_train_std', 'mae_valid_std', 'mae_test_std']] = pd.DataFrame(std_arr)
+                df_list.append((des_df))
+            except:
+                continue
+        pd.concat(df_list, axis=0).to_excel(writer, '{}'.format(c), index=False)
+
+    writer.save()
 
 def plot_boxplot(df, table_name='results_dense', r_name=None):
     ''' plot distribution of mae based on different hyper-parameters'''
@@ -149,10 +177,10 @@ if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
 
-    r_name = 'fix_space -best_col 10 -code 0'
+    r_name = 'new with indi code -fix space'
 
-    results = download(r_name=r_name)
-    calc_average(results, params=params, r_name=r_name, model='dense2')
+    results = download(r_name=r_name, best='best')
+    calc_average(results, r_name=r_name, model='dense2')
     # plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)

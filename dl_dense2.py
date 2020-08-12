@@ -25,15 +25,6 @@ import tensorflow as tf                             # avoid error in Tensorflow 
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--sp_only', default=False, action='store_true')
-parser.add_argument('--filter_best_col', type=int, default=0)
-parser.add_argument('--icb_code', type=int, default=0)
-parser.add_argument('--name_sql', required=True)
-args = parser.parse_args()
-
-
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
@@ -190,21 +181,28 @@ if __name__ == "__main__":
 
     sql_result = {}
     hpot = {}
-
-    # default settings
-    exclude_fwd = True
     use_median = True
     chron_valid = False
-    ibes_qcut_as_x = False
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
+    period_1 = dt.datetime(2013,3,31)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sp_only', default=False, action='store_true')
+    parser.add_argument('--exclude_fwd', default=False, action='store_true')
+    parser.add_argument('--resume', default=False, action='store_true')
+    parser.add_argument('--num_best_col', type=int, default=0)
+    parser.add_argument('--icb_code', type=int, default=0)
+    parser.add_argument('--sample_no', type=int, default=21)
+    parser.add_argument('--name_sql', required=True)
+    args = parser.parse_args()
+
+    # default settings
+    exclude_fwd = args.exclude_fwd
+    ibes_qcut_as_x = not(args.exclude_fwd)
 
     # these are parameters used to load_data
-    period_1 = dt.datetime(2014,3,31)
-    sample_no = 21
     sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)
-    resume = False
-
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
@@ -215,15 +213,15 @@ if __name__ == "__main__":
         data.split_industry(add_ind_code, combine_ind=True)
         sql_result['icb_code'] = add_ind_code
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
+        for i in tqdm(range(args.sample_no)):  # roll over testing period
             testing_period = period_1 + i * relativedelta(months=3)
             sql_result['testing_period'] = testing_period
 
             # resume from last records in DB
-            if resume == True:
+            if args.resume == True:
 
                 if {'icb_code': add_ind_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
-                    resume = False
+                    args.resume = False
                     print('---------> Resume Training', add_ind_code, testing_period)
                 else:
                     print('Not yet resume: params done', add_ind_code, testing_period)
@@ -245,7 +243,7 @@ if __name__ == "__main__":
                                                                                   exclude_fwd=exclude_fwd,
                                                                                   use_median=use_median,
                                                                                   chron_valid=chron_valid,
-                                                                                  filter_best_col=args.filter_best_col)
+                                                                                  filter_best_col=args.num_best_col)
 
                 print(feature_names)
 

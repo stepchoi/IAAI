@@ -19,9 +19,42 @@ engine = create_engine(db_string)
 indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                 501010, 201020, 502030, 401010]
 
-best_col = ['earnings_yield', 'fa_turnover', 'stock_return_1qa', 'gross_margin', 'stock_return_3qb', 'div_payout',
-            'sales_ts01', 'inv_turnover', 'ebitda_to_ev', 'capex_to_dda', 'ni_ts01', 'interest_to_earnings',
-            'ni_to_cfo', 'pretax_margin_ts01', 'cash_ratio', 'cfps_ts01','sales_ts13','ca_turnover','debt_to_asset','roe'] # top 15 most important features for aggregate model
+
+def filter_best_col(df, num_best_col, exclude_fwd):
+    ''' filter top N features for dense moel'''
+
+    # features ordered by importance in Industry Partition LGBM model
+
+    best_col_ex = ['stock_return_1qa', 'ni_ts01', 'sales_ts01', 'earnings_yield',
+           'ni_to_cfo', 'ebitda_to_ev', 'stock_return_3qb', 'capex_to_dda',
+           'sales_ts13', 'cfps_ts01', 'fa_turnover', 'pretax_margin_ts01',
+           'gross_margin', 'div_payout', 'debt_to_asset', 'interest_to_earnings',
+           'sales_ts35', 'ni_ts35', 'inv_turnover', 'ni_ts13',
+           'pretax_margin_ts13', 'cfps_ts13', 'cfps_ts35', 'roe',
+           'pretax_margin_ts35', 'roic', 'pretax_margin', 'cash_ratio',
+           'ca_turnover', 'interest_rate_3m', 'interest_rate_10y', 'index',
+           'dollar_index', 'gdp', 'ipi', 'unemployment', 'cpi', 'reer', 'crudoil',
+           'ushouse.o', 'usfrbpim', 'uscnper.d', 'usgdp...d', 'usinter3',
+           'usrettotb', 'cap_adequacy_ratio']
+
+    best_col_in = ['stock_return_1qa', 'sales_ts01', 'stock_return_3qb',
+           'pretax_margin_ts01', 'sales_ts13', 'capex_to_dda', 'fwd_roic',
+           'eps_ts01', 'ebitda_to_ev', 'cfps_ts01', 'eps_ts35', 'ni_to_cfo',
+           'ibes_qcut_as_x', 'pretax_margin_ts13', 'pretax_margin_ts35',
+           'eps_ts13', 'sales_ts35', 'fa_turnover', 'div_payout', 'fwd_ey',
+           'cfps_ts13', 'interest_to_earnings', 'gross_margin', 'debt_to_asset',
+           'inv_turnover', 'cfps_ts35', 'roe', 'earnings_yield', 'roic',
+           'cash_ratio', 'pretax_margin', 'index', 'ca_turnover',
+           'interest_rate_3m', 'interest_rate_10y', 'dollar_index', 'gdp', 'cpi',
+           'ipi', 'reer', 'unemployment', 'uscnper.d', 'crudoil', 'ushouse.o',
+           'usfrbpim', 'usinter3', 'usgdp...d', 'usrettotb', 'cap_adequacy_ratio']
+
+    if exclude_fwd == True:
+        df = df.filter(best_col_ex[:num_best_col])
+    else:
+        df = df.filter(best_col_in[:num_best_col])
+
+    return df
 
 idd = 'C156E0340'
 def check_id(df, id=idd):
@@ -179,7 +212,7 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, filter_best_col):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -224,8 +257,8 @@ class load_data:
             if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
 
-            if filter_best_col > 0:       # for trial with only top N important features (dense2)
-                x = x.filter(best_col[:filter_best_col])
+            if num_best_col > 0:       # for trial with only top N important features (dense2)
+                x = filter_best_col(x, num_best_col, exclude_fwd)
 
             self.feature_names = x.columns.to_list()
             x = x.values
@@ -298,7 +331,7 @@ class load_data:
         return gkf
 
     def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False,
-                  ibes_qcut_as_x=False, exclude_stock=False, filter_best_col=False):
+                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, filter_best_col)
