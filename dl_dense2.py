@@ -144,7 +144,7 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_dense2_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_history'])  # plot training history
+    # plot_history(hpot['best_history'])  # plot training history
 
     return best
 
@@ -171,6 +171,7 @@ def pred_to_sql(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['name'] = [sql_result['name']] * len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
@@ -183,7 +184,7 @@ if __name__ == "__main__":
     chron_valid = False
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2016,3,31)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--sp_only', default=False, action='store_true')
