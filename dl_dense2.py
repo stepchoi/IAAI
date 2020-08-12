@@ -77,7 +77,7 @@ def dense_train(space):
     f_x = Dense(1)(d_1)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
-                      callbacks.EarlyStopping(monitor='val_loss', patience=50, mode='auto')]  # add callbacks
+                      callbacks.EarlyStopping(monitor='val_loss', patience=10, mode='auto')]  # add callbacks
     lr_val = 10 ** -int(params['learning_rate'])
 
     adam = optimizers.Adam(lr=lr_val)
@@ -85,7 +85,7 @@ def dense_train(space):
     model.compile(adam, loss='mae')
     model.summary()
 
-    history = model.fit(X_train, Y_train, epochs=200, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid),
+    history = model.fit(X_train, Y_train, epochs=50, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid),
                         callbacks=callbacks_list, verbose=1)
 
     # train_mae = model.evaluate(X_train, Y_train,  verbose=1)
@@ -249,9 +249,7 @@ if __name__ == "__main__":
                     print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
                     space = find_hyperspace(sql_result)
 
-                    for inti_nodes in [2, 4, 8]:    # grid search for init nodes
-                        space['init_nodes'] = inti_nodes
-                        HPOT(space, 10)
+                    HPOT(space, 10)
 
                     sql_result['trial_hpot'] += 1
                     cv_number += 1

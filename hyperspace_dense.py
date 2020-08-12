@@ -19,7 +19,7 @@ space_small = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
     'learning_rate': hp.choice('lr', [2, 3]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'init_nodes': hp.choice('init_nodes', [4, 8]),  # nodes for Dense first layer -> LESS NODES
+    'init_nodes': hp.choice('init_nodes', [2, 4, 8]),  # nodes for Dense first layer -> LESS NODES
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
     'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
