@@ -27,7 +27,7 @@ space_small = {
     'mult_start': hp.choice('mult_start', [2, 3]),       # first layer nodes number growth
 
     'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128, 256]), # reduce batch size space # drop 512
+    'batch_size': 128, # reduce batch size space # drop 512
 }
 
 space_mini = {
