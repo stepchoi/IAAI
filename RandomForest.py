@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 from load_data_lgbm import load_data
-from hyperspace_xgb import find_hyperspace
+from hyperspace_rf import find_hyperspace
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -79,8 +79,8 @@ def HPOT(space, max_evals):
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_xgboost_stock', con=conn, index=False, if_exists='append', method='multi')
-        pd.DataFrame(hpot['all_results']).to_sql('results_xgboost', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_randomforest_stock', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_randomforest', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     sql_result['trial_hpot'] += 1
@@ -93,7 +93,7 @@ def to_sql_prediction(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
-    df['name'] = [sql_result['name']] * len(test_id)]
+    df['name'] = [sql_result['name']] * len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
@@ -199,23 +199,20 @@ if __name__ == "__main__":
 
             sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
             sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
-
-
             space = find_hyperspace(sql_result)
-            space.update(base_space)
 
-            cv_number = 1  # represent which cross-validation sets
-            for train_index, valid_index in cv:  # roll over 5 cross validation set
+            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
+            Y_test = sample_set['test_y']
+            sql_result['number_features'] = X_test.shape[1]
+
+            cv_number = 1
+            for train_index, test_index in cv:
                 sql_result['cv_number'] = cv_number
 
-                # when Resume = False: try split validation set from training set + start hyperopt
-                sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                sample_set['train_xx'] = sample_set['train_x'][train_index]  # train_x is in fact train & valid set
-                sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                sample_set['train_yy'] = sample_set['train_y'][train_index]
-
-                sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
-                sql_result['valid_len'] = len(sample_set['valid_x'])
+                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
+                Y_train = sample_set['train_y'][train_index]
+                X_valid = np.nan_to_num(sample_set['train_x'][test_index], nan=0)
+                Y_valid = sample_set['train_y'][test_index]
 
                 HPOT(space, max_evals=10)  # start hyperopt
                 cv_number += 1
