@@ -119,6 +119,9 @@ if __name__ == "__main__":
     # r_name = 'small_space -best_col 10 -code 0'
     # r_name = 'small_space -best_col 15 -code 0 -exclude_fwd True'
     r_name = 'small_space -code 0 -exclude_fwd True'
+    r_name = 'try_old_fix_space -code 0 -exclude_fwd True'
+    r_name = 'test35_fix_space -code 0 -exclude_fwd True'
+
     tname = 'dense2'
 
     # for i in r_name:

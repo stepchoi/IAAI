@@ -185,8 +185,11 @@ if __name__ == "__main__":
 
     r_name = 'new with indi code -fix space'
     r_name = 'small_space -code 0 -exclude_fwd True'
-    tname = 'dense2'
+    r_name = 'try_old_fix_space -code 0 -exclude_fwd True'
+    r_name = 'try_initi_nodes_small -code 0 -exclude_fwd True'
+    r_name = 'test35_fix_space -code 0 -exclude_fwd True'
 
+    tname = 'dense2'
 
     results = download(r_name=r_name, best='best')
     calc_average(results, r_name=r_name, model='dense2')

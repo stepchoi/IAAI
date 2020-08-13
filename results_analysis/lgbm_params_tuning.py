@@ -165,11 +165,15 @@ if __name__ == "__main__":
 
     # r_name = ['ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space']
     r_name = ['xgb tuning -sample_type industry -x_type fwdepsqcut']
-    # r_name = ['xgb tuning -sample_type entire -x_type fwdepsqcut']
-    r_name = ['ibes_new industry_only ws -indi space3']
-    tname = 'lightgbm'
+    r_name = ['xgb tuning -sample_type entire -x_type fwdepsqcut']
+    # r_name = ['ibes_new industry_only ws -indi space3']
 
-    results = download(r_name=r_name, best='all')
+    if 'xgb' in r_name[0]:
+        tname = 'xgboost'
+    else:
+        tname = 'lightgbm'
+
+    results = download(r_name=r_name, best='best')
     calc_average(results, r_name)
     # plot_boxplot(results, r_name=r_name)
 

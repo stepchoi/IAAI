@@ -1,5 +1,5 @@
 import datetime as dt
-import xgboost as xgb
+from sklearn.ensemble import RandomForestRegressor
 import numpy as np
 import argparse
 import pandas as pd
@@ -21,58 +21,22 @@ def lgbm_train(space):
 
     params = space.copy()
     print(params)
-    exit(0)
 
-    lgb_train = xgb.DMatrix(sample_set['train_xx'], label=sample_set['train_yy'])
-    lgb_eval = xgb.DMatrix(sample_set['valid_x'], label=sample_set['valid_y'])
-
-    def huber_approx_obj(preds, dtrain):
-        d = preds - dtrain.get_label()  # remove .get_labels() for sklearn
-        h = 1  # h is delta in the graphic
-        scale = 1 + (d / h) ** 2
-        scale_sqrt = np.sqrt(scale)
-        grad = d / scale_sqrt
-        hess = 1 / scale / scale_sqrt
-        return grad, hess
-
-    evals_result = {}
-    gbm = xgb.train(params=params,
-                    dtrain=lgb_train,
-                    evals=[(lgb_eval,'valid'), (lgb_train,'train')],
-                    evals_result=evals_result,
-                    num_boost_round=1000,
-                    early_stopping_rounds=150,
-                    obj=huber_approx_obj)
+    regr = RandomForestRegressor(n_estimators=1000, criterion='mae', **params)
+    regr.fit(sample_set['train_xx'], sample_set['train_yy'])
 
     # prediction on all sets
-    Y_train_pred = gbm.predict(xgb.DMatrix(sample_set['train_xx']))
-    Y_valid_pred = gbm.predict(xgb.DMatrix(sample_set['valid_x']))
-    Y_test_pred = gbm.predict(xgb.DMatrix(sample_set['test_x']))
+    Y_train_pred = regr.predict(sample_set['train_xx'])
+    Y_valid_pred = regr.predict(sample_set['valid_x'])
+    Y_test_pred = regr.predict(sample_set['test_x'])
 
-    return Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm
+    return Y_train_pred, Y_valid_pred, Y_test_pred
 
-def plot_xgb(results):
-    # retrieve performance metrics
-    print(results)
-
-    epochs = len(results['valid']['mae'])-20
-    x_axis = range(0, epochs)
-
-    # plot log loss
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.plot(x_axis, results['train']['mae'][20:], label='train')
-    ax.plot(x_axis, results['valid']['mae'][20:], label='valid')
-    ax.legend()
-
-    plt.ylabel('Log Loss')
-    plt.title('xgboost: {}'.format(results['valid']['mae'][-1]))
-    fig.savefig('models_lgbm/plot_xgb_{}.png'.format(hpot['best_trial']))
-    plt.close()
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
 
-    Y_train_pred, Y_valid_pred, Y_test_pred, evals_result, gbm = lgbm_train(space)
+    Y_train_pred, Y_valid_pred, Y_test_pred = lgbm_train(space)
     Y_test = sample_set['test_y']
 
     result = {'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
@@ -96,10 +60,7 @@ def eval(space):
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
         hpot['best_stock_df'] = to_sql_prediction(Y_test_pred)
-        hpot['best_plot'] = evals_result
-        hpot['best_model'] = gbm
         hpot['best_trial'] = sql_result['trial_lgbm']
-        # hpot['best_importance'] = to_sql_importance(gbm)
 
     sql_result['trial_lgbm'] += 1
 
@@ -114,42 +75,15 @@ def HPOT(space, max_evals):
     trials = Trials()
 
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    # print(space['objective'], best)
     print(best)
-
-    plot_xgb(hpot['best_plot'])
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
-        hpot['best_stock_df'].to_sql('results_xgboost_stock', con=conn, index=False, if_exists='append',
-                                     method='multi')
-        # hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append',
-        #                                method='multi')
-        pd.DataFrame(hpot['all_results']).to_sql('results_xgboost', con=conn, index=False, if_exists='append',
-                                                 method='multi')
+        hpot['best_stock_df'].to_sql('results_xgboost_stock', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_xgboost', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     sql_result['trial_hpot'] += 1
-    # return best
-
-
-def to_sql_bins(cut_bins, write=True):
-    ''' write cut_bins & median of each set to DB'''
-
-    if write == False:
-
-        df = pd.DataFrame(columns=['cut_bins', 'med_train'])
-        df[['cut_bins', 'med_train']] = df[['cut_bins', 'med_train']].astype('object')
-
-        for k in cut_bins.keys():  # record cut_bins & median
-            df.at[0, k] = cut_bins[k]
-
-        for col in ['qcut_q', 'icb_code', 'testing_period', 'y_type']:
-            df.at[0, col] = sql_result[col]
-
-        with engine.connect() as conn:  # record type of Y
-            df.to_sql('results_bins_new', con=conn, index=False, if_exists='append')
-        engine.dispose()
 
 
 def to_sql_prediction(Y_test_pred):
@@ -159,26 +93,12 @@ def to_sql_prediction(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['name'] = [sql_result['name']] * len(test_id)]
     # print('stock-wise prediction: ', df)
 
     return df
 
-
-def to_sql_importance(gbm):
-    ''' based on gbm model -> records feature importance in DataFrame to be uploaded to DB '''
-
-    df = pd.DataFrame()
-    df['name'] = feature_names  # column names
-    print(gbm.get_fscore)
-    df['split'] = gbm.get_fscore()  # split = # of appearance
-
-    df = df.set_index('name').T.reset_index(drop=False)
-    df.columns = ['importance_type'] + df.columns.to_list()[1:]
-    df['trial_lgbm'] = sql_result['trial_lgbm']
-
-    return df
-
-def read_db_last(sql_result, results_table='results_xgboost'):
+def read_db_last(sql_result, results_table='results_randomforest'):
     ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
 
     try:
@@ -198,19 +118,6 @@ def read_db_last(sql_result, results_table='results_xgboost'):
         sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
 
     return db_last_param, sql_result
-
-def pass_error():
-    ''' continue loop when encounter error in trials '''
-
-    print('ERROR on', sql_result)
-
-    with engine.connect() as conn:
-        pd.DataFrame({'icb_code': sql_result['icb_code'],
-                      'testing_period': pd.Timestamp(sql_result['testing_period']),
-                      'qcut_q': sql_result['qcut_q'],
-                      'recording_time': dt.datetime.now()}, index=[0], ).to_sql('results_error', con=conn,
-                                                                                index=False, if_exists='append')
-    engine.dispose()
 
 if __name__ == "__main__":
 
@@ -293,22 +200,9 @@ if __name__ == "__main__":
             sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
             sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-            # print('23355L106' in test_id)
-            print(feature_names)
-
-
-            # xgb_space_map = {'booster': 'boosting_type', 'eta': 'learning_rate', 'min_child_weight': 'min_data_in_leaf',
-            #                  'gamma': 'min_gain_to_split', 'subsample': 'bagging_fraction',
-            #                  'colsample_bylevel': 'feature_fraction',
-            #                  'lambda': 'lambda_l2', 'alpha': 'lambda_l1'}
-            # for k, v in xgb_space_map.items():
-            #     space[k] = space[v]
-            #     space.pop(v)
 
             space = find_hyperspace(sql_result)
             space.update(base_space)
-
-            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
             cv_number = 1  # represent which cross-validation sets
             for train_index, valid_index in cv:  # roll over 5 cross validation set
@@ -323,9 +217,6 @@ if __name__ == "__main__":
                 sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
                 sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                try:
-                    HPOT(space, max_evals=10)  # start hyperopt
-                except:
-                    continue
+                HPOT(space, max_evals=10)  # start hyperopt
                 cv_number += 1
 
