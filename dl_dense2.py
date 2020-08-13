@@ -144,7 +144,7 @@ def HPOT(space, max_evals = 10):
         hpot['best_stock_df'].to_sql('results_dense2_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_history'])  # plot training history
+    # plot_history(hpot['best_history'])  # plot training history
 
     return best
 
@@ -171,6 +171,7 @@ def pred_to_sql(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['name'] = [sql_result['name']] * len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
@@ -183,7 +184,7 @@ if __name__ == "__main__":
     chron_valid = False
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
-    period_1 = dt.datetime(2013,3,31)
+    period_1 = dt.datetime(2016,3,31)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--sp_only', default=False, action='store_true')
@@ -198,10 +199,6 @@ if __name__ == "__main__":
     # default settings
     exclude_fwd = args.exclude_fwd
     ibes_qcut_as_x = not(args.exclude_fwd)
-
-    # these are parameters used to load_data
-    sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, args.num_best_col,
-                                                                           args.icb_code, args.exclude_fwd)
 
     db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
@@ -233,6 +230,8 @@ if __name__ == "__main__":
                                                                                   num_best_col=n)
                                                                                   # num_best_col=args.num_best_col)
                 print(feature_names)
+                sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, n,
+                                                                                       args.icb_code, args.exclude_fwd)
 
                 X_test = np.nan_to_num(sample_set['test_x'], nan=0)
                 Y_test = sample_set['test_y']

@@ -1,17 +1,17 @@
 from hyperopt import hp
 
 space_xgb = {
-    'eta': hp.choice('eta', [0.01, 0.1, 0.3]), # remove 0.12
-    'booster': 'dart',
-    'max_depth': hp.choice('max_depth',[3, 8, 15]),
-    'max_bin': hp.choice('max_bin', [128, 256]),
-    'num_leaves': hp.choice('num_leaves', [75, 256, 1024]),  # remove 75
-    'min_child_weight': hp.choice('min_child_weight', [0, 0.1, 1, 5]), # remove 25, 50
-    'colsample_bytree': hp.choice('colsample_bytree', [0.9, 1]), # remove 0.7
-    'subsample': hp.choice('subsample', [0.8, 0.9]),
-    'gamma': hp.choice('gamma', [0.01, 0.1, 0.5]), # remove 0.08
-    'alpha': hp.choice('alpha', [0, 1, 5]),
-    'lambda': hp.choice('lambda', [0, 1, 5]), # remove 10
+    'eta': hp.choice('eta', [0.001, 0.01]), # remove 0.12
+    'booster': hp.choice('booster', ['dart']),
+    'max_depth': hp.choice('max_depth',[8]),
+    'max_bin': hp.choice('max_bin', [64, 128]),
+    'num_leaves': hp.choice('num_leaves', [32, 1024, 2048]),  # remove 75
+    'min_child_weight': hp.choice('min_child_weight', [1]), # remove 25, 50
+    'colsample_bytree': hp.choice('colsample_bytree', [0.4, 0.5, 0.6]), # remove 0.7
+    'subsample': hp.choice('subsample', [0.5, 0.6, 0.7]),
+    'gamma': hp.choice('gamma', [0]), # remove 0.08
+    'alpha': hp.choice('alpha', [0.1, 0.5]),
+    'lambda': hp.choice('lambda', [1, 5]), # remove 10
     'tree_method': 'exact'
 }
 

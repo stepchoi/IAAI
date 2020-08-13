@@ -269,7 +269,7 @@ if __name__ == "__main__":
 
     db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in partitions:  # roll over industries (first 2 icb code)
+    for icb_code in [partitions[0]]:  # roll over industries (first 2 icb code)
 
         data.split_industry(icb_code, combine_ind=True)
         sql_result['icb_code'] = icb_code
