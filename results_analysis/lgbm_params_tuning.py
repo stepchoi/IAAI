@@ -17,18 +17,12 @@ def download(r_name, best='best'):
         query = text("SELECT * FROM results_{} WHERE name in :name".format(tname))
         query = query.bindparams(name=tuple(r_name))
 
-    try: # update if newer results is downloaded
-        print('lgbm_{}|{}.csv'.format(best, r_name))
-        results = pd.read_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name))
-        print('local version run - {}.csv'.format(r_name))
+    print('--------> download from DB TABLE')
+    with engine.connect() as conn:
+        results = pd.read_sql(query, con=conn)
+    engine.dispose()
 
-    except:
-        print('--------> download from DB TABLE')
-        with engine.connect() as conn:
-            results = pd.read_sql(query, con=conn)
-        engine.dispose()
-
-        results.to_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
+    results.to_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
 
     calc_correl(results) # check correlation
 
@@ -63,7 +57,7 @@ def calc_average(df, r_name, model='lgbm'):
         params = ['bagging_fraction', 'bagging_freq', 'feature_fraction', 'lambda_l1', 'learning_rate',
                   'min_data_in_leaf', 'min_gain_to_split', 'lambda_l2', 'boosting_type', 'max_bin', 'num_leaves']
     elif tname == 'xgboost':
-        params = ['alpha', 'booster', 'colsample_bylevel', 'colsample_bycode', 'eta', 'gamma', 'lambda',
+        params = ['alpha', 'booster', 'colsample_bylevel', 'colsample_bycode', 'colsample_bytree', 'eta', 'gamma', 'lambda',
                   'max_bin', 'max_depth', 'min_child_weight', 'num_leaves', 'subsample']
 
     writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
@@ -170,10 +164,12 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     # r_name = ['ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space']
-    r_name = ['xgb xgb_space -sample_type industry -x_type fwdepsqcut']
-    tname = 'xgboost'
+    r_name = ['xgb tuning -sample_type industry -x_type fwdepsqcut']
+    # r_name = ['xgb tuning -sample_type entire -x_type fwdepsqcut']
+    r_name = ['ibes_new industry_only ws -indi space3']
+    tname = 'lightgbm'
 
-    results = download(r_name=r_name, best='best')
+    results = download(r_name=r_name, best='all')
     calc_average(results, r_name)
     # plot_boxplot(results, r_name=r_name)
 

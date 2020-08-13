@@ -44,6 +44,12 @@ def calc_average(df, r_name, model='lgbm'):
 
     writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
 
+    feature_list = list(set(df['number_features'].dropna().to_list()))
+    df['icb_code'] = df['icb_code'].astype(str)
+
+    for i in feature_list:
+        df.loc[df['number_features'] == i, 'icb_code'] += '-{}'.format(i)
+
     for c in set(df['icb_code']):
         sub_df = df.loc[df['icb_code']==c]
 
@@ -178,6 +184,9 @@ if __name__ == "__main__":
     engine = create_engine(db_string)
 
     r_name = 'new with indi code -fix space'
+    r_name = 'small_space -code 0 -exclude_fwd True'
+    tname = 'dense2'
+
 
     results = download(r_name=r_name, best='best')
     calc_average(results, r_name=r_name, model='dense2')

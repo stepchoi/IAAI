@@ -28,14 +28,14 @@ if __name__ == "__main__":
     use_median = True       # default setting
     chron_valid = False     # default setting
 
-    data = load_data()          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    data = load_data(sp_only=True)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     bins_list = []
     for y_type in ['ibes']:
         sql_result['y_type'] = y_type
 
         total_test_id = {}
-        for icb_code in indi_industry_new + indi_sectors + [0, 1, 2]:   # roll over industries (first 2 icb code)
+        for icb_code in [0,1,2]: # + indi_sectors + [0, 1, 2]:   # roll over industries (first 2 icb code)
             data.split_industry(icb_code, combine_ind=True)
             # data.split_entire(icb_code)
             # data.split_sector(icb_code)
@@ -50,7 +50,8 @@ if __name__ == "__main__":
                     sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period,
                                                                                   sql_result['qcut_q'],
                                                                                   sql_result['y_type'],
-                                                                                  use_median=use_median)
+                                                                                  use_median=use_median,
+                                                                                  )
 
                     total_test_id[icb_code] += len(test_id)
                     for col in ['qcut_q', 'icb_code', 'testing_period', 'y_type']:
@@ -58,6 +59,7 @@ if __name__ == "__main__":
                     for col in ['cut_bins', 'med_train']:
                         cut_bins[col] = str(cut_bins[col])
 
+                    cut_bins['sp_only']=True
                     bins_list.append(cut_bins)  # record cut_bins & median used in Y conversion
                     # print(cut_bins)
                 except:

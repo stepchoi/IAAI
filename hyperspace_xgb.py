@@ -2,7 +2,7 @@ from hyperopt import hp
 
 space_xgb = {
     'eta': hp.choice('eta', [0.01, 0.1, 0.3]), # remove 0.12
-    'booster': hp.choice('booster', ['dart']),
+    'booster': 'dart',
     'max_depth': hp.choice('max_depth',[3, 8, 15]),
     'max_bin': hp.choice('max_bin', [128, 256]),
     'num_leaves': hp.choice('num_leaves', [75, 256, 1024]),  # remove 75

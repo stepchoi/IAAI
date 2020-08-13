@@ -279,8 +279,10 @@ class download:
 
         # exit(0)
 
-        return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
-                                       'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']]) # 'exclude_fwd -> x_type
+        # return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
+        #                                'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']]) # 'exclude_fwd -> x_type
+
+        return label_sector(yoy_merge)
 
 class calc_mae_write():
 
@@ -414,13 +416,16 @@ class calc_mae_write():
 
         dict = {}
         dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
+        # dict['consensus_mae_org'] = mean_absolute_error(df['y_ibes'], df['y_consensus'])
         dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2_org'] = r2_score(df['y_ibes'], df['y_consensus'])
         if 'ibes' in self.name:
             dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])
+            # dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes'], df['pred'])
             dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
             dict['lgbm_r2'] = r2_score(df['y_ibes_qcut'], df['pred'])
+
         elif 'ni' in self.name:
             dict['lgbm_mae'] = mean_absolute_error(df['y_ni_qcut'], df['pred'])
             dict['lgbm_mse'] = mean_squared_error(df['y_ni_qcut'], df['pred'])
@@ -533,9 +538,15 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
-    # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
-    r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
-    tname = 'lightgbm'
+    r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
+    r_name = 'ibes_new industry_only ws -indi space3'
+    r_name = 'xgb tuning -sample_type industry -x_type fwdepsqcut'
+    r_name = 'xgb tuning -sample_type entire -x_type fwdepsqcut'
+
+    if 'xgb' in r_name:
+        tname = 'xgboost'
+    else:
+        tname = 'lightgbm'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, tname=r_name, base_list_type='all')
