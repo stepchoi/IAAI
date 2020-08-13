@@ -238,11 +238,11 @@ if __name__ == "__main__":
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
-                  'grow_policy':'lossguide'}  # for the best speed, set this to the number of real CPU cores
+                  'grow_policy':'depthwise'}
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
-    hpot = {}  # storing data for best trials in each Hyperopt
+    hpot = {}  # storing data cxe  best trials in each Hyperopt
     resume = args.resume  # change to True if want to resume from the last running as on DB TABLE lightgbm_results
     sample_no = args.sample_no  # number of training/testing period go over ( 25 = until 2019-3-31)
 
@@ -321,6 +321,6 @@ if __name__ == "__main__":
                 sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
                 sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                HPOT(space, max_evals=30)  # start hyperopt
+                HPOT(space, max_evals=10)  # start hyperopt
                 cv_number += 1
 

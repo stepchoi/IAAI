@@ -184,7 +184,7 @@ if __name__ == "__main__":
     chron_valid = False
     qcut_q = 10
     sql_result['y_type'] = 'ibes'
-    period_1 = dt.datetime(2016,3,31)
+    period_1 = dt.datetime(2013,3,31)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--sp_only', default=False, action='store_true')
@@ -221,7 +221,7 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', add_ind_code, testing_period)
                     continue
 
-            for n in [10, 20, 30, 40]:  # try top N features
+            for n in [30, 35, 46]:  # try top N features
                 sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
                                                                                   y_type=sql_result['y_type'],
                                                                                   exclude_fwd=exclude_fwd,
@@ -230,11 +230,12 @@ if __name__ == "__main__":
                                                                                   num_best_col=n)
                                                                                   # num_best_col=args.num_best_col)
                 print(feature_names)
-                sql_result['name'] = '{} -best_col {} -code {} -exclude_fwd {}'.format(args.name_sql, n,
-                                                                                       args.icb_code, args.exclude_fwd)
+                sql_result['name'] = '{} -code {} -exclude_fwd {}'.format(args.name_sql, args.icb_code, args.exclude_fwd)
 
                 X_test = np.nan_to_num(sample_set['test_x'], nan=0)
                 Y_test = sample_set['test_y']
+
+                sql_result['number_features'] = X_test.shape[1]
 
                 cv_number = 1
                 for train_index, test_index in cv:
