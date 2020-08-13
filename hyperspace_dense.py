@@ -19,15 +19,15 @@ space_small = {
     'num_Dense_layer': hp.choice('num_Dense_layer', [3, 4, 5]),  # number of layers ONE layer is TRIVIAL # drop 2, 3, 4
     'learning_rate': hp.choice('lr', [2, 3]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'init_nodes': hp.choice('init_nodes', [2, 4, 8]),  # nodes for Dense first layer -> LESS NODES
+    'init_nodes': hp.choice('init_nodes', [8, 16]),  # nodes for Dense first layer -> LESS NODES
     'dropout': hp.choice('dropout', [0.25, 0.5]),
 
     'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
-    'mult_freq': hp.choice('mult_freq', [1, 2, 3]),         # nodes double frequency
+    'mult_freq': hp.choice('mult_freq', [2, 3]),         # nodes double frequency
     'mult_start': hp.choice('mult_start', [2, 3]),       # first layer nodes number growth
 
-    'activation': hp.choice('activation', ['relu',  'tanh']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
+    'activation': hp.choice('activation', ['relu']), # JUST relu for overfitting
+    'batch_size': hp.choice('batch_size', [128, 256]), # reduce batch size space # drop 512
 }
 
 space_mini = {
@@ -48,7 +48,7 @@ space_mini = {
 space_fix = {
     'learning_rate': hp.choice('lr', [2, 3]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'num_nodes': hp.choice('num_nodes', ['[16, 16, 16]', '[8, 16, 32]', '[16, 16]',
+    'num_nodes': hp.choice('num_nodes', ['[8,16,16]','[16, 16, 16]', '[8, 16, 32]', '[16, 16]',
                                  '[8, 8, 8, 8, 8]','[8, 16, 16, 32]','[16, 16, 16, 16]']),
 
     'dropout': hp.choice('dropout', [0.25, 0.5]),

@@ -239,7 +239,7 @@ if __name__ == "__main__":
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
-                  'grow_policy':'depthwise'}
+                  'grow_policy':'lossguide'}
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results

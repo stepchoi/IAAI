@@ -221,38 +221,39 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', add_ind_code, testing_period)
                     continue
 
-            for n in [30, 35, 46]:  # try top N features
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                                  y_type=sql_result['y_type'],
-                                                                                  exclude_fwd=exclude_fwd,
-                                                                                  use_median=use_median,
-                                                                                  chron_valid=chron_valid,
-                                                                                  num_best_col=n)
-                                                                                  # num_best_col=args.num_best_col)
-                print(feature_names)
-                sql_result['name'] = '{} -code {} -exclude_fwd {}'.format(args.name_sql, args.icb_code, args.exclude_fwd)
 
-                X_test = np.nan_to_num(sample_set['test_x'], nan=0)
-                Y_test = sample_set['test_y']
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
+                                                                              y_type=sql_result['y_type'],
+                                                                              exclude_fwd=exclude_fwd,
+                                                                              use_median=use_median,
+                                                                              chron_valid=chron_valid,
+                                                                              # num_best_col=n)
+                                                                              num_best_col=args.num_best_col)
+            print(feature_names)
+            sql_result['name'] = '{} -code {} -exclude_fwd {}'.format(args.name_sql, args.icb_code, args.exclude_fwd)
 
-                sql_result['number_features'] = X_test.shape[1]
+            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
+            Y_test = sample_set['test_y']
 
-                cv_number = 1
-                for train_index, test_index in cv:
-                    sql_result['cv_number'] = cv_number
+            sql_result['number_features'] = X_test.shape[1]
 
-                    X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                    Y_train = sample_set['train_y'][train_index]
-                    X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                    Y_valid = sample_set['train_y'][test_index]
+            cv_number = 1
+            for train_index, test_index in cv:
+                sql_result['cv_number'] = cv_number
 
-                    print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                    space = find_hyperspace(sql_result)
+                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
+                Y_train = sample_set['train_y'][train_index]
+                X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
+                Y_valid = sample_set['train_y'][test_index]
 
-                    HPOT(space, 10)
+                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+                space = find_hyperspace(sql_result)
+                # for init_nodes in [4, 8, 16]:
+                #     space['init_nodes'] = init_nodes
+                HPOT(space, 10)
 
-                    sql_result['trial_hpot'] += 1
-                    cv_number += 1
+                sql_result['trial_hpot'] += 1
+                cv_number += 1
 
 
 
