@@ -23,12 +23,12 @@ def lgbm_train(space):
     print(params)
 
     regr = RandomForestRegressor(n_estimators=1000, criterion='mae', **params)
-    regr.fit(sample_set['train_xx'], sample_set['train_yy'])
+    regr.fit(X_train, Y_train)
 
     # prediction on all sets
-    Y_train_pred = regr.predict(sample_set['train_xx'])
-    Y_valid_pred = regr.predict(sample_set['valid_x'])
-    Y_test_pred = regr.predict(sample_set['test_x'])
+    Y_train_pred = regr.predict(X_train)
+    Y_valid_pred = regr.predict(X_valid)
+    Y_test_pred = regr.predict(X_test)
 
     return Y_train_pred, Y_valid_pred, Y_test_pred
 
@@ -37,19 +37,17 @@ def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
 
     Y_train_pred, Y_valid_pred, Y_test_pred = lgbm_train(space)
-    Y_test = sample_set['test_y']
 
-    result = {'mae_train': mean_absolute_error(sample_set['train_yy'], Y_train_pred),
-              'mae_valid': mean_absolute_error(sample_set['valid_y'], Y_valid_pred),
-              'mae_test': mean_absolute_error(Y_test, Y_test_pred),  ##### write Y test
-              'mse_train': mean_squared_error(sample_set['train_yy'], Y_train_pred),
-              'mse_valid': mean_squared_error(sample_set['valid_y'], Y_valid_pred),
-              'mse_test': mean_squared_error(Y_test, Y_test_pred),  ##### write Y test
-              'r2_train': r2_score(sample_set['train_yy'], Y_train_pred),
-              'r2_valid': r2_score(sample_set['valid_y'], Y_valid_pred),
+    result = {'mae_train': mean_absolute_error(Y_train, Y_train_pred),
+              'mae_valid': mean_absolute_error(Y_valid, Y_valid_pred),
+              'mae_test': mean_absolute_error(Y_test, Y_test_pred),
+              'mse_train': mean_squared_error(Y_train, Y_train_pred),
+              'mse_valid': mean_squared_error(Y_valid, Y_valid_pred),
+              'mse_test': mean_squared_error(Y_test, Y_test_pred),
+              'r2_train': r2_score(Y_train, Y_train_pred),
+              'r2_valid': r2_score(Y_valid, Y_valid_pred),
               'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
-
     sql_result.update(space)  # update hyper-parameter used in model
     sql_result.update(result)  # update result of model
     sql_result['finish_timing'] = dt.datetime.now()
