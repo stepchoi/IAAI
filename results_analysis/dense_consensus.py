@@ -121,6 +121,8 @@ if __name__ == "__main__":
     r_name = 'small_space -code 0 -exclude_fwd True'
     r_name = 'try_old_fix_space -code 0 -exclude_fwd True'
     r_name = 'test35_fix_space -code 0 -exclude_fwd True'
+    r_name = 'try10_mini_space -code 0 -exclude_fwd True'
+    r_name = 'new_mini_tune10 -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 

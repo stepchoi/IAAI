@@ -21,6 +21,7 @@ def download(r_name, best='best'):
     with engine.connect() as conn:
         results = pd.read_sql(query, con=conn)
     engine.dispose()
+    print(results.columns)
 
     results.to_csv('results_analysis/params_tuning/lgbm_{}|{}.csv'.format(best, r_name), index=False)
 
@@ -59,6 +60,9 @@ def calc_average(df, r_name, model='lgbm'):
     elif tname == 'xgboost':
         params = ['alpha', 'booster', 'colsample_bylevel', 'colsample_bycode', 'colsample_bytree', 'eta', 'gamma', 'lambda',
                   'max_bin', 'max_depth', 'min_child_weight', 'num_leaves', 'subsample']
+    elif tname == 'randomforest':
+        params = ['max_features', 'max_samples', 'min_impurity_decrease', 'min_samples_leaf',
+                  'min_samples_split', 'min_weight_fraction_leaf','max_depth']
 
     writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
 
@@ -165,15 +169,18 @@ if __name__ == "__main__":
 
     # r_name = ['ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space','ibes_entire_only ws -smaller space']
     r_name = ['xgb tuning -sample_type industry -x_type fwdepsqcut']
-    r_name = ['xgb tuning -sample_type entire -x_type fwdepsqcut']
+    r_name = ['xgb tuning3 -sample_type entire -x_type fwdepsqcut']
     # r_name = ['ibes_new industry_only ws -indi space3']
+    r_name = ['rf extratree -sample_type entire -x_type fwdepsqcut']
 
     if 'xgb' in r_name[0]:
         tname = 'xgboost'
+    elif 'rf' in r_name[0]:
+        tname = 'randomforest'
     else:
         tname = 'lightgbm'
 
-    results = download(r_name=r_name, best='best')
+    results = download(r_name=r_name, best='all')
     calc_average(results, r_name)
     # plot_boxplot(results, r_name=r_name)
 

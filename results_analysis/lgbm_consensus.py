@@ -32,11 +32,9 @@ def download_add_detail(r_name, table_name):
     with engine.connect() as conn:
 
         if r_name != 'all':     # read DB TABLE results_lightgbm data for given "name"
-            result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, exclude_fwd, "
-                                     "y_type, x_type FROM results_{} WHERE name='{}'".format(tname, r_name), conn)
+            result_all = pd.read_sql("SELECT * FROM results_{} WHERE name='{}'".format(tname, r_name), conn)
         else:   # download everything
-            result_all = pd.read_sql("SELECT trial_lgbm, qcut_q, icb_code, testing_period, cv_number, mae_test, "
-                                     "exclude_fwd, y_type, x_type FROM results_lightgbm", conn)
+            result_all = pd.read_sql("SELECT * FROM results_lightgbm", conn)
             result_all = result_all.dropna(subset=['x_type'])
         trial_lgbm = set(result_all['trial_lgbm'])
 
@@ -242,6 +240,10 @@ class download:
             self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
             self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
             self.detail_stock['icb_code'] = 0
+        if tname == 'xgboost':
+            self.detail_stock['x_type'] += self.detail_stock['grow_policy']
+
+        print(self.detail_stock['x_type'])
 
         # print(set(self.detail_stock['x_type']))
 
@@ -542,9 +544,13 @@ if __name__ == "__main__":
     r_name = 'ibes_new industry_only ws -indi space3'
     r_name = 'xgb tuning -sample_type industry -x_type fwdepsqcut'
     r_name = 'xgb tuning -sample_type entire -x_type fwdepsqcut'
+    r_name = 'xgb tryrun -sample_type entire -x_type fwdepsqcut'
+    # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
+    elif 'rf' in r_name:
+        tname = 'randomforest'
     else:
         tname = 'lightgbm'
 
