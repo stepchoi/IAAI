@@ -1,5 +1,5 @@
 import datetime as dt
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 import numpy as np
 import argparse
 import pandas as pd
@@ -22,7 +22,11 @@ def lgbm_train(space):
     params = space.copy()
     print(params)
 
-    regr = RandomForestRegressor(n_estimators=1000, criterion='mae', **params)
+    if args.tree_type == 'extra':
+        regr = ExtraTreesRegressor(criterion='mae', verbose=1, **params)
+    if args.tree_type == 'rf':
+        regr = RandomForestRegressor(criterion='mae', verbose=1, **params)
+
     regr.fit(X_train, Y_train)
 
     # prediction on all sets
@@ -31,7 +35,6 @@ def lgbm_train(space):
     Y_test_pred = regr.predict(X_test)
 
     return Y_train_pred, Y_valid_pred, Y_test_pred
-
 
 def eval(space):
     ''' train & evaluate LightGBM on given space by hyperopt trials '''
@@ -48,6 +51,8 @@ def eval(space):
               'r2_valid': r2_score(Y_valid, Y_valid_pred),
               'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
+    print(result)
+
     sql_result.update(space)  # update hyper-parameter used in model
     sql_result.update(result)  # update result of model
     sql_result['finish_timing'] = dt.datetime.now()
@@ -125,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('--exclude_stock', default=False, action='store_true')
     parser.add_argument('--resume', default=False, action='store_true')
     parser.add_argument('--exclude_fwd', default=False, action='store_true')
+    parser.add_argument('--tree_type', default='rf')
     parser.add_argument('--sample_type', default='industry')
     parser.add_argument('--sample_no', type=int, default=21)
     args = parser.parse_args()
@@ -165,7 +171,7 @@ if __name__ == "__main__":
 
     x_type_map = {True: 'fwdepsqcut', False: 'ni'}  # True/False based on exclude_fwd
     sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = 'xgb {} -sample_type {} -x_type {}'.format(args.name_sql, args.sample_type, sql_result['x_type'])  # label experiment
+    sql_result['name'] = 'rf {} -sample_type {} -x_type {}'.format(args.name_sql, args.sample_type, sql_result['x_type'])  # label experiment
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']  # number of Y classes

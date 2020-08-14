@@ -1,17 +1,17 @@
 from hyperopt import hp
 
 space_xgb = {
-    'eta': hp.choice('eta', [0.01, 0.1]), # remove 0.12
-    'booster': 'dart',
-    'max_depth': hp.choice('max_depth',[6, 8, 12, 15]),
+    'eta': 0.05,
+    'booster': hp.choice('booster',['dart','gbtree']),
+    'max_depth': hp.choice('max_depth',[6, 8]),
     'max_bin': hp.choice('max_bin', [64, 128]),
     # 'num_leaves': hp.choice('num_leaves', [32, 1024, 2048]),  # remove 75
-    'min_child_weight': hp.choice('min_child_weight', [1]), # remove 25, 50
+    'min_child_weight': 0,
     'colsample_bytree': hp.choice('colsample_bytree', [0.4, 0.5]), # remove 0.7
-    'subsample': hp.choice('subsample', [0.6, 0.7]),
-    'gamma': hp.choice('gamma', [0, 1e-3, 0.1]), # remove 0.08
-    'alpha': hp.choice('alpha', [0, 0.1, 0.5]),
-    'lambda': hp.choice('lambda', [1, 3]), # remove 10
+    'subsample': hp.choice('subsample', [0.7, 0.8]),
+    'gamma': hp.choice('gamma', [50, 100]),
+    'alpha': 0,
+    'lambda': hp.choice('lambda', [1, 3, 5]), # remove 10
     'tree_method': 'exact'
 }
 

@@ -20,8 +20,8 @@ def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
     params = space.copy()
+    params['gamma'] = params['eta']/params['gamma']  # convert gamma_multiple to gamma
     print(params)
-    exit(0)
 
     lgb_train = xgb.DMatrix(sample_set['train_xx'], label=sample_set['train_yy'])
     lgb_eval = xgb.DMatrix(sample_set['valid_x'], label=sample_set['valid_y'])
@@ -40,8 +40,8 @@ def lgbm_train(space):
                     dtrain=lgb_train,
                     evals=[(lgb_eval,'valid'), (lgb_train,'train')],
                     evals_result=evals_result,
-                    num_boost_round=1000,
-                    early_stopping_rounds=150,
+                    num_boost_round=400,
+                    early_stopping_rounds=50,
                     obj=huber_approx_obj)
 
     # prediction on all sets
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
-                  'grow_policy':'lossguide'}
+                  'grow_policy':'depthwise'}
 
     # create dict storing values/df used in training
     sql_result = {}  # data write to DB TABLE lightgbm_results
@@ -323,9 +323,6 @@ if __name__ == "__main__":
                 sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
                 sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                try:
-                    HPOT(space, max_evals=10)  # start hyperopt
-                except:
-                    continue
+                HPOT(space, max_evals=10)  # start hyperopt
                 cv_number += 1
 

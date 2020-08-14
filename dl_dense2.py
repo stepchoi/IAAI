@@ -64,7 +64,7 @@ def dense_train(space):
         nodes = [init_nodes]
         for i in range(1, num_Dense_layer):
             # temp_nodes = nodes_list[i]
-            temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 16)) # nodes grow at 2X or stay same - at most 128 nodes
+            temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 32)) # nodes grow at 2X or stay same - at most 128 nodes
             d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)  # remove kernel_regularizer=regularizers.l1(params['l1'])
             nodes.append(temp_nodes)
 
@@ -248,8 +248,6 @@ if __name__ == "__main__":
 
                 print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
                 space = find_hyperspace(sql_result)
-                # for init_nodes in [4, 8, 16]:
-                #     space['init_nodes'] = init_nodes
                 HPOT(space, 10)
 
                 sql_result['trial_hpot'] += 1
