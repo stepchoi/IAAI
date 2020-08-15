@@ -58,13 +58,21 @@ def dense_train(space):
         mult_start = params['mult_start']
         num_Dense_layer = params['num_Dense_layer']
 
+        if num_Dense_layer < 4:
+            params['init_nodes'] = init_nodes = 16
+
+        # if nodes_mult == 1:
+        #     sql_result['num_Dense_layer'] = num_Dense_layer = int(np.log2(params['end_nodes']) - np.log2(params['init_nodes'])) + 1
+        # elif nodes_mult == 0:
+        #     sql_result['num_Dense_layer'] = num_Dense_layer = 5
+
         d_1 = Dense(init_nodes, activation=params['activation'])(input_img)  # remove kernel_regularizer=regularizers.l1(params['l1'])
         d_1 = Dropout(params['dropout'])(d_1)
 
         nodes = [init_nodes]
         for i in range(1, num_Dense_layer):
             # temp_nodes = nodes_list[i]
-            temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start+3)//mult_freq, 0))), 32)) # nodes grow at 2X or stay same - at most 128 nodes
+            temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start + 3)//mult_freq, 0))), params['end_nodes'])) # nodes grow at 2X or stay same - at most 128 nodes
             d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)  # remove kernel_regularizer=regularizers.l1(params['l1'])
             nodes.append(temp_nodes)
 

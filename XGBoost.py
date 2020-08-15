@@ -235,7 +235,7 @@ if __name__ == "__main__":
     else:
         NameError('wrong sample_type')
 
-    period_1 = dt.datetime(2013, 3, 31)  # starting point for first testing set
+    period_1 = dt.datetime(2017, 12, 31)  # starting point for first testing set
     base_space = {'verbosity': 0,
                   'nthread': 12,
                   'eval_metric': 'mae',
