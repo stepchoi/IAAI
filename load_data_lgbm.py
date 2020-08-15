@@ -20,7 +20,7 @@ indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 
                 501010, 201020, 502030, 401010]
 
 
-def filter_best_col(df, num_best_col, exclude_fwd):
+def filter_best_col(df, num_best_col, exclude_fwd, filter_stock_return_only):
     ''' filter top N features for dense moel'''
 
     # features ordered by importance in Industry Partition LGBM model
@@ -37,6 +37,18 @@ def filter_best_col(df, num_best_col, exclude_fwd):
            'ushouse.o', 'usfrbpim', 'uscnper.d', 'usgdp...d', 'usinter3',
            'usrettotb', 'cap_adequacy_ratio']
 
+    best_col_ex_ex = ['ni_ts01', 'sales_ts01', 'earnings_yield',
+                   'ni_to_cfo', 'ebitda_to_ev', 'capex_to_dda',
+                   'sales_ts13', 'cfps_ts01', 'fa_turnover', 'pretax_margin_ts01',
+                   'gross_margin', 'div_payout', 'debt_to_asset', 'interest_to_earnings',
+                   'sales_ts35', 'ni_ts35', 'inv_turnover', 'ni_ts13',
+                   'pretax_margin_ts13', 'cfps_ts13', 'cfps_ts35', 'roe',
+                   'pretax_margin_ts35', 'roic', 'pretax_margin', 'cash_ratio',
+                   'ca_turnover', 'interest_rate_3m', 'interest_rate_10y', 'index',
+                   'dollar_index', 'gdp', 'ipi', 'unemployment', 'cpi', 'reer', 'crudoil',
+                   'ushouse.o', 'usfrbpim', 'uscnper.d', 'usgdp...d', 'usinter3',
+                   'usrettotb', 'cap_adequacy_ratio']
+
     best_col_in = ['stock_return_1qa', 'sales_ts01', 'stock_return_3qb',
            'pretax_margin_ts01', 'sales_ts13', 'capex_to_dda', 'fwd_roic',
            'eps_ts01', 'ebitda_to_ev', 'cfps_ts01', 'eps_ts35', 'ni_to_cfo',
@@ -51,6 +63,8 @@ def filter_best_col(df, num_best_col, exclude_fwd):
 
     if exclude_fwd == True:
         df = df.filter(best_col_ex[:num_best_col])
+        if filter_stock_return_only == True:
+            df = df.filter(best_col_ex_ex[:num_best_col])
     else:
         df = df.filter(best_col_in[:num_best_col])
 
@@ -212,16 +226,20 @@ class load_data:
 
         self.sector = self.main
 
-    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col):
+    def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col,
+                         filter_stock_return_only):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
         start = testing_period - relativedelta(years=10)    # train df = 40 quarters
 
         self.sector = full_period(date_type(self.sector))
+
+        if filter_stock_return_only == True:
+            self.sector = stock_return_only(self.sector)
+
         self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
         self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
-
 
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
@@ -239,21 +257,18 @@ class load_data:
             ws_ni_col = ['ni_ts01','ni_ts13','ni_ts35']
             id_col = ['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry']
 
-            if exclude_fwd == False:
+            if exclude_fwd == False:    # use IBES data as X
                 x = df.drop(id_col + y_col + ws_ni_col , axis=1)
-                if ibes_qcut_as_x == False:
-                    x = x.drop(['ibes_qcut_as_x'], axis=1)
+            elif filter_stock_return_only == True:      # stock return only data
+                x = df[[x for x in df.columns if 'stock_return_1qa' in x]]
             else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(id_col + y_col + fwd_eps_col + fwd_col, axis=1)
-                if ibes_qcut_as_x == False:
-                    x = x.drop(['ibes_qcut_as_x'], axis=1)
+                x = df.drop(id_col + y_col + fwd_eps_col + fwd_col + ['ibes_qcut_as_x'], axis=1)
 
-            print(x)
             if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
 
             if num_best_col > 0:       # for trial with only top N important features (dense2)
-                x = filter_best_col(x, num_best_col, exclude_fwd)
+                x = filter_best_col(x, num_best_col, exclude_fwd, filter_stock_return_only)
 
             self.feature_names = x.columns.to_list()
             x = x.values
@@ -325,10 +340,10 @@ class load_data:
         return gkf
 
     def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False,
-                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False):
+                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col, filter_stock_return_only)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
@@ -336,6 +351,15 @@ class load_data:
         # print('sample_set keys: ', self.sample_set.keys())
 
         return self.sample_set, self.cut_bins, gkf, self.test['identifier'].to_list(), self.feature_names
+
+def stock_return_only(df, lag=4):
+    ''' a stock return only array '''
+
+    for i in range(1, lag, 1):
+        df['stock_return_1qa_lag{}'.format(i)] = df['stock_return_1qa'].shift(i)
+        df.loc[df.groupby('identifier').head(i).index, 'stock_return_1qa_lag{}'.format(i)] = np.nan
+
+    return df
 
 def count_by_sector(main):
     ''' counter # sample for each sector to decide sector-wide models & miscellaneous model'''
@@ -382,9 +406,11 @@ if __name__ == '__main__':
                                                                       use_median=use_median,
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x,
-                                                                      exclude_stock=True)
+                                                                      exclude_stock=False,
+                                                                      filter_stock_return_only=True)
 
     print(sorted(feature_names))
+    print(feature_names.index('stock_return_1qa'))
 
     print('test_id: ', len(test_id))
     pd.DataFrame(test_id, columns=['lgbm_id']).to_csv('lgbm_id.csv', index=False)

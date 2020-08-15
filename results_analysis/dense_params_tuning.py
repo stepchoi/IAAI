@@ -6,7 +6,7 @@ import datetime as dt
 from results_analysis.lgbm_params_tuning import calc_correl
 
 params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult',
-          'num_Dense_layer', 'num_nodes']
+          'num_Dense_layer', 'num_nodes','activation']
 
 def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
@@ -189,7 +189,7 @@ if __name__ == "__main__":
     r_name = 'try_initi_nodes_small -code 0 -exclude_fwd True'
     r_name = 'test35_fix_space -code 0 -exclude_fwd True'
     r_name = 'try10_mini_space2 -code 0 -exclude_fwd True'
-    r_name = 'mini_tune10 -code 0 -exclude_fwd True'
+    r_name = 'new_mini_tune10 -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 
