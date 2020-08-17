@@ -28,6 +28,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--gpu_number', type=int, default=1)
+parser.add_argument('--name_sql', required=True)
 args = parser.parse_args()
 
 space = {
@@ -227,45 +228,44 @@ if __name__ == "__main__":
     period_1 = dt.datetime(2013,4,1)
     sample_no = 21
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False}
-    print(load_data_params)
 
     sql_result['exclude_fwd'] = args.exclude_fwd
     sql_result['eps_only'] = False
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = 'adj_space_{}_{}'.format(args.exclude_fwd, args.add_ind_code)
+    sql_result['name'] = args.name_sql # label experiment
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
 
     data = load_data(macro_monthly=True)
 
-    add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 mesns add sector code as X
-    data.split_entire(add_ind_code=add_ind_code)
-    sql_result['icb_code'] = add_ind_code
+    # add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 means add sector code as X
+    for add_ind_code in [11, 20, 30, 35, 40, 45, 51, 60, 65]:
+        data.split_entire(add_ind_code=add_ind_code)
+        sql_result['icb_code'] = add_ind_code
+        print(sql_result)
 
-    print(sql_result)
+        for i in tqdm(range(sample_no)):  # roll over testing period
+            testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
+            sql_result['testing_period'] = testing_period
 
-    for i in tqdm(range(sample_no)):  # roll over testing period
-        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
-        sql_result['testing_period'] = testing_period
+            train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+            print(x_col)
+            X_test = np.expand_dims(X_test, axis=3)
 
-        train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
-        print(x_col)
-        X_test = np.expand_dims(X_test, axis=3)
+            cv_number = 1
+            for train_index, test_index in cv:
+                sql_result['cv_number'] = cv_number
 
-        cv_number = 1
-        for train_index, test_index in cv:
-            sql_result['cv_number'] = cv_number
+                X_train = np.expand_dims(train_x[train_index], axis=3)
+                Y_train = train_y[train_index]
+                X_valid = np.expand_dims(train_x[test_index], axis=3)
+                Y_valid = train_y[test_index]
 
-            X_train = np.expand_dims(train_x[train_index], axis=3)
-            Y_train = train_y[train_index]
-            X_valid = np.expand_dims(train_x[test_index], axis=3)
-            Y_valid = train_y[test_index]
+                print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
-            print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-
-            HPOT(space, 10)
-            gc.collect()
-            cv_number += 1
+                HPOT(space, 10)
+                gc.collect()
+                cv_number += 1
 
 

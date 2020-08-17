@@ -50,7 +50,7 @@ def download_stock():
             result_stock = pd.read_sql(query, conn)
         engine.dispose()
 
-        detail_stock = result_stock.merge(result_all, on=['trial_lgbm','name'], how='inner')  # map training information to stock data
+        detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')  # map training information to stock data
         detail_stock.to_csv('results_analysis/compare_with_ibes/dense_stock_{}.csv'.format(r_name), index=False)
         print('detial_stock shape: ', detail_stock)
 
@@ -64,9 +64,11 @@ def merge_ibes_stock():
     yoy_med = download_ibes_median()
     detail_stock = download_stock()
 
-    detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd True' in x), 'x_type'] = 'fwdepsqcut'
-    detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd False' in x), 'x_type'] = 'ni'
+    # detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd True' in x), 'x_type'] = 'fwdepsqcut'
+    # detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd False' in x), 'x_type'] = 'ni'
 
+    # detail_stock['number_features'] = 46
+    detail_stock['x_type'] = 'fwdepsqcut'
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type', 'x_type', 'number_features'], keep='last')
 
@@ -124,7 +126,9 @@ if __name__ == "__main__":
     r_name = 'try10_mini_space -code 0 -exclude_fwd True'
     r_name = 'new_mini_tune10 -code 0 -exclude_fwd True'
     r_name = 'fix_tune10 -code 0 -exclude_fwd True'
+    r_name = 'mini_tune15 -code 0 -exclude_fwd True'
     r_name = 'new with indi code -fix space'
+    r_name = 'mini_tune15_re -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 

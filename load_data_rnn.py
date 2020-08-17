@@ -165,15 +165,23 @@ class load_data:
 
         if add_ind_code == 1:   # add industry code as X
             self.main['icb_industry_x'] = self.main['icb_industry']
+            self.sector = self.main
         elif add_ind_code == 2:   # add industry code as X
             self.main['icb_sector_x'] = self.main['icb_sector']
+            self.sector = self.main
         elif add_ind_code == 0:
-            pass
+            self.sector = self.main
+        elif add_ind_code >= 10: # use industry code to split sets
+            self.split_industry(add_ind_code)
         else:
             print('wrong add_ind_code')
             exit(1)
 
-        self.sector = self.main
+    def split_industry(self, icb_industry):
+        ''' split samples by industry '''
+
+        self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
+        self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
     def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd=False, small_training=True, eps_only=False):
         ''' split training / testing set based on testing period '''
@@ -291,12 +299,12 @@ class load_data:
 if __name__ == '__main__':
 
     add_ind_code = 0
-    period_1 = dt.datetime(2015, 12, 31)
-    sample_no = 25
+    period_1 = dt.datetime(2015, 1, 1)
+    sample_no = 21
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': True}
 
     data = load_data(macro_monthly=True)
-    data.split_entire(add_ind_code)
+    data.split_entire(11)
 
     for i in tqdm(range(sample_no)):  # roll over testing period
         testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
@@ -304,7 +312,6 @@ if __name__ == '__main__':
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
         print(X_test.shape)
-        continue
 
         for train_index, test_index in cv:
 
@@ -314,5 +321,5 @@ if __name__ == '__main__':
             Y_valid = train_y[test_index]
 
             print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-            continue
+            exit(0)
 

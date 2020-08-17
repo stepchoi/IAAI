@@ -293,7 +293,7 @@ class calc_mae_write():
 
         # decide base list -> identifier + period_end appeared in both lgbm and rnn models
         if base_list_type == 'all':
-            lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
+            lgbm = pd.read_csv('results_analysis/compare_with_ibes/dense_stock_mini_tune15_re -code 0 -exclude_fwd True.csv',
                                usecols=['identifier', 'testing_period'])
         elif base_list_type == 'sp':
             lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_industry -sp500.csv',
@@ -547,26 +547,13 @@ def compare_by_part():
 
 if __name__ == "__main__":
 
-    os.chdir('results_analysis/compare_with_ibes/')
-    df1 = pd.read_csv('stock_xgb tryrun -sample_type entire -x_type fwdepsqcut.csv')
-    df1 = df1.loc[df1['testing_period']=='2017-12-31', 'identifier']
-    print(len(set(df1)))
-    # print(df1[['identifier','testing_period']].drop_duplicates())
-    df2 = pd.read_csv('stock_ibes_new industry_only ws -indi space3.csv')
-    # print(df2[['identifier','testing_period']].drop_duplicates())
-    df2 = df2.loc[df2['testing_period']=='2017-12-31', 'identifier']
-    print(len(set(df2)))
-    print(set(df2)-set(df1))
-    exit(0)
-
-
-
     r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'xgb tuning -sample_type industry -x_type fwdepsqcut'
     # r_name = 'xgb tuning -sample_type entire -x_type fwdepsqcut'
     # r_name = 'xgb tryrun -sample_type entire -x_type fwdepsqcut'
     # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
+    r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
