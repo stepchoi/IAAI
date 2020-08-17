@@ -117,7 +117,7 @@ def HPOT(space, max_evals):
     # print(space['objective'], best)
     print(best)
 
-    plot_xgb(hpot['best_plot'])
+    # plot_xgb(hpot['best_plot'])
 
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
