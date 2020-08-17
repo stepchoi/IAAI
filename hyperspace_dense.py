@@ -31,30 +31,36 @@ space_small = {
 }
 
 space_mini = {
-    'num_Dense_layer': hp.choice('num_Dense_layer',[4,5,6]),
+    'num_Dense_layer': hp.choice('num_Dense_layer',[4, 5, 6]),
     'learning_rate': 2,    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'init_nodes': hp.choice('init_nodes',[8,16]),  # nodes for Dense first layer -> LESS NODES
+    'init_nodes': hp.choice('init_nodes',[8, 16]),  # nodes for Dense first layer -> LESS NODES
     'dropout': 0,
+    'end_nodes': 32,
 
-    'nodes_mult': hp.choice('nodes_mult', [0, 1]),          # nodes growth rate
-    'mult_freq': hp.choice('mult_freq', [2, 3]),         # nodes double frequency
+    'nodes_mult':  hp.choice('nodes_mult',[0,1]),       # nodes growth rate
+    'mult_freq': 3,         # nodes double frequency
     'mult_start': 2,      # first layer nodes number growth
 
-    'activation': hp.choice('activation', ['relu','tanh']),  # JUST relu for overfitting
+    'activation': hp.choice('activation',['tanh','relu']),  # JUST relu for overfitting
     'batch_size': 128 # reduce batch size space # drop 512
 }
 
 space_fix = {
-    'learning_rate': hp.choice('lr', [2]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
+    'learning_rate': 2,    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
-    'num_nodes': '[4, 4, 8, 8, 8, 16]',
     # 'num_nodes': hp.choice('num_nodes', ['[8,16,16]','[16, 16, 16]', '[8, 16, 32]', '[16, 16]',
     #                              '[8, 8, 8, 8, 8]','[8, 16, 16, 32]','[16, 16, 16, 16]']),
 
-    'dropout': hp.choice('dropout', [0]),
-    'activation': hp.choice('activation', ['tanh']), # JUST relu for overfitting
-    'batch_size': hp.choice('batch_size', [128]), # reduce batch size space # drop 512
+    # 'num_nodes': hp.choice('num_nodes', ['[16, 16, 16, 16, 16, 16]','[16, 16, 16, 16, 16]', '[16, 16, 16, 16]',
+    #                                      '[8,8,8,8,8,8]', '[16, 16, 32, 32]','[8, 16, 16, 32]','[8, 16, 32, 64]',
+    #                                      '[16, 32, 64]','[4, 8, 8]','[8, 8, 8]']),
+
+    'num_nodes':'[4,4]',
+
+    'dropout': 0,
+    'activation': 'relu', # JUST relu for overfitting
+    'batch_size': 128, # reduce batch size space # drop 512
 }
 
 def find_hyperspace(sql_result):
