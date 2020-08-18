@@ -555,6 +555,7 @@ if __name__ == "__main__":
     # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
     # r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
     # r_name = 'ibes_new industry_all x -indi space'
+    r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

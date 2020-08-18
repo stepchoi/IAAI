@@ -271,7 +271,7 @@ if __name__ == "__main__":
         partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                        201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     elif args.sample_type == 'entire':
-        partitions = [0,1,2]
+        partitions = [0]
 
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     base_space = {'objective': 'regression_l1',  # for regression
