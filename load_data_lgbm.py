@@ -404,7 +404,7 @@ if __name__ == '__main__':
     y_type = 'ibes_qoq'
 
     exclude_fwd = True
-    ibes_qcut_as_x = True
+    ibes_qcut_as_x = False
     macro_monthly = True
 
     data = load_data(sp_only=True)
@@ -421,6 +421,7 @@ if __name__ == '__main__':
                                                                       filter_stock_return_only=False)
 
     print(sorted(feature_names))
+    print(len(feature_names))
     print(feature_names.index('stock_return_1qa'))
 
     print('test_id: ', len(test_id))
