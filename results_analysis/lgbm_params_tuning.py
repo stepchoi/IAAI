@@ -173,6 +173,8 @@ if __name__ == "__main__":
     # r_name = ['ibes_new industry_only ws -indi space3']
     r_name = ['rf extratree -sample_type entire -x_type fwdepsqcut']
     r_name = ['xgb ind -sample_type industry -x_type fwdepsqcut']
+    r_name = ['ibes_new industry_only ws -indi space3']
+    r_name = ['ibes_entire_only ws -smaller space']
 
     if 'xgb' in r_name[0]:
         tname = 'xgboost'
@@ -181,7 +183,7 @@ if __name__ == "__main__":
     else:
         tname = 'lightgbm'
 
-    results = download(r_name=r_name, best='all')
+    results = download(r_name=r_name, best='best')
     calc_average(results, r_name)
     # plot_boxplot(results, r_name=r_name)
 

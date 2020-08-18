@@ -553,8 +553,8 @@ if __name__ == "__main__":
     # r_name = 'xgb tuning -sample_type entire -x_type fwdepsqcut'
     # r_name = 'xgb tryrun -sample_type entire -x_type fwdepsqcut'
     # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
-    r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
-    r_name = 'ibes_new industry_all x -indi space'
+    # r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
+    # r_name = 'ibes_new industry_all x -indi space'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

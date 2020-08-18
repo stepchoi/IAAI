@@ -42,16 +42,13 @@ def download_stock():
             if r_name == 'all':
                 if tname == 'cnn_rnn':
                     result_all = pd.read_sql(
-                        "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
-                        "FROM results_{} WHERE trial_lgbm > 181".format(tname, r_name), conn)       # change for results_rnn_eps
+                        "SELECT * FROM results_{} WHERE trial_lgbm > 181".format(tname, r_name), conn)       # change for results_rnn_eps
                 else:
                     result_all = pd.read_sql(
-                        "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
-                        "FROM results_{}".format(tname, r_name), conn)  # change for results_rnn_eps
+                        "SELECT * FROM results_{}".format(tname, r_name), conn)  # change for results_rnn_eps
             else:
                 result_all = pd.read_sql(
-                    "SELECT trial_lgbm, icb_code, testing_period, cv_number, exclude_fwd "
-                    "FROM results_{} WHERE name='{}'".format(tname, r_name), conn)
+                    "SELECT * FROM results_{} WHERE name='{}'".format(tname, r_name), conn)
 
             trial_lgbm = set(result_all['trial_lgbm'])
 
@@ -157,8 +154,8 @@ if __name__ == "__main__":
 
     organize()
 
-    r_name = 'adj_space__exclude_fwd_2'
-    tname = 'rnn_double' # or rnn_eps
+    r_name = 'industry_exclude'
+    tname = 'cnn_rnn' # or rnn_eps
 
     yoy_merge = merge_ibes_stock()
     calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))
