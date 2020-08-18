@@ -19,7 +19,6 @@ engine = create_engine(db_string)
 indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                 501010, 201020, 502030, 401010]
 
-
 def filter_best_col(df, num_best_col, exclude_fwd, filter_stock_return_only):
     ''' filter top N features for dense moel'''
 
@@ -97,6 +96,7 @@ class add_macro:
         try:
             self.ratios = pd.read_csv('preprocess/clean_ratios.csv')
             self.macros = pd.read_csv('preprocess/clean_macros.csv')
+            self.ibes_qoq = pd.read_csv('preprocess/ibes_data_qoq.csv').dropna(how='any')
             self.new_macros = pd.read_csv('preprocess/clean_macros_new.csv')
             print('local version run - clean_ratios / macros')
         except:
@@ -104,13 +104,25 @@ class add_macro:
             with engine.connect() as conn:
                 self.ratios = pd.read_sql('SELECT * FROM clean_ratios', conn)
                 self.macros = pd.read_sql('SELECT * FROM clean_macros', conn)
+                self.ibes_qoq = pd.read_sql('SELECT * FROM ibes_data_qoq', conn).dropna(how='any')
                 self.new_macros = pd.read_sql('SELECT * FROM clean_macros_new', conn)
             engine.dispose()
 
         self.macros = date_type(self.macros)    # convert to date
-
         self.new_macros = date_type(self.new_macros)
-        self.ratios = date_type(self.ratios)
+        self.ratios = date_type(self.ratios).merge(date_type(self.ibes_qoq), on=['identifier','period_end'], how='outer')
+
+        # dd = self.ratios[['identifier','period_end','y_ibes','y_ibes_qoq']]
+        # print(dd.describe())
+        # import matplotlib.pyplot as plt
+        # fig = plt.figure(figsize=(6,3))
+        # ax1 = fig.add_subplot(1, 2, 1)
+        # ax2 = fig.add_subplot(1, 2, 2)
+        # ax1.hist(dd['y_ibes'], bins=100)
+        # ax2.hist(dd['y_ibes_qoq'], bins=100)
+        # plt.show()
+        # exit(0)
+
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 
         if macro_monthly == True:
@@ -181,8 +193,6 @@ class load_data:
 
         if sp_only==True:
             self.main = filter_sp_only(self.main)
-
-        # print('check inf: ', np.any(np.isinf(self.main.drop(['identifier', 'period_end', 'icb_sector', 'market'], axis=1).values)))
 
         # define self objects
         self.sample_set = {}
@@ -296,7 +306,8 @@ class load_data:
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
-            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False)
+            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False,
+                                        duplicates='drop') # qoq will drop duplicated bins when occur
             cut_bins[0], cut_bins[-1] = [-np.inf, np.inf]
 
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
@@ -311,8 +322,8 @@ class load_data:
                 median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
 
                 # replace 0, 1, ... into median
-                train_y = pd.DataFrame(train_y).replace(range(qcut_q), median)[0].values
-                test_y = pd.DataFrame(test_y).replace(range(qcut_q), median)[0].values
+                train_y = pd.DataFrame(train_y).replace(range(len(cut_bins)-1), median)[0].values
+                test_y = pd.DataFrame(test_y).replace(range(len(cut_bins)-1), median)[0].values
             else:
                 train_y = np.array(train_y)
                 test_y = np.array(test_y)
@@ -390,7 +401,7 @@ if __name__ == '__main__':
     icb_code = 2
     testing_period = dt.datetime(2018,3,31)
     qcut_q = 10
-    y_type = 'ibes'
+    y_type = 'ibes_qoq'
 
     exclude_fwd = True
     ibes_qcut_as_x = True
@@ -407,7 +418,7 @@ if __name__ == '__main__':
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x,
                                                                       exclude_stock=False,
-                                                                      filter_stock_return_only=True)
+                                                                      filter_stock_return_only=False)
 
     print(sorted(feature_names))
     print(feature_names.index('stock_return_1qa'))

@@ -129,6 +129,7 @@ if __name__ == "__main__":
     r_name = 'mini_tune15 -code 0 -exclude_fwd True'
     r_name = 'new with indi code -fix space'
     r_name = 'mini_tune15_re -code 0 -exclude_fwd True'
+    r_name = 'compare_hyperopt -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 

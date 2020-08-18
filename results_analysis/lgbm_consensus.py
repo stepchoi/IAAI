@@ -97,7 +97,6 @@ class eps_to_yoy:
         print(self.actual)
         print(self.ws)
 
-
         # map common share outstanding & market cap to ibes estimations
         self.ibes = self.ibes.merge(self.ws, on=['identifier', 'period_end'])
         self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])

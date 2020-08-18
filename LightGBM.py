@@ -261,6 +261,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', default=False, action='store_true')
     parser.add_argument('--exclude_fwd', default=True, action='store_false')
     parser.add_argument('--sample_type', default='industry')
+    parser.add_argument('--y_type', default='ibes')
     parser.add_argument('--sample_no', type=int, default=25)
     args = parser.parse_args()
 
@@ -287,7 +288,7 @@ if __name__ == "__main__":
     load_data_params = {'exclude_fwd': args.exclude_fwd,
                         'use_median': True,
                         'chron_valid': False,
-                        'y_type': 'ibes',
+                        'y_type': args.y_type,
                         'qcut_q': 10,
                         'ibes_qcut_as_x': not(args.exclude_fwd),
                         'exclude_stock': args.exclude_stock}
