@@ -176,6 +176,7 @@ if __name__ == "__main__":
     r_name = ['ibes_new industry_only ws -indi space3']
     r_name = ['ibes_entire_only ws -smaller space']
     r_name = ['xgb ind_all_tuning -sample_type industry -x_type ni']
+    r_name = ['compare_hyperopt_entire']
 
     if 'xgb' in r_name[0]:
         tname = 'xgboost'
