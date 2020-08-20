@@ -66,7 +66,7 @@ def dense_train(space):
     sql_result['num_nodes'] = str(nodes)
 
     f_x = Concatenate(axis=1)([d_1, d_2])
-    f_x = Dense(1)(d_1)
+    f_x = Dense(1)(f_x)
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
                       callbacks.EarlyStopping(monitor='val_loss', patience=10, mode='auto')]  # add callbacks
@@ -77,8 +77,8 @@ def dense_train(space):
     model.compile(adam, loss='mae')
     model.summary()
 
-    history = model.fit([X_train, X_train_s], Y_train, epochs=50, batch_size=params['batch_size'], validation_data=(X_valid, Y_valid),
-                        callbacks=callbacks_list, verbose=1)
+    history = model.fit([X_train, X_train_s], Y_train, epochs=50, batch_size=params['batch_size'],
+                        validation_data=([X_valid, X_valid_s], Y_valid), callbacks=callbacks_list, verbose=1)
 
     Y_test_pred = model.predict([X_test, X_test_s])
     Y_train_pred = model.predict([X_train, X_train_s])

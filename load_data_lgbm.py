@@ -269,15 +269,15 @@ class load_data:
 
             if exclude_fwd == False:    # use IBES data as X
                 x = df.drop(id_col + y_col + ws_ni_col , axis=1)
-            elif filter_stock_return_only == True:      # stock return only data
-                x = df[[x for x in df.columns if 'stock_return_1qa' in x]]
             else:   # remove 2 ratios calculated with ibes consensus data
                 x = df.drop(id_col + y_col + fwd_eps_col + fwd_col + ['ibes_qcut_as_x'], axis=1)
-
+            print(x)
             if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
 
-            if num_best_col > 0:       # for trial with only top N important features (dense2)
+            if filter_stock_return_only == True:      # stock return only data
+                x = df[[x for x in df.columns if 'stock_return_1qa' in x]]
+            elif num_best_col > 0:       # for trial with only top N important features (dense2)
                 x = filter_best_col(x, num_best_col, exclude_fwd, filter_stock_return_only)
 
             self.feature_names = x.columns.to_list()
@@ -309,6 +309,7 @@ class load_data:
             train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False,
                                         duplicates='drop') # qoq will drop duplicated bins when occur
             cut_bins[0], cut_bins[-1] = [-np.inf, np.inf]
+            print(cut_bins)
 
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
 

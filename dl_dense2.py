@@ -200,6 +200,7 @@ if __name__ == "__main__":
     parser.add_argument('--resume', default=False, action='store_true')
     parser.add_argument('--num_best_col', type=int, default=0)
     parser.add_argument('--icb_code', type=int, default=0)
+    parser.add_argument('--trial_lgbm_add', default=1, type=int)
     parser.add_argument('--sample_no', type=int, default=21)
     parser.add_argument('--name_sql', required=True)
     args = parser.parse_args()

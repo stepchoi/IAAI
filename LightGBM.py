@@ -16,6 +16,21 @@ from load_data_lgbm import load_data
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--name_sql', required=True)
+parser.add_argument('--objective', default='regression_l1')
+parser.add_argument('--sp_only', default=False, action='store_true')
+parser.add_argument('--exclude_stock', default=False, action='store_true')
+parser.add_argument('--resume', default=False, action='store_true')
+parser.add_argument('--exclude_fwd', default=False, action='store_true')
+parser.add_argument('--sample_type', default='industry')
+parser.add_argument('--y_type', default='ibes')
+parser.add_argument('--sample_no', type=int, default=21)
+parser.add_argument('--qcut_q', default=10, type=int)
+parser.add_argument('--trial_lgbm_add', default=1, type=int)
+parser.add_argument('--sleep', type=int, default=0)
+args = parser.parse_args()
+
 def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
@@ -222,15 +237,15 @@ def read_db_last(sql_result, results_table = 'results_lightgbm', first=False):
 
     if first == False:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} Order by finish_timing desc LIMIT 1".format(results_table), conn)
+            db_last = pd.read_sql("SELECT * FROM {} where finish_timing is not null Order by finish_timing desc LIMIT 1".format(results_table), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
         db_last_trial_hpot = int(db_last['trial_hpot'])
         db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
-        sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
-        sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+        sql_result['trial_hpot'] = db_last_trial_hpot + args.trial_lgbm_add  # trial_hpot = # of Hyperopt performed (n trials each)
+        sql_result['trial_lgbm'] = db_last_trial_lgbm + args.trial_lgbm_add  # trial_lgbm = # of Lightgbm performed
         print('if resume from: ', db_last_param,'; sql last trial_lgbm: ', sql_result['trial_lgbm'])
     else:
         db_last_param = None
@@ -253,17 +268,8 @@ def pass_error():
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--name_sql', required=True)
-    parser.add_argument('--objective', default='regression_l1')
-    parser.add_argument('--sp_only', default=False, action='store_true')
-    parser.add_argument('--exclude_stock', default=False, action='store_true')
-    parser.add_argument('--resume', default=False, action='store_true')
-    parser.add_argument('--exclude_fwd', default=True, action='store_false')
-    parser.add_argument('--sample_type', default='industry')
-    parser.add_argument('--y_type', default='ibes')
-    parser.add_argument('--sample_no', type=int, default=25)
-    args = parser.parse_args()
+    from time import sleep
+    sleep(args.sleep)
 
     # training / testing sets split par
     if args.sample_type == 'industry':
@@ -289,7 +295,7 @@ if __name__ == "__main__":
                         'use_median': True,
                         'chron_valid': False,
                         'y_type': args.y_type,
-                        'qcut_q': 10,
+                        'qcut_q': args.qcut_q,
                         'ibes_qcut_as_x': not(args.exclude_fwd),
                         'exclude_stock': args.exclude_stock}
 
@@ -298,7 +304,7 @@ if __name__ == "__main__":
     sql_result['objective'] = base_space['objective'] = args.objective
     x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
     sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = '{} -best_col {} -code {}'.format(args.name_sql, args.filter_best_col, args.icb_code)  # label experiment
+    sql_result['name'] = args.name_sql
 
     # update load_data data
     sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
@@ -327,42 +333,32 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            if sample_no==25:
-            # try:
-                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
-                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
+            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+            sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-                # print('23355L106' in test_id)
-                print(feature_names)
+            # print('23355L106' in test_id)
+            print(feature_names)
 
-                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-                cv_number = 1   # represent which cross-validation sets
-                for train_index, valid_index in cv:     # roll over 5 cross validation set
-                    sql_result['cv_number'] = cv_number
+            cv_number = 1   # represent which cross-validation sets
+            for train_index, valid_index in cv:     # roll over 5 cross validation set
+                sql_result['cv_number'] = cv_number
 
-                    # when Resume = False: try split validation set from training set + start hyperopt
-                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                    sample_set['train_yy'] = sample_set['train_y'][train_index]
+                # when Resume = False: try split validation set from training set + start hyperopt
+                sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                    sql_result['valid_len'] = len(sample_set['valid_x'])
+                sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                    space = find_hyperspace(sql_result)
-                    space.update(base_space)
-                    print(space)
+                space = find_hyperspace(sql_result)
+                space.update(base_space)
+                print(space)
 
-                    HPOT(space, max_evals=10)   # start hyperopt
-                    cv_number += 1
-
-                # exit(0)
-
-            else:
-            # except:  # if error occurs in hyperopt or lightgbm training : record error to DB TABLE results_error and continue
-                # exit(0)
-                pass_error()
+                HPOT(space, max_evals=10)   # start hyperopt
                 cv_number += 1
-                continue
+
 

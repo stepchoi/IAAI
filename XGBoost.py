@@ -222,7 +222,11 @@ if __name__ == "__main__":
     parser.add_argument('--exclude_fwd', default=False, action='store_true')
     parser.add_argument('--sample_type', default='industry')
     parser.add_argument('--sample_no', type=int, default=21)
+    parser.add_argument('--sleep', type=int, default=0)
     args = parser.parse_args()
+
+    from time import sleep
+    sleep(args.sleep)
 
     # training / testing sets split par
     if args.sample_type == 'industry':
