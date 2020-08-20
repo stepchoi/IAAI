@@ -300,18 +300,8 @@ if __name__ == "__main__":
             # print('23355L106' in test_id)
             print(feature_names)
 
-
-            # xgb_space_map = {'booster': 'boosting_type', 'eta': 'learning_rate', 'min_child_weight': 'min_data_in_leaf',
-            #                  'gamma': 'min_gain_to_split', 'subsample': 'bagging_fraction',
-            #                  'colsample_bylevel': 'feature_fraction',
-            #                  'lambda': 'lambda_l2', 'alpha': 'lambda_l1'}
-            # for k, v in xgb_space_map.items():
-            #     space[k] = space[v]
-            #     space.pop(v)
-
             space = find_hyperspace(sql_result)
-            space.update(base_space)
-
+            print(space)
             # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
             cv_number = 1  # represent which cross-validation sets
