@@ -48,6 +48,10 @@ def write_db(df, table_name):
                 pbar.update(1000)
     engine.dispose()
 
+def reorder_col(df, first_cols):
+    col = set(df.columns.to_list())
+    return df[first_cols + list(col-set(first_cols))]
+
 if __name__ == '__main__':
 
     # init_nodes = 16

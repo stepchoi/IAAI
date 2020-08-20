@@ -191,6 +191,10 @@ class load_data:
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
         print('main_consensus: ', self.main.shape)
 
+        # print(len(set(self.main['identifier'])))  # count # of company
+        # print(len(self.main))
+        # exit(0)
+
         if sp_only==True:
             self.main = filter_sp_only(self.main)
 

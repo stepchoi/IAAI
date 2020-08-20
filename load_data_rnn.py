@@ -141,7 +141,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, macro_monthly):
+    def __init__(self, macro_monthly=True):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -263,7 +263,7 @@ class load_data:
         # 3. split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set
         cv = GroupShuffleSplit(n_splits=5).split(train_x, train_y, groups = train_id)
 
-        return train_x, train_y, test_x, test_y, cv, test_id, x_col
+        return train_x, train_y, test_x, test_y, cv, test_id, x_col, self.cut_bins
 
     def standardize_x(self, train_x, test_x):
         ''' tandardize x with train_x fit '''
@@ -310,7 +310,7 @@ if __name__ == '__main__':
         testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
         print(testing_period)
 
-        train_x, train_y, X_test, Y_test, cv, test_id, x_col = data.split_train_test(testing_period, **load_data_params)
+        train_x, train_y, X_test, Y_test, cv, test_id, x_col, cut_bins = data.split_train_test(testing_period, **load_data_params)
         print(X_test.shape)
 
         for train_index, test_index in cv:

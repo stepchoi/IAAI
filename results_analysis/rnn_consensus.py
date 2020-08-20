@@ -73,7 +73,8 @@ def merge_ibes_stock():
     yoy_med = download_ibes_median()
     detail_stock = download_stock()
 
-    detail_stock['y_type'] = 'ibes'
+    detail_stock['y_type'] = 'ibes'     # all rnn trials has been ibes_yoy as Y
+    detail_stock['label'] = 'rnn'       # "label" to find cut_bins from TABLE results_bins_new
 
     # decide base list -> identifier + period_end appeared in both lgbm and rnn models
     lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
@@ -93,30 +94,26 @@ def merge_ibes_stock():
         x_type_dic = {False: 'ni', True: 'fwdepsqcut'}  # False means all_x (include ibes); True means no ibes data
         detail_stock['x_type'] = [x_type_dic[x] for x in detail_stock['exclude_fwd']]   # convert to x_type name
 
-    detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
-                                                        'y_type'], keep='last')
+    detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number','y_type'], keep='last')
 
-    print('------ convert entire ------')
-    detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] += '-industry_code'   # 1 means include industry_code_x
-    detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] += '-sector_code'     # 2 means include sector_code_x
-    detail_stock['icb_code'] = 0
+    if 'industry' not in r_name:    # for aggregate model use 0/1/2 to represent different x (in fact same samples)
+        print('------ convert entire ------')
+        detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] += '-industry_code'   # 1 means include industry_code_x
+        detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] += '-sector_code'     # 2 means include sector_code_x
+        detail_stock['icb_code'] = 0
 
     # use median for cross listing & multiple cross-validation
-    detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
-        'pred'].reset_index(drop=False)
+    detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type','label']).median()['pred'].reset_index(drop=False)
 
     detail_stock['icb_code'] = detail_stock['icb_code'].astype(float)  # convert icb_code to int
-
     yoy_med['icb_code'] = yoy_med['icb_code'].astype(float)
 
     # merge (stock prediction) with (ibes consensus median)
-    yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
-                                        right_on=['identifier', 'period_end', 'y_type', 'icb_code'],
+    yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code', 'label'],
+                                        right_on=['identifier', 'period_end', 'y_type', 'icb_code', 'label'],
                                         suffixes=('_lgbm', '_ibes'))
 
-
-    return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
-                                   'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']])
+    return label_sector(yoy_merge)
 
 def organize():
     ''' match records in results_cnn_rnn and results_cnn_rnn_stock '''
@@ -152,12 +149,13 @@ def organize():
 
 if __name__ == "__main__":
 
-    organize()
+    # organize()
 
+    r_name = 'small_training_False_0'
     r_name = 'industry_exclude'
     tname = 'cnn_rnn' # or rnn_eps
 
     yoy_merge = merge_ibes_stock()
-    calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name))
+    calc_mae_write(yoy_merge, r_name, tname='{}｜{}'.format(tname, r_name))
 
     combine()

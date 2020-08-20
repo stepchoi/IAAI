@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, accuracy_score, mean_squared_error, r2_score
 from tqdm import tqdm
 from preprocess.ratios import full_period, worldscope
-from miscel import date_type, check_dup
+from miscel import date_type, check_dup, reorder_col
 from collections import Counter
 import os
 
@@ -14,6 +14,8 @@ engine = create_engine(db_string)
 indi_sector = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                501010, 201020, 502030, 401010, 999999]
 indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+
+col_name = ['trial_lgbm', 'name', 'qcut_q', 'icb_code', 'testing_period', 'cv_number', 'exclude_fwd', 'y_type', 'x_type']
 
 compare_using_old_ibes = False
 
@@ -28,14 +30,15 @@ def download_add_detail(r_name, table_name):
     ''' download from DB TABLE results_lightgbm_stock '''
 
     print('----------------> update stock results from DB TABLE {}'.format(table_name))
-
+    if tname == 'xgboost':
+        col_name.append('grow_policy')
     with engine.connect() as conn:
 
         if r_name != 'all':     # read DB TABLE results_lightgbm data for given "name"
-            result_all = pd.read_sql("SELECT * FROM results_{} WHERE name='{}'".format(tname, r_name), conn)
+            query = text("SELECT {} FROM results_{} WHERE name='{}'".format(', '.join(col_name), tname, r_name))
         else:   # download everything
-            result_all = pd.read_sql("SELECT * FROM results_lightgbm", conn)
-            result_all = result_all.dropna(subset=['x_type'])
+            query = text("SELECT {} FROM results_lightgbm").format(', '.join(col_name))
+        result_all = pd.read_sql(query, conn)
         trial_lgbm = set(result_all['trial_lgbm'])
 
         try:
@@ -71,11 +74,13 @@ class eps_to_yoy:
                 self.ibes = pd.read_csv('ibes_data_old.csv')
 
             self.ibes.columns = ['identifier', 'period_end', 'eps1fd12', 'eps1tr12']
+            self.ibes_qoq = pd.read_csv('preprocess/ibes_data_qoq.csv')
             self.actual = pd.read_csv('preprocess/clean_ratios.csv', usecols = ['identifier', 'period_end','y_ni'])
             print('local version run - ibes / clean_ratios (actual) ')
         except:
             with engine.connect() as conn:
                 self.ibes = pd.read_sql('SELECT identifier, period_end, eps1fd12, eps1tr12 FROM ibes_data', conn)
+                self.ibes_qoq = pd.read_sql('SELECT * FROM ibes_data_qoq', conn)
                 self.actual = pd.read_sql('SELECT identifier, period_end, y_ni FROM clean_ratios', conn)
             engine.dispose()
 
@@ -89,17 +94,11 @@ class eps_to_yoy:
         ''' merge worldscope & ibes dataframe and calculate YoY ratios '''
 
         self.ibes = self.ibes.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
-
-        self.ibes = date_type(self.ibes)     # convert period_end column to datetime type
-        self.actual = date_type(self.actual)
-        self.ws = date_type(self.ws)
-        print(self.ibes)
-        print(self.actual)
-        print(self.ws)
+        self.ibes_qoq = self.ibes_qoq.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
 
         # map common share outstanding & market cap to ibes estimations
-        self.ibes = self.ibes.merge(self.ws, on=['identifier', 'period_end'])
-        self.ibes = self.ibes.merge(self.actual, on=['identifier', 'period_end'])
+        self.ibes = date_type(self.ibes).merge(date_type(self.ws), on=['identifier', 'period_end'])
+        self.ibes = self.ibes.merge(date_type(self.actual), on=['identifier', 'period_end'])
 
         # calculate YoY (Y)
         if compare_using_old_ibes == True:
@@ -113,11 +112,37 @@ class eps_to_yoy:
         self.ibes['y_consensus'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']     # use ibes fwd & ttm for Y estimation
 
         self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
+        self.ibes = self.ibes.merge(date_type(self.ibes_qoq), on=['identifier', 'period_end'], how='outer')  # add qoq to consensus
 
         return self.ibes
 
 def yoy_to_median(yoy):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
+
+    # print(yoy.columns, yoy)
+    # df = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_qoq.csv',usecols=['identifier', 'testing_period']).drop_duplicates()
+    # yoy = date_type(df,'testing_period').merge(yoy, left_on=['identifier', 'testing_period'], right_on=['identifier', 'period_end'])
+    # yoy = yoy.dropna(subset=['y_ibes_qoq','y_consensus_qoq'], how='any')
+    #
+    # for i in [10]:
+    #
+    #     def convert_qcut(s):
+    #         train_y, cut_bins = pd.qcut(s, q=i, retbins=True, labels=False, duplicates='drop')  # qoq will drop duplicated bins when occur
+    #         df = pd.DataFrame(np.vstack((s, np.array(train_y)))).T  # concat original series / qcut series
+    #         median = df.groupby([1]).median().sort_index().iloc[:,0].to_list()  # find median of each group
+    #         train_y = pd.DataFrame(train_y).replace(range(len(cut_bins) - 1), median).iloc[:,0].values
+    #         return train_y
+    #
+    #     yoy['y_ibes_qoq_qcut'] = convert_qcut(yoy['y_ibes_qoq'])
+    #     yoy['y_consensus_qoq_qcut'] = convert_qcut(yoy['y_consensus_qoq'])
+    #
+    #     dict = {}
+    #     dict['consensus_r2'] = r2_score(yoy['y_ibes_qoq_qcut'], yoy['y_consensus_qoq_qcut'])
+    #     dict['consensus_r2_org'] = r2_score(yoy['y_ibes_qoq'], yoy['y_consensus_qoq'])
+    #     dict['len'] = len(yoy)
+    #
+    #     print(i, dict)
+    # exit(0)
 
     try:    # read cut_bins from DB TABLE results_bins_new
         bins_df = pd.read_csv('results_analysis/results_bins_new.csv')
@@ -127,6 +152,8 @@ def yoy_to_median(yoy):
             bins_df = pd.read_sql('SELECT * from results_bins_new', conn)
             bins_df.to_csv('results_analysis/results_bins_new.csv', index=False)
         engine.dispose()
+
+    print(set(bins_df['label']))
 
     def to_median(part_series, cut_bins_dict):
         ''' convert qcut bins to median of each group '''
@@ -150,7 +177,7 @@ def yoy_to_median(yoy):
 
         part_yoy = yoy.copy()
 
-        if bins_df.iloc[i]['icb_code'] in [0, 1]:   # represent miscellaneous model
+        if bins_df.iloc[i]['icb_code'] in [0]:   # represent miscellaneous model
             part_yoy['icb_code'] = bins_df.iloc[i]['icb_code']
 
         elif bins_df.iloc[i]['icb_code'] in indi_sector:
@@ -158,19 +185,28 @@ def yoy_to_median(yoy):
 
         elif bins_df.iloc[i]['icb_code'] in indi_industry_new:
             part_yoy['icb_code'] = part_yoy['icb_industry']
+        else:
+            continue
 
         part_yoy = part_yoy.loc[(part_yoy['period_end'] == bins_df.iloc[i]['testing_period']) &
                                 (part_yoy['icb_code'] == bins_df.iloc[i]['icb_code'])].drop(['icb_sector','icb_industry'], axis=1)
 
-        # qcut (and convert to median if applicable) for y_ibes, y_ni, y_ibes_act
-        part_yoy['y_consensus_qcut'] = to_median(part_yoy['y_consensus'], cut_bins_dict=bins_df.iloc[i])
-        part_yoy['y_ni_qcut'] = to_median(part_yoy['y_ni'], cut_bins_dict=bins_df.iloc[i])
-        part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], cut_bins_dict=bins_df.iloc[i])
+        if bins_df.iloc[i]['y_type'] == 'ibes':     # qcut and convert to median for ibes / ibes_qoq
+            part_yoy['y_consensus_qcut'] = to_median(part_yoy['y_consensus'], cut_bins_dict=bins_df.iloc[i])
+            part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes'], cut_bins_dict=bins_df.iloc[i])
+        elif bins_df.iloc[i]['y_type'] == 'ibes_qoq':
+            part_yoy['y_consensus_qcut'] = to_median(part_yoy['y_consensus_qoq'], cut_bins_dict=bins_df.iloc[i])
+            part_yoy['y_ibes_qcut'] = to_median(part_yoy['y_ibes_qoq'], cut_bins_dict=bins_df.iloc[i])
+        else:
+            continue
+
         part_yoy['y_type'] = bins_df.iloc[i]['y_type']
+        part_yoy['label'] = bins_df.iloc[i]['label']
 
         yoy_list.append(part_yoy)
 
-    return pd.concat(yoy_list, axis=0)
+    yoy_median = pd.concat(yoy_list, axis=0).dropna(subset=['y_consensus_qcut','y_ibes_qcut'], how='all')
+    return yoy_median
 
 class download:
     ''' download stock / ibes data and convert to qcut_median '''
@@ -234,6 +270,11 @@ class download:
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
+        if 'sp' in r_name:
+            self.detail_stock['label'] = 'lgbm_sp'
+        else:
+            self.detail_stock['label'] = 'lgbm_normal'
+
         if 'entire' in r_name: # for entire
             print('------ convert entire ------')
             self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
@@ -252,10 +293,10 @@ class download:
         # use median/mean for cross listing & multiple cross-validation
         if agg_type == 'mean':
             self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                           'x_type','y_type']).mean()['pred'].reset_index(drop=False)
+                                                           'x_type','y_type','label']).mean()['pred'].reset_index(drop=False)
         elif agg_type == 'median':
             self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                           'x_type', 'y_type']).median()['pred'].reset_index(drop=False)
+                                                           'x_type', 'y_type', 'label']).median()['pred'].reset_index(drop=False)
         else:
             exit(1)
 
@@ -263,8 +304,8 @@ class download:
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
 
         # merge (stock prediction) with (ibes consensus median)
-        yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
-                                            right_on=['identifier', 'period_end','y_type', 'icb_code'],
+        yoy_merge = self.detail_stock.merge(self.yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code','label'],
+                                            right_on=['identifier', 'period_end','y_type', 'icb_code','label'],
                                             suffixes=('_lgbm', '_ibes'))
 
         # c = yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut'].values == yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut-industry_code'].values
@@ -287,22 +328,25 @@ class download:
 
 class calc_mae_write():
 
-    def __init__(self, yoy_merge, tname='', base_list_type='all'):
+    def __init__(self, yoy_merge, r_name, tname='', base_list_type='all'):
         ''' calculate all MAE and save to local xlsx '''
 
-        # decide base list -> identifier + period_end appeared in both lgbm and rnn models
-        if base_list_type == 'all':
-            lgbm = pd.read_csv('results_analysis/compare_with_ibes/dense_stock_mini_tune15_re -code 0 -exclude_fwd True.csv',
-                               usecols=['identifier', 'testing_period'])
-        elif base_list_type == 'sp':
-            lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_industry -sp500.csv',
-                               usecols=['identifier', 'testing_period'])
+        # decide base list (for non qoq) -> identifier + period_end appeared in both lgbm and rnn models
+        if not 'qoq' in r_name:
 
-        rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
-                          usecols=['identifier', 'testing_period'])
-        base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner').drop_duplicates()
-        base_list = date_type(base_list, 'testing_period')
-        yoy_merge = yoy_merge.merge(base_list, on=['identifier', 'testing_period'], how='inner')
+            if base_list_type == 'all':
+                lgbm = pd.read_csv('results_analysis/compare_with_ibes/dense_stock_mini_tune15_re -code 0 -exclude_fwd True.csv',
+                                   usecols=['identifier', 'testing_period'])
+            elif base_list_type == 'sp':
+                lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_industry -sp500.csv',
+                                   usecols=['identifier', 'testing_period'])
+
+            rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
+                              usecols=['identifier', 'testing_period'])
+            base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner').drop_duplicates()
+            base_list = date_type(base_list, 'testing_period')
+            yoy_merge = yoy_merge.merge(base_list, on=['identifier', 'testing_period'], how='inner')
+
         print(yoy_merge)
 
         self.tname = tname
@@ -410,7 +454,8 @@ class calc_mae_write():
         df = pd.DataFrame(industry_dict).T
         print(df.T)
 
-        return df[['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2','consensus_r2','consensus_r2_org','len']]
+        return reorder_col(df,['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2','consensus_r2',
+                               'consensus_r2_org','len'])
 
     def part_mae(self, df):
         ''' calculate different mae for groups of sample '''
@@ -420,24 +465,45 @@ class calc_mae_write():
             diff = diff[diff < 1E308]
             return np.mean(diff) * 100
 
+        def median_absolute_error(y_true, y_pred):
+            return np.median(np.abs(y_true - y_pred))
+
         dict = {}
-        dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
-        dict['consensus_mae_org'] = mean_absolute_error(df['y_ibes'], df['y_consensus'])
+        dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])      # after qcut metrices - consensus
         # dict['consensus_mape_org'] = mean_absolute_percentage_error(df['y_ibes'], df['y_consensus'])
         dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
-        dict['consensus_r2_org'] = r2_score(df['y_ibes'], df['y_consensus'])
-        if 'ibes' in self.name:
-            dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])
-            dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes'], df['pred'])
-            # dict['lgbm_mape_org'] = mean_absolute_percentage_error(df['y_ibes'], df['pred'])
-            dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
-            dict['lgbm_r2'] = r2_score(df['y_ibes_qcut'], df['pred'])
 
-        elif 'ni' in self.name:
-            dict['lgbm_mae'] = mean_absolute_error(df['y_ni_qcut'], df['pred'])
-            dict['lgbm_mse'] = mean_squared_error(df['y_ni_qcut'], df['pred'])
-            dict['lgbm_r2'] = r2_score(df['y_ni_qcut'], df['pred'])
+        dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])   # after qcut metrices - lgbm
+        dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
+        dict['lgbm_r2'] = r2_score(df['y_ibes_qcut'], df['pred'])
+
+        if 'ibes' in self.name:     # calculate when y == ibes (yoy)
+            dict['consensus_mae_org'] = mean_absolute_error(df['y_ibes'], df['y_consensus'])    # before qcut metrices - consensus
+            dict['consensus_medae_org'] = median_absolute_error(df['y_ibes'], df['y_consensus'])
+            dict['consensus_mse_org'] = mean_squared_error(df['y_ibes'], df['y_consensus'])
+            dict['consensus_r2_org'] = r2_score(df['y_ibes'], df['y_consensus'])
+
+            dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes'], df['pred'])    # before qcut metrices - lgbm
+            dict['lgbm_medae_org'] = median_absolute_error(df['y_ibes'], df['pred'])
+            dict['lgbm_mse_org'] = mean_squared_error(df['y_ibes'], df['pred'])
+            dict['lgbm_r2_org'] = r2_score(df['y_ibes'], df['pred'])
+
+        elif 'ibes_qoq' in self.name:   # calculate when y == ibes qoq
+            dict['consensus_mae_org'] = mean_absolute_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
+            dict['consensus_medae_org'] = median_absolute_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
+            dict['consensus_mse_org'] = mean_squared_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
+            dict['consensus_r2_org'] = r2_score(df['y_ibes_qoq'], df['y_consensus_qoq'])
+
+            dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes_qoq'], df['pred'])    # before qcut metrices - lgbm
+            dict['lgbm_medae_org'] = median_absolute_error(df['y_ibes_qoq'], df['pred'])
+            dict['lgbm_mse_org'] = mean_squared_error(df['y_ibes_qoq'], df['pred'])
+            dict['lgbm_r2_org'] = r2_score(df['y_ibes_qoq'], df['pred'])
+
+        # elif 'ni' in self.name:
+        #     dict['lgbm_mae'] = mean_absolute_error(df['y_ni_qcut'], df['pred'])
+        #     dict['lgbm_mse'] = mean_squared_error(df['y_ni_qcut'], df['pred'])
+        #     dict['lgbm_r2'] = r2_score(df['y_ni_qcut'], df['pred'])
         dict['len'] = len(df)
         return dict
 
@@ -555,7 +621,9 @@ if __name__ == "__main__":
     # r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
     # r_name = 'ibes_new industry_all x -indi space'
     r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
-    r_name = 'compare_hyperopt_entire'
+    r_name = 'compare_hyperopt_2'
+    r_name = 'ibes_qoq'
+    r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
@@ -565,7 +633,7 @@ if __name__ == "__main__":
         tname = 'lightgbm'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
-    calc_mae_write(yoy_merge, tname=r_name, base_list_type='all')
+    calc_mae_write(yoy_merge, r_name, tname=r_name, base_list_type='all')
 
     if compare_using_old_ibes != True:
         combine()

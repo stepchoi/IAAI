@@ -190,7 +190,7 @@ if __name__ == "__main__":
     r_name = 'test35_fix_space -code 0 -exclude_fwd True'
     r_name = 'try10_mini_space2 -code 0 -exclude_fwd True'
     r_name = 'mini_tune15_re -code 0 -exclude_fwd True'
-    r_name = 'compare_hyperopt -code 0 -exclude_fwd True'
+    r_name = 'hyperopt_compare -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 
