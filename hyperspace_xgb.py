@@ -46,6 +46,17 @@ space[30] = {
     'eta': hp.choice('eta', [0.1, 0.5])
 }
 
+space[35] = {
+    'booster': 'dart',
+    'max_depth': hp.choice('max_depth',[5, 6, 8]),
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'colsample_bytree': hp.choice('colsample_bytree', [0.5, 0.7, 0.9]), # remove 0.7
+    'subsample': hp.choice('subsample', [0.8, 0.9]),
+    'gamma': hp.choice('gamma', [100, 500]),
+    'lambda': hp.choice('lambda', [5, 10]), # remove 10
+    'eta': hp.choice('eta', [0.01, 0.05])
+}
+
 space[40] = {
     'booster': hp.choice('booster',['dart','gbtree']),
     'max_depth': hp.choice('max_depth',[8, 10]),
@@ -104,15 +115,17 @@ space[65] = {
 def find_hyperspace(sql_result):
 
     if sql_result['icb_code'] < 10:
-        return space[0].update(base_space)
+        space[0].update(base_space)
+        return space[0]
     elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
         sp = space[sql_result['icb_code']]
-        return sp.update(base_space)
+        sp.update(base_space)
+        return sp
     elif sql_result['icb_code'] >= 100:
         sector_2_ind = {301010: 30, 101020: 11, 201030: 20, 302020: 30, 351020: 35, 502060: 51, 552010: 51, 651010: 65,
                         601010: 60, 502050: 51, 101010: 11, 501010: 51, 201020: 20, 502030: 51, 401010: 40, 999999: 0}
-        print(sector_2_ind[sql_result['icb_code']])
-        return space[sector_2_ind[sql_result['icb_code']]].update(base_space)
+        space[sector_2_ind[sql_result['icb_code']]].update(base_space)
+        return space[sector_2_ind[sql_result['icb_code']]]
 
 if __name__ == '__main__':
     sql_result = {'icb_code': 999}
