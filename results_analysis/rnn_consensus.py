@@ -85,7 +85,6 @@ def merge_ibes_stock():
     base_list = date_type(base_list, 'testing_period')
 
     detail_stock = detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
-    print(detail_stock.shape)
 
     if tname == 'rnn_eps':
         detail_stock['x_type'] = 'fwdepsqcut'
@@ -112,7 +111,6 @@ def merge_ibes_stock():
     yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code', 'label'],
                                         right_on=['identifier', 'period_end', 'y_type', 'icb_code', 'label'],
                                         suffixes=('_lgbm', '_ibes'))
-
     return label_sector(yoy_merge)
 
 def organize():

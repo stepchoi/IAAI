@@ -55,6 +55,7 @@ def download_add_detail(r_name, table_name):
     engine.dispose()
 
     detail_stock = result_stock.merge(result_all, on=['trial_lgbm'], how='inner')   # map training information to stock data
+    print(detail_stock)
 
     return detail_stock
 
@@ -145,7 +146,7 @@ def yoy_to_median(yoy):
     # exit(0)
 
     try:    # read cut_bins from DB TABLE results_bins_new
-        bins_df = pd.read_csv('results_analysis/results_bins_new.csv')
+        bins_df = pd.read_csv('results_analy1sis/results_bins_new.csv')
         print('local version run - results_bins ')
     except:
         with engine.connect() as conn:
@@ -206,6 +207,11 @@ def yoy_to_median(yoy):
         yoy_list.append(part_yoy)
 
     yoy_median = pd.concat(yoy_list, axis=0).dropna(subset=['y_consensus_qcut','y_ibes_qcut'], how='all')
+
+    # print(set(yoy_median['label']))
+    # print(yoy_median)
+    # exit(0)
+
     return yoy_median
 
 class download:
@@ -281,7 +287,8 @@ class download:
             self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
             self.detail_stock['icb_code'] = 0
         if tname == 'xgboost':
-            self.detail_stock['x_type'] += self.detail_stock['grow_policy']
+            print(self.detail_stock['x_type'])
+            self.detail_stock['x_type'] += '_depthwise'
 
         print(self.detail_stock['x_type'])
 
@@ -577,8 +584,8 @@ def combine():
     def find_col(k):
         return [x for x in avg_df.columns if k in x]
 
-    avg_df[['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2',
-            'consensus_r2','consensus_r2_org','len']].to_excel(writer, 'average_mae')    # write to files
+    reorder_col(avg_df, ['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2',
+            'consensus_r2','consensus_r2_org','len']).to_excel(writer, 'average_mae')    # write to files
 
     print('save to file name: #compare_all.xlsx')
     writer.save()
@@ -620,10 +627,11 @@ if __name__ == "__main__":
     # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
     # r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
     # r_name = 'ibes_new industry_all x -indi space'
-    r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
-    r_name = 'compare_hyperopt_2'
-    r_name = 'ibes_qoq'
-    r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
+    # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
+    # r_name = 'compare_hyperopt_2'
+    # r_name = 'ibes_qoq'
+    # r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
+    r_name = 'hyperopt_compare3'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

@@ -191,10 +191,6 @@ class load_data:
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
         print('main_consensus: ', self.main.shape)
 
-        # print(len(set(self.main['identifier'])))  # count # of company
-        # print(len(self.main))
-        # exit(0)
-
         if sp_only==True:
             self.main = filter_sp_only(self.main)
 
@@ -252,8 +248,13 @@ class load_data:
         if filter_stock_return_only == True:
             self.sector = stock_return_only(self.sector)
 
-        self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
-        self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
+        # self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
+        # self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
+        #
+        # print(self.sector)
+        # print(len(set(self.sector['identifier'])))  # count # of company
+        # print(len(self.sector))
+        # exit(0)
 
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                               (self.sector['period_end'] < testing_period)].reset_index(drop=True)
@@ -412,7 +413,7 @@ if __name__ == '__main__':
     ibes_qcut_as_x = False
     macro_monthly = True
 
-    data = load_data(sp_only=True)
+    data = load_data(sp_only=False)
     # data.split_sector(icb_code)
     data.split_industry(icb_code, combine_ind=True)
 
