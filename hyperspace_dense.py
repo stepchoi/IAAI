@@ -47,7 +47,7 @@ space_mini = {
 }
 
 space_compare = {
-    'num_Dense_layer': hp.choice('num_Dense_layer',[3, 4, 5, 6]),
+    'num_Dense_layer': hp.choice('num_Dense_layer',[3, 6]),
     'learning_rate': hp.choice('learning_rate',[2, 3]),    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
                                                     # remove lr = 5 & 7 after tuning
     'init_nodes': hp.choice('init_nodes',[8, 16]),  # nodes for Dense first layer -> LESS NODES

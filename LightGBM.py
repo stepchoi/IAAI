@@ -358,7 +358,7 @@ if __name__ == "__main__":
                 space.update(base_space)
                 print(space)
 
-                HPOT(space, max_evals=15)   # start hyperopt
+                HPOT(space, max_evals=10)   # start hyperopt
                 cv_number += 1
 
 

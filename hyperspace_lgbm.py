@@ -16,18 +16,18 @@ space[0] = {
 }
 
 # add this one for hyperspace comparison test
-space[0] = {
+space_compare = {
     'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
     'boosting_type': 'dart',
     'max_bin': 255,
-    'num_leaves': 125,
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [25, 500]),
+    'num_leaves': hp.choice('num_leaves', [125, 625]),
+    'min_data_in_leaf': 50,
     'feature_fraction': hp.choice('feature_fraction', [0.1, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.8]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
     'bagging_freq': 1,
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.1, 10]),
-    'lambda_l1': 0,
-    'lambda_l2': hp.choice('lambda_l2', [10, 500]),
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 10]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
+    'lambda_l2': 10
 }
 
 space[11] = {
@@ -159,7 +159,10 @@ space[65] = {
 def find_hyperspace(sql_result):
 
     if sql_result['icb_code'] < 10:
-        return space[0]
+        if 'compare' in sql_result['name']:
+            return space_compare
+        else:
+            return space[0]
     elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
         sp = space[sql_result['icb_code']]
         if 'mse' in sql_result['name']:
