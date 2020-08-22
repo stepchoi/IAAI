@@ -111,18 +111,6 @@ class add_macro:
         self.macros = date_type(self.macros)    # convert to date
         self.new_macros = date_type(self.new_macros)
         self.ratios = date_type(self.ratios).merge(date_type(self.ibes_qoq), on=['identifier','period_end'], how='outer')
-
-        # dd = self.ratios[['identifier','period_end','y_ibes','y_ibes_qoq']]
-        # print(dd.describe())
-        # import matplotlib.pyplot as plt
-        # fig = plt.figure(figsize=(6,3))
-        # ax1 = fig.add_subplot(1, 2, 1)
-        # ax2 = fig.add_subplot(1, 2, 2)
-        # ax1.hist(dd['y_ibes'], bins=100)
-        # ax2.hist(dd['y_ibes_qoq'], bins=100)
-        # plt.show()
-        # exit(0)
-
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 
         if macro_monthly == True:
@@ -242,28 +230,18 @@ class load_data:
 
         # 1. split train / test set
         start = testing_period - relativedelta(years=10)    # train df = 40 quarters
-
         self.sector = full_period(date_type(self.sector))
 
         if filter_stock_return_only == True:
             self.sector = stock_return_only(self.sector)
 
-        # self.sector = self.sector.loc[~self.sector['ibes_qcut_as_x'].isnull()]
-        # self.sector = self.sector.dropna(subset=['y_{}'.format(y_type)])    # remove companies with NaN y_ibes
-        #
-        # print(self.sector)
-        # print(len(set(self.sector['identifier'])))  # count # of company
-        # print(len(self.sector))
-        # exit(0)
-
-        self.train = self.sector.loc[(start <= self.sector['period_end']) &
-                              (self.sector['period_end'] < testing_period)].reset_index(drop=True)
+        self.sector = self.sector.dropna(subset=(['y_{}'.format(y_type)]+['ibes_qcut_as_x']), how='any')    # remove companies with NaN y_ibes
+        self.train = self.sector.loc[(start <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)].reset_index(drop=True)
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         print('test_df: ', self.test.shape)
 
-        # 2. split x, y for train / test set
-        def divide_set(df, ibes_qcut_as_x):
+        def divide_set(df):     # 2. split x, y for train / test set
             ''' split x, y from main '''
 
             y_col = [x for x in df.columns if x[:2]=='y_']
@@ -276,7 +254,7 @@ class load_data:
                 x = df.drop(id_col + y_col + ws_ni_col , axis=1)
             else:   # remove 2 ratios calculated with ibes consensus data
                 x = df.drop(id_col + y_col + fwd_eps_col + fwd_col + ['ibes_qcut_as_x'], axis=1)
-            print(x)
+
             if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
                 x = x.drop(['stock_return_1qa'], axis=1)
 
@@ -286,16 +264,15 @@ class load_data:
                 x = filter_best_col(x, num_best_col, exclude_fwd, filter_stock_return_only)
 
             self.feature_names = x.columns.to_list()
-            x = x.values
             y = {}
             for col in y_col:
                 y[col[2:]] = df[col].values
 
-            return x, y
+            return x.values, y
 
         # keep non-qcut y for calculation
-        self.sample_set['train_x'], self.sample_set['train_y'] = divide_set(self.train, ibes_qcut_as_x)
-        self.sample_set['test_x'], self.sample_set['test_y'] = divide_set(self.test, ibes_qcut_as_x)
+        self.sample_set['train_x'], self.sample_set['train_y'] = divide_set(self.train)
+        self.sample_set['test_x'], self.sample_set['test_y'] = divide_set(self.test)
 
     def standardize_x(self):
         ''' tandardize x with train_x fit '''
@@ -311,23 +288,17 @@ class load_data:
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
-            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False,
-                                        duplicates='drop') # qoq will drop duplicated bins when occur
+            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False) # qoq will drop duplicated bins when occur
             cut_bins[0], cut_bins[-1] = [-np.inf, np.inf]
-            print(cut_bins)
-
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
 
             if ibes_qcut_as_x == True:
                 self.sample_set['train_x'][:,-1] = pd.cut(self.sample_set['train_x'][:,-1], bins=cut_bins, labels=False)
                 self.sample_set['test_x'][:,-1] = pd.cut(self.sample_set['test_x'][:,-1], bins=cut_bins, labels=False)
 
-            if use_median == True:
-                # calculate median on train_y for each qcut group
+            if use_median == True: # calculate median on train_y for each qcut group
                 df = pd.DataFrame(np.vstack((self.sample_set['train_y'][y_type], np.array(train_y)))).T   # concat original series / qcut series
                 median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
-
-                # replace 0, 1, ... into median
                 train_y = pd.DataFrame(train_y).replace(range(len(cut_bins)-1), median)[0].values
                 test_y = pd.DataFrame(test_y).replace(range(len(cut_bins)-1), median)[0].values
             else:
@@ -337,8 +308,29 @@ class load_data:
 
             return train_y, test_y, list(cut_bins), list(median)
 
+        def filter_std(s_train, s_test, num_stv=5):
+            ''' (apply for ibes_qoq type y only) remove outlier by 5 standard deviation'''
+            max = s_train.mean() + num_stv * s_train.std()  # calculte max/min
+            min = s_train.mean() - num_stv * s_train.std()
+
+            s_train = pd.Series(s_train)    # convert to series for mask (max/min)
+            s_test = pd.Series(s_test)
+
+            s_train = s_train.mask(s_train > max, max)    # filter max/min with 5 std
+            s_train = s_train.mask(s_train < min, min)
+            s_test = s_test.mask(s_test > max, max)  # filter max/min with 5 std
+            s_test = s_test.mask(s_test < min, min)
+            return s_train.values, s_test.values
+
         self.cut_bins = {}
-        self.sample_set['train_y'], self.sample_set['test_y'], self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
+        if qcut_q > 0:
+            self.sample_set['train_y'], self.sample_set['test_y'], \
+            self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
+        elif qcut_q == 0:
+            self.sample_set['train_y'], self.sample_set['test_y'] = filter_std(self.sample_set['train_y'][y_type],
+                                                                               self.sample_set['test_y'][y_type])
+        else:
+            NameError('Wrong qcut_q (use 0 for stv filter)')
 
     def split_valid(self, testing_period, chron_valid):
         ''' split 5-Fold cross validation testing set -> 5 tuple contain lists for Training / Validation set '''
@@ -356,7 +348,7 @@ class load_data:
 
         return gkf
 
-    def split_all(self, testing_period, qcut_q, y_type='ni', exclude_fwd=False, use_median=True, chron_valid=False,
+    def split_all(self, testing_period, qcut_q, y_type='ibes', exclude_fwd=False, use_median=True, chron_valid=False,
                   ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False):
         ''' work through cleansing process '''
 
@@ -406,7 +398,7 @@ if __name__ == '__main__':
     # these are parameters used to load_data
     icb_code = 0
     testing_period = dt.datetime(2018,3,31)
-    qcut_q = 10
+    qcut_q = 0
     y_type = 'ibes_qoq'
 
     exclude_fwd = True

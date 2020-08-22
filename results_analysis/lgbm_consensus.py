@@ -629,9 +629,10 @@ if __name__ == "__main__":
     # r_name = 'ibes_new industry_all x -indi space'
     # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
     # r_name = 'compare_hyperopt_2'
-    # r_name = 'ibes_qoq'
+    r_name = 'ibes_qoq'
     # r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
-    r_name = 'hyperopt_compare3'
+    r_name = 'hyperopt_compare4'
+    r_name = 'ibes_qoqcut8_entire'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

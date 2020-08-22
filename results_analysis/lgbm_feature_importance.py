@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
 
-    r_name = ['ibes_qoq']
+    r_name = ['ibes_qoqcut8_entire']
     tname = 'lightgbm'
 
     feature = download(r_name).finish()

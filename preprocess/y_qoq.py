@@ -78,7 +78,7 @@ def eps_to_qoq():
 
     ibes['y_consensus_qoq'] = (ibes['epsi1md'] - ibes['i0eps']) * ibes['fn_5192'] / ibes['fn_8001']  # use ibes fwd & ttm for Y estimation
 
-    ibes.dropna(subset=ibes.columns[2:], how='all')[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq']].to_csv('preprocess/ibes_data_qoq.csv', index=False)
+    ibes[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq']].dropna(['y_ibes_qoq','y_consensus_qoq'], how='all').to_csv('preprocess/ibes_data_qoq.csv', index=False)
 
 if __name__ == '__main__':
     # clean_ibes_excel()
