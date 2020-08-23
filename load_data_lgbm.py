@@ -288,7 +288,7 @@ class load_data:
             ''' convert qcut bins to median of each group '''
 
             # cut original series into 0, 1, .... (bins * n)
-            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False) # qoq will drop duplicated bins when occur
+            train_y, cut_bins = pd.qcut(self.sample_set['train_y'][y_type], q=qcut_q, retbins=True, labels=False, duplicates='drop') # qoq will drop duplicated bins when occur
             cut_bins[0], cut_bins[-1] = [-np.inf, np.inf]
             test_y = pd.cut(self.sample_set['test_y'][y_type], bins=cut_bins, labels=False)
 
