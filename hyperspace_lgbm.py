@@ -32,7 +32,7 @@ space_qoq[0] = {
 
 # add this one for hyperspace comparison test
 space_compare = {
-    'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
+    'learning_rate': hp.choice('learning_rate', [0.001, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['gbdt','dart']),
     'max_bin': 255,
     'num_leaves': 125,
@@ -41,7 +41,7 @@ space_compare = {
     'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
     'bagging_freq': 1,
     'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 50]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 100]),
     'lambda_l2': 100,
 }
 

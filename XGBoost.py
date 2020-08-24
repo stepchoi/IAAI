@@ -300,6 +300,7 @@ if __name__ == "__main__":
             # print('23355L106' in test_id)
             print(feature_names)
             space = find_hyperspace(sql_result)
+            space.update(base_space)
             print(space)
             # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
