@@ -58,35 +58,28 @@ def download_stock():
 
     return detail_stock
 
-def merge_ibes_stock():
+
+def merge_ibes_stock(sp_only):
     ''' merge ibes and detail stock data '''
 
     yoy_med = download_ibes_median()
     detail_stock = download_stock()
 
-    # detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd True' in x), 'x_type'] = 'fwdepsqcut'
-    # detail_stock.loc[detail_stock['name'].apply(lambda x: '-exclude_fwd False' in x), 'x_type'] = 'ni'
+    if sp_only==True:
+        detail_stock['label'] = 'lgbm_sp'
+    else:
+        detail_stock['label'] = 'lgbm_normal'
 
-    # detail_stock['number_features'] = 46
     detail_stock['x_type'] = 'fwdepsqcut'
+    detail_stock['number_features'] = 46
+
     detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
                                                         'y_type', 'x_type', 'number_features'], keep='last')
 
-    # decide base list -> identifier + period_end appeared in both lgbm and rnn models
-    # lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
-    #                    usecols=['identifier', 'testing_period'])    # read lgbm testing samples
-    # rnn = pd.read_csv('results_analysis/compare_with_ibes/rnn_eps_stock_all.csv',
-    #                   usecols=['identifier', 'testing_period'])     # read rnn testing samples
-    # base_list = pd.merge(lgbm, rnn, on=['identifier', 'testing_period'], how='inner')
-    # base_list = date_type(base_list, 'testing_period')
-    #
-    # detail_stock = detail_stock.merge(base_list, on=['identifier', 'testing_period'], how='right')
-    # print(detail_stock.shape)
-
     if not 'industry' in r_name:
-        detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
-        detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
-        detail_stock['icb_code'] = 0
+        # detail_stock.loc[detail_stock['icb_code'] == 1, 'x_type'] = 'fwdepsqcut-industry_code'
+        # detail_stock.loc[detail_stock['icb_code'] == 2, 'x_type'] = 'fwdepsqcut-sector_code'
+        detail_stock = detail_stock.loc[detail_stock['icb_code']==0]
 
     feature_list = list(set(detail_stock['number_features'].dropna().to_list()))
 
@@ -95,18 +88,20 @@ def merge_ibes_stock():
 
     print(list(set(detail_stock['x_type'].dropna().to_list())))
 
+    detail_stock = detail_stock.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number',
+                                                        'x_type','y_type'], keep='last')
+
 
     # use median for cross listing & multiple cross-validation
-    detail_stock = detail_stock.groupby(['icb_code','identifier','testing_period','x_type','y_type']).median()[
-        'pred'].reset_index(drop=False)
+    detail_stock = detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'x_type', 'y_type',
+                                         'label']).median()['pred'].reset_index(drop=False)
 
     detail_stock['icb_code'] = detail_stock['icb_code'].astype(float)  # convert icb_code to int
     yoy_med['icb_code'] = yoy_med['icb_code'].astype(float)
 
-
     # merge (stock prediction) with (ibes consensus median)
-    yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code'],
-                                        right_on=['identifier', 'period_end', 'y_type', 'icb_code'],
+    yoy_merge = detail_stock.merge(yoy_med, left_on=['identifier', 'testing_period', 'y_type', 'icb_code','label'],
+                                        right_on=['identifier', 'period_end', 'y_type', 'icb_code','label'],
                                         suffixes=('_lgbm', '_ibes'))
 
     # return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
@@ -118,23 +113,24 @@ if __name__ == "__main__":
 
     r_name_list = ['all x 0 -fix space', 'new with indi code -fix space',
                     'compare large space']
-    # r_name = 'small_space -best_col 10 -code 0'
-    # r_name = 'small_space -best_col 15 -code 0 -exclude_fwd True'
+
     r_name = 'small_space -code 0 -exclude_fwd True'
-    r_name = 'try_old_fix_space -code 0 -exclude_fwd True'
-    r_name = 'test35_fix_space -code 0 -exclude_fwd True'
-    r_name = 'try10_mini_space -code 0 -exclude_fwd True'
-    r_name = 'new_mini_tune10 -code 0 -exclude_fwd True'
-    r_name = 'fix_tune10 -code 0 -exclude_fwd True'
+
     r_name = 'mini_tune15 -code 0 -exclude_fwd True'
     r_name = 'new with indi code -fix space'
     r_name = 'mini_tune15_re -code 0 -exclude_fwd True'
-    r_name = 'hyperopt_compare -code 0 -exclude_fwd True'
+
+    # r_name = 'new with indi code -fix space'
+    # r_name = 'compare large space'
+    # r_name = 'new industry model -fix space'
+    r_name = 'all x 0 -fix space'
+
+    # r_name = 'sp_fix_space -best_col 0 -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 
     # for i in r_name:
-    yoy_merge = merge_ibes_stock()
-    calc_mae_write(yoy_merge, tname='{}｜{}'.format(tname, r_name), base_list_type='all')
+    yoy_merge = merge_ibes_stock(sp_only=False)
+    calc_mae_write(yoy_merge, r_name, tname='{}｜{}'.format(tname, r_name), base_list_type='all')
 
     combine()

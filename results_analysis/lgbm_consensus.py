@@ -269,14 +269,14 @@ class download:
 
         return yoy_med
 
-    def merge_stock_ibes(self, agg_type='median'):
+    def merge_stock_ibes(self, agg_type='median', sp_only=False):
         ''' combine all prediction together '''
 
         # convert datetime
         # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
         self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
 
-        if 'sp' in r_name:
+        if sp_only==True:
             self.detail_stock['label'] = 'lgbm_sp'
         else:
             self.detail_stock['label'] = 'lgbm_normal'
@@ -286,6 +286,7 @@ class download:
             self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
             self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
             self.detail_stock['icb_code'] = 0
+
         if tname == 'xgboost':
             print(self.detail_stock['x_type'])
             self.detail_stock['x_type'] += '_depthwise'
@@ -456,6 +457,7 @@ class calc_mae_write():
         industry_dict = {}
 
         for name, g in self.merge.groupby(['x_type']):
+            print(name, len(g))
             industry_dict['_'.join(self.name) + '|' + name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T
@@ -590,49 +592,19 @@ def combine():
     print('save to file name: #compare_all.xlsx')
     writer.save()
 
-def compare_by_part():
-
-    ''' (unfinished) compare different trials in each sector / industry '''
-
-    sector = []
-    industry = []
-
-    def select(f, name):
-        df = pd.read_excel(f, name, index_col='Unnamed: 0')
-
-        new_col = []
-        for col in df.columns:
-            try:
-                s = df[col]
-                s = s.rename(f_name + '_' + col[-8:-6])
-                new_col.append(s)
-            except:
-                continue
-
-        return pd.concat(new_col, axis=1)
-
-    # sector.append(select(f, 'by_sector'))
-    # industry.append(select(f, 'by_industry'))
-
-    # label_sector_name(pd.concat(sector, axis=1)).to_excel(writer, 'by_sector_lgbm_in')
-    # label_industry_name(pd.concat(industry, axis=1)).to_excel(writer, 'by_industry_lgbm_in')
-
 if __name__ == "__main__":
 
-    r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'      # name in DB results_lightgbm
     r_name = 'ibes_new industry_only ws -indi space3'
-    # r_name = 'xgb tuning -sample_type industry -x_type fwdepsqcut'
-    # r_name = 'xgb tuning -sample_type entire -x_type fwdepsqcut'
-    # r_name = 'xgb tryrun -sample_type entire -x_type fwdepsqcut'
-    # r_name = 'rf extratree -sample_type entire -x_type fwdepsqcut'
-    # r_name = 'xgb ind -sample_type industry -x_type fwdepsqcut'
     # r_name = 'ibes_new industry_all x -indi space'
-    # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
-    # r_name = 'compare_hyperopt_2'
-    r_name = 'ibes_qoq'
+    # r_name = 'ibes_entire_only ws -smaller space'
+    r_name = 'ibes_industry -sp500'
+
     # r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
-    r_name = 'hyperopt_compare4'
-    r_name = 'ibes_qoqcut8_entire'
+    r_name = 'xgb ind3 -sample_type industry -x_type ni'
+
+    # r_name = 'hyperopt_compare4'
+    # r_name = 'ibes_qoq_tune10'
+    # r_name = 'ibes_qoq_tune10_2'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
@@ -641,7 +613,7 @@ if __name__ == "__main__":
     else:
         tname = 'lightgbm'
 
-    yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
+    yoy_merge = download(r_name).merge_stock_ibes(agg_type='median', sp_only=False)
     calc_mae_write(yoy_merge, r_name, tname=r_name, base_list_type='all')
 
     if compare_using_old_ibes != True:
