@@ -333,32 +333,35 @@ if __name__ == "__main__":
                     print('Not yet resume: params done', icb_code, testing_period)
                     continue
 
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
-            sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
+            try:
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-            # print('23355L106' in test_id)
-            print(feature_names)
+                # print('23355L106' in test_id)
+                print(feature_names)
 
-            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-            cv_number = 1   # represent which cross-validation sets
-            for train_index, valid_index in cv:     # roll over 5 cross validation set
-                sql_result['cv_number'] = cv_number
+                cv_number = 1   # represent which cross-validation sets
+                for train_index, valid_index in cv:     # roll over 5 cross validation set
+                    sql_result['cv_number'] = cv_number
 
-                # when Resume = False: try split validation set from training set + start hyperopt
-                sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                sample_set['train_yy'] = sample_set['train_y'][train_index]
+                    # when Resume = False: try split validation set from training set + start hyperopt
+                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                    sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                sql_result['valid_len'] = len(sample_set['valid_x'])
+                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                    sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                space = find_hyperspace(sql_result)
-                space.update(base_space)
-                print(space)
+                    space = find_hyperspace(sql_result)
+                    space.update(base_space)
+                    print(space)
 
-                HPOT(space, max_evals=10)   # start hyperopt
-                cv_number += 1
+                    HPOT(space, max_evals=10)   # start hyperopt
+                    cv_number += 1
+            except:
+                pass
 
 

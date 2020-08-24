@@ -299,6 +299,7 @@ class load_data:
             if use_median == True: # calculate median on train_y for each qcut group
                 df = pd.DataFrame(np.vstack((self.sample_set['train_y'][y_type], np.array(train_y)))).T   # concat original series / qcut series
                 median = df.groupby([1]).median().sort_index()[0].to_list()     # find median of each group
+                print(len(cut_bins), len(median))
                 train_y = pd.DataFrame(train_y).replace(range(len(cut_bins)-1), median)[0].values
                 test_y = pd.DataFrame(test_y).replace(range(len(cut_bins)-1), median)[0].values
             else:

@@ -105,7 +105,7 @@ space[60] = {
     'colsample_bytree': hp.choice('colsample_bytree', [0.5, 0.6]), # remove 0.7
     'colsample_bylevel': 1,
     'subsample': hp.choice('subsample', [0.7, 0.2]),
-    'gamma': hp.choice('eta', [25, 50]),
+    'gamma': hp.choice('gamma', [25, 50]),
     'lambda': hp.choice('lambda', [3, 30, 300]), # remove 10
     'eta': hp.choice('eta', [0.1, 0.05]),
 }
@@ -117,7 +117,7 @@ space[65] = {
     'colsample_bytree': hp.choice('colsample_bytree', [0.5, 0.9]), # remove 0.7
     'colsample_bylevel': 1,
     'subsample': hp.choice('subsample', [0.2, 0.7]),
-    'gamma': hp.choice('eta', [100, 50]),
+    'gamma': hp.choice('gamma', [100, 50]),
     'lambda': hp.choice('lambda', [5, 10, 100]), # remove 10
     'eta': hp.choice('eta', [0.1, 0.05]),
 }

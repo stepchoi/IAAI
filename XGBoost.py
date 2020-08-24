@@ -230,7 +230,7 @@ if __name__ == "__main__":
 
     # training / testing sets split par
     if args.sample_type == 'industry':
-        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+        partitions = [60, 65] #11, 20, 30, 35, 40, 45, 51,
     elif args.sample_type == 'sector':
         partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                       201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
