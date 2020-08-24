@@ -1,5 +1,6 @@
 from hyperopt import hp
 
+space_qoq = {}
 space = {}
 space[0] = {
     'learning_rate': hp.choice('learning_rate', [0.1, 0.12]),
@@ -15,19 +16,33 @@ space[0] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 100]),
 }
 
+space_qoq[0] = {
+    'learning_rate': 0.01,
+    'boosting_type': 'dart',
+    'max_bin': hp.choice('max_bin', [32, 64]),
+    'num_leaves': hp.choice('num_leaves', [125, 250]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 15]),
+    'feature_fraction': hp.choice('feature_fraction', [0.3, 0.5, 0.7]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.9]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 1e-7, 1e-5]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 0.1, 100]),
+    'lambda_l2': hp.choice('lambda_l2', [10, 25]),
+}
+
 # add this one for hyperspace comparison test
 space_compare = {
-    'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
-    'boosting_type': 'dart',
+    'learning_rate': hp.choice('learning_rate', [0.001, 0.1]),
+    'boosting_type': hp.choice('boosting_type', ['gbdt','dart']),
     'max_bin': 255,
-    'num_leaves': hp.choice('num_leaves', [125, 625]),
+    'num_leaves': 125,
     'min_data_in_leaf': 50,
     'feature_fraction': hp.choice('feature_fraction', [0.1, 0.9]),
     'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
     'bagging_freq': 1,
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 10]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
-    'lambda_l2': 10
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 50]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 100]),
+    'lambda_l2': 100,
 }
 
 space[11] = {
@@ -157,6 +172,9 @@ space[65] = {
 }
 
 def find_hyperspace(sql_result):
+
+    if sql_result['y_type'] == 'ibes_qoq':
+        space = space_qoq
 
     if sql_result['icb_code'] < 10:
         if 'compare' in sql_result['name']:

@@ -299,8 +299,8 @@ if __name__ == "__main__":
 
             # print('23355L106' in test_id)
             print(feature_names)
-
             space = find_hyperspace(sql_result)
+            space.update(base_space)
             print(space)
             # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
@@ -317,6 +317,10 @@ if __name__ == "__main__":
                 sql_result['train_len'] = len(sample_set['train_xx'])  # record length of training/validation sets
                 sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                HPOT(space, max_evals=10)  # start hyperopt
+
+                try:
+                    HPOT(space, max_evals=10)  # start hyperopt
+                except:
+                    pass
                 cv_number += 1
 
