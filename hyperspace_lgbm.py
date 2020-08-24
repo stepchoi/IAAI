@@ -30,19 +30,132 @@ space_qoq[0] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 25]),
 }
 
-space_qoq[0] = {
+space_qoq[11] = {
+    'learning_rate': hp.choice('learning_rate', [0.1, 0.01]),
+    'boosting_type': 'dart',
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [128, 256]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [16, 64, 128]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.3, 0.5]),
+    'bagging_freq': 1,
+    'min_gain_to_split': 0,
+    'lambda_l1': 0,
+    'lambda_l2': hp.choice('lambda_l2', [0, 0.1]),
+}
+
+space_qoq[20] = {
+    'learning_rate': 0.1,
+    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [128, 256]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 50]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.9]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.1]),
+    'lambda_l1': hp.choice('lambda_l1', [1, 5]),
+    'lambda_l2': 0
+}
+
+space_qoq[30] = {
     'learning_rate': hp.choice('learning_rate', [0.1, 0.01]),
     'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
-    'max_bin': hp.choice('max_bin', [32, 256]),
-    'num_leaves': hp.choice('num_leaves', [16, 256, 1024]),
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 15, 150]),
-    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.5, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.5, 0.9]),
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [128, 256]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 50]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.9]),
     'bagging_freq': 1,
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.1, 5]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 1, 100]),
-    'lambda_l2': hp.choice('lambda_l2', [0, 1, 100]),
+    'min_gain_to_split': 0,
+    'lambda_l1': hp.choice('lambda_l1', [1, 10]),
+    'lambda_l2': 0
 }
+
+space_qoq[35] = {
+    'learning_rate': 0.01,
+    'boosting_type': 'gbdt',
+    'max_bin': hp.choice('max_bin', [32, 64]),
+    'num_leaves': hp.choice('num_leaves', [128, 256]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
+    'feature_fraction': hp.choice('feature_fraction', [0.5, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.3]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [1, 5]),
+    'lambda_l1': hp.choice('lambda_l1', [1, 0]),
+    'lambda_l2': 0
+}
+
+space_qoq[40] = {
+    'learning_rate': hp.choice('learning_rate', [0.05, 0.1]),
+    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [16, 64, 128]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [16, 64, 128]),
+    'feature_fraction': hp.choice('feature_fraction', [0.5, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.5, 0.7]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.1, 1]),
+    'lambda_l1': 0,
+    'lambda_l2': hp.choice('lambda_l2', [100, 500]),
+}
+
+space_qoq[45] = {
+    'learning_rate': 0.01,
+    'boosting_type': 'gbdt',
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [16, 32]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [150, 100]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.3]),
+    'bagging_freq': 1,
+    'min_gain_to_split': 0,
+    'lambda_l1': hp.choice('lambda_l1', [100, 200]),
+    'lambda_l2': 100,
+}
+
+space_qoq[51] = {
+    'learning_rate': hp.choice('learning_rate', [0.05, 0.01]),
+    'boosting_type': 'gbdt',
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [256, 512]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [64, 128]),
+    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.9, 0.7]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.1, 1]),
+    'lambda_l1': hp.choice('lambda_l1', [1, 10]),
+    'lambda_l2': hp.choice('lambda_l2', [100, 50]),
+}
+
+space_qoq[60] = {
+    'learning_rate': hp.choice('learning_rate', [0.1, 0.01]),
+    'boosting_type': 'dart',
+    'max_bin': hp.choice('max_bin', [32, 64]),
+    'num_leaves': hp.choice('num_leaves', [256, 128]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [4, 8]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.5, 0.7]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.1, 1]),
+    'lambda_l1': hp.choice('lambda_l1', [1, 10]),
+    'lambda_l2': hp.choice('lambda_l2', [100, 200]),
+}
+
+space_qoq[65] = {
+    'learning_rate': hp.choice('learning_rate', [0.1, 0.01]),
+    'boosting_type': 'gbdt',
+    'max_bin': hp.choice('max_bin', [128, 256]),
+    'num_leaves': hp.choice('num_leaves', [16, 64, 128]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 25, 50]),
+    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.3]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.9, 0.7]),
+    'bagging_freq': 1,
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 1]),
+    'lambda_l1': 0,
+    'lambda_l2': hp.choice('lambda_l2', [50, 100, 500]),
+}
+
 
 # add this one for hyperspace comparison test
 space_compare = {
@@ -188,7 +301,7 @@ space[65] = {
 def find_hyperspace(sql_result):
 
     if sql_result['y_type'] == 'ibes_qoq':
-        return space_qoq[0]
+        space = space_qoq
 
     if sql_result['icb_code'] < 10:
         if 'compare' in sql_result['name']:

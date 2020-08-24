@@ -298,6 +298,10 @@ class download:
         self.detail_stock = self.detail_stock.drop_duplicates(
             subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
 
+        # print(self.yoy_med.columns)
+        # print(self.detail_stock.columns)
+        # exit(0)
+
         # use median/mean for cross listing & multiple cross-validation
         if agg_type == 'mean':
             self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
@@ -413,14 +417,14 @@ class calc_mae_write():
 
         industry_dict = {}
 
-        for name, g in self.merge.groupby(['testing_period', 'x_type']):
+        for name, g in self.merge.groupby(['testing_period', 'icb_industry', 'x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
         df.columns = ['_'.join(x) for x in df.columns.to_list()]
         print(df)
 
-        return df
+        return df.reset_index(drop=False)
 
     def by_nation(self):
         ''' calculate equivalent per testing_period MAE '''
@@ -606,6 +610,7 @@ if __name__ == "__main__":
     # r_name = 'hyperopt_compare4'
     # r_name = 'ibes_qoq_tune10'
     # r_name = 'ibes_qoq_tune10_2'
+    r_name = 'ibes_qoq_tune10_ind'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
