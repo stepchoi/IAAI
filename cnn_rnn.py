@@ -27,7 +27,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
-parser.add_argument('--top15', default=False, action='store_true')
+parser.add_argument('--top15', default=False)
 parser.add_argument('--gpu_number', type=int, default=1)
 parser.add_argument('--name_sql', required=True)
 
