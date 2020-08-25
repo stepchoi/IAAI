@@ -19,7 +19,7 @@ from preprocess.ratios import worldscope, full_period, trim_outlier
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-top15 = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
+top15_col = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
         'fn_18304','fn_18309','fn_18310','fn_18311','fn_18313','fn_8001','eps1fd12'}
 
 idd = 'C156E0340'
@@ -218,7 +218,8 @@ class load_data:
         elif exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
 
-        x_col = top15
+        if top15 == True:
+            x_col = top15_col
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback

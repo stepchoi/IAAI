@@ -163,12 +163,12 @@ space_compare = {
     'boosting_type': 'dart',
     'max_bin': 128,
     'num_leaves': 125,
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [1, 200]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [1, 500]),
     'feature_fraction': hp.choice('feature_fraction', [0.1, 0.9]),
     'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
     'bagging_freq': 1,
     'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 50]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 200]),
+    'lambda_l1': hp.choice('lambda_l1', [1, 500]),
     'lambda_l2': 100,
 }
 
