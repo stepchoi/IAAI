@@ -74,10 +74,10 @@ def rnn_train(space): #functional
 
     for col in range(10):   # build model for each feature
 
-        g_1 = input_img[:,:,col]    # slide input img to certain feature: shape = (samples, 20, 1)
+        g_1 = K.expand_dims(input_img[:,:,col], axis=2)    # slide input img to certain feature: shape = (samples, 20, 1)
+        print(g_1.shape)
 
         for i in range(1, params['num_gru_layer']):
-            extra = dict()  # need to iterative
             temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8))  # nodes grow at 2X or stay same - at least 8 nodes
 
             if i == params['num_gru_layer'] - 1:
@@ -139,12 +139,13 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    with engine.connect() as conn:
-        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_cnn_rnn', con=conn, index=False,
-                                                                if_exists='append', method='multi')
-    engine.dispose()
+    # with engine.connect() as conn:
+    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_top', con=conn, index=False,
+    #                                                             if_exists='append', method='multi')
+    # engine.dispose()
 
-    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    # exit(0)
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -169,8 +170,8 @@ def HPOT(space, max_evals = 10):
     print(hpot['best_stock_df'])
 
     with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_cnn_rnn', con=conn, index=False, if_exists='append', method='multi')
-        hpot['best_stock_df'].to_sql('results_cnn_rnn_stock', con=conn, index=False, if_exists='append', method='multi')
+        pd.DataFrame(hpot['all_results']).to_sql('results_rnn_top', con=conn, index=False, if_exists='append', method='multi')
+        hpot['best_stock_df'].to_sql('results_rnn_top_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
     # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
@@ -217,11 +218,8 @@ if __name__ == "__main__":
     # default params for load_data
     period_1 = dt.datetime(2013,4,1)
     sample_no = 21
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd,
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False,
                         'eps_only': False, 'top15': 'lgbm'}
-
-    sql_result['exclude_fwd'] = args.exclude_fwd
-    sql_result['eps_only'] = False
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
