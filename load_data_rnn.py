@@ -19,13 +19,16 @@ from preprocess.ratios import worldscope, full_period, trim_outlier
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-top15_col = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
-        'fn_18304','fn_18309','fn_18310','fn_18311','fn_18313','fn_8001','eps1fd12'}
+top15_col_org = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
+        'fn_18304','fn_18309','fn_18310','fn_18311','fn_18313','fn_8001','eps1tr12'}
+
+top15_col = {'capex_to_dda', 'fwd_roic', 'ebitda_to_ev', 'ni_to_cfo', 'ibes_qcut_as_x',
+             'fn_18262', 'eps1tr12', 'fn_18304', 'fn_18265', 'close'}  # 10 after excluding duplicated time series
 
 idd = 'C156E0340'
 def check_id(df, id=idd):
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
-        print(df.loc[df['identifier'] ==id, ['period_end', 'y_ibes']].sort_values(['period_end']))
+        print(df.loc[df['identifier'] == id, ['period_end', 'y_ibes']].sort_values(['period_end']))
     exit(0)
 
 def read_data(macro_monthly=True):
@@ -64,6 +67,13 @@ def read_data(macro_monthly=True):
 
     main = pd.merge(date_type(ws), ibes_stock, on=['identifier','period_end'], how='left')  # convert ws to yoy
     main.columns = [x.lower() for x in main.columns]    # convert columns name to lower case
+
+    main['capex_to_dda'] = main['fn_18311'] / main['fn_18313']  # convert to top15 features
+    main['fwd_roic'] = (main['ebd1fd12'] - main['cap1fd12']) / (main['fn_8001'] + main['fn_18199'])
+    main['ebitda_to_ev'] = main['fn_18309'] / main['fn_18100']
+    main['ni_to_cfo'] = main['fn_18263'] / main['fn_18310']
+    main['ibes_qcut_as_x'] = (main['eps1fd12'] - main['eps1tr12']) / main['fn_8001'] * main['fn_5192']
+
     main = yoy(main)   # convert raw point-in-time data to yoy formats
     macro = macro.loc[date_type(macro)['period_end'] >= dt.datetime(1997, 12, 31)]  # filter records after 1998
     main = add_macro(main, macro).map_macros()  # add clean macro variables
@@ -137,7 +147,8 @@ def yoy(df):
     df = df.dropna(subset=ws_col, how='all')
     # print(df.describe().T[['min','max']])
 
-    return df.filter(['identifier', 'period_end'] + ws_col + ['eps_rnn'])
+    return df.filter(['identifier', 'period_end'] + ws_col + ['eps_rnn', 'capex_to_dda', 'fwd_roic',
+                                                              'ebitda_to_ev', 'ni_to_cfo', 'ibes_qcut_as_x'])
 
 class load_data:
     ''' main function:
@@ -218,7 +229,9 @@ class load_data:
         elif exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
 
-        if top15 == True:
+        if top15 == 'org':  # using top15 features with yoy of orginal composition
+            x_col = top15_col_org
+        elif top15 == 'lgbm':   # using top15 features with lgbm featues (in fact 10 variables) for concat model
             x_col = top15_col
 
         # 2.1. slice data for sample period + lookback period

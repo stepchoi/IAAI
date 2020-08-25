@@ -176,7 +176,7 @@ if __name__ == "__main__":
     r_name = ['ibes_new industry_only ws -indi space3']
     r_name = ['ibes_entire_only ws -smaller space']
 
-    r_name = ['compare14']
+    r_name = ['compare15']
 
     # r_name = ['xgb ind3 -sample_type industry -x_type ni','xgb ind_all_tuning -sample_type industry -x_type ni']
 

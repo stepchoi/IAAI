@@ -218,6 +218,7 @@ if __name__ == '__main__':
     # except:
     ws = worldscope().fill_missing_ws()
 
+    # print(ws.columns)
     # ws.to_csv('preprocess/quarter_summary_clean.csv', index=False)
     # exit(0)
 
