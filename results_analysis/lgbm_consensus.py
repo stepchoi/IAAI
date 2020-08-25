@@ -607,10 +607,7 @@ if __name__ == "__main__":
     r_name = 'xgb ind3 -sample_type industry -x_type ni'
     # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
 
-    # r_name = 'hyperopt_compare4'
-    # r_name = 'ibes_qoq_tune10'
-    # r_name = 'ibes_qoq_tune10_2'
-    r_name = 'ibes_qoq_tune10_ind'
+    r_name = 'ibes_qoq_tune10_ind2'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

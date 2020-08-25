@@ -19,6 +19,9 @@ from preprocess.ratios import worldscope, full_period, trim_outlier
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+top15 = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
+        'fn_18304','fn_18309','fn_18310','fn_18311','fn_18313','fn_8001','eps1fd12'}
+
 idd = 'C156E0340'
 def check_id(df, id=idd):
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  # more options can be specified also
@@ -183,7 +186,7 @@ class load_data:
         self.main['icb_industry'] = self.main['icb_industry'].replace([10, 15, 50, 55], [11, 11, 51, 51])   # use 11 to represent combined industry (10+15)
         self.sector = self.main.loc[self.main['icb_industry'] == icb_industry]
 
-    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd=False, small_training=True, eps_only=False):
+    def split_train_test(self, testing_period, qcut_q, y_type, exclude_fwd=False, small_training=True, eps_only=False, top15=False):
         ''' split training / testing set based on testing period '''
 
         # 1. split and qcut train / test Y
@@ -214,6 +217,8 @@ class load_data:
             x_col = {'eps_rnn'}
         elif exclude_fwd == True:
             x_col = list(set(x_col) - {'eps1tr12','ebd1fd12', 'cap1fd12', 'eps1fd12'})
+
+        x_col = top15
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback
