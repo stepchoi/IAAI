@@ -139,7 +139,7 @@ def calc_fwd(ws):
         ibes = date_type(ibes)
         print('local version run - ibes_data')
     except:
-        ibes = pd.read_sql('SELECT * FROM ibes_data', engine) # ibes_data is the cleaned with clean_csv.py and uploaded
+        ibes = pd.read_sql('SELECT * FROM ibes_data', engine) # ibes_data is the cleaned with prep_clean_csv.py and uploaded
         engine.dispose()
 
     ibes = ibes.groupby(['identifier', 'period_end']).mean().reset_index(drop=False)  # for cross listing use average
@@ -148,7 +148,7 @@ def calc_fwd(ws):
     ibes_ws = pd.merge(ibes, ws[['identifier','period_end', 'fn_8001','fn_5192','fn_5085', 'roic_demon']],
                        on=['identifier','period_end'])
 
-    def fill_missing_ibse(df):
+    def fill_missing_ibes(df):
         ''' fill in missing fwd_roic by replacing missing CAP1FD12 with 0 when company has no history of CAP1FD12'''
 
         non_cap_comp = set(df['identifier']) - set(df.dropna(subset = ['cap1fd12'])['identifier'])
@@ -156,7 +156,7 @@ def calc_fwd(ws):
             df.loc[df['identifier'].isin(non_cap_comp), 'cap1fd12'].fillna(0)
         return df
 
-    ibes_ws = fill_missing_ibse(ibes_ws)                                        # calculate IBES TTM as Y
+    ibes_ws = fill_missing_ibes(ibes_ws)                                        # calculate IBES TTM as Y
     ibes_ws = full_period(ibes_ws, 'identifier')
 
     # calculate CAGR for y-5 ~ y-3, y-3 ~ y-1, y-1 ~ y0 -> 4Q = 1Y

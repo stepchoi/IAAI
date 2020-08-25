@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, accuracy_score, mean_squared_error, r2_score
 from tqdm import tqdm
-from preprocess.ratios import full_period, worldscope
+from preprocess.x_ratios import full_period, worldscope
 from miscel import date_type, check_dup, reorder_col
 from collections import Counter
 import os
@@ -604,10 +604,10 @@ if __name__ == "__main__":
     r_name = 'ibes_industry -sp500'
 
     # r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
-    r_name = 'xgb ind3 -sample_type industry -x_type ni'
+    r_name = 'xgb ind4 -sample_type industry -x_type ni'
     # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
 
-    r_name = 'ibes_qoq_tune10_ind2'
+    # r_name = 'ibes_qoq_tune10_ind2'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

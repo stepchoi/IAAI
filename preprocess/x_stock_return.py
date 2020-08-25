@@ -4,7 +4,7 @@ import sqlalchemy as db
 from sqlalchemy import create_engine
 from datetime import datetime
 import sys
-from preprocess.ratios import full_period
+from preprocess.x_ratios import full_period
 
 
 db_url_prod = "postgres://postgres:askLORA20$@dlp-prod.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres"

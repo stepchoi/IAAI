@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, text
 import numpy as np
 import pandas as pd
 import datetime as dt
-from preprocess.ratios import full_period, worldscope
+from preprocess.x_ratios import full_period, worldscope
 
 from miscel import check_dup, date_type
 

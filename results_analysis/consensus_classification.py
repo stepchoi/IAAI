@@ -193,7 +193,7 @@ if __name__ == "__main__":
     df['Y_fwd'] = (df['EPS1FD12'] - df['EPS1TR12'])/df['fn_8001']*df['fn_5192']
     df['Y_fwd_ws'] = (df['EPS1FD12']/df['EPS1TR12']*df['fn_18263'] - df['fn_18263'])/df['fn_8001']
 
-    from preprocess.ratios import full_period
+    from preprocess.x_ratios import full_period
     df = full_period(df, 'identifier','%Y-%m-%d')
 
     df['actual_eps'] = df['EPS1TR12'].shift(-4)

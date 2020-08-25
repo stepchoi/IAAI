@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 import numpy as np
 import pandas as pd
 import datetime as dt
-from preprocess.ratios import trim_outlier
+from preprocess.x_ratios import trim_outlier
 from miscel import date_type
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'

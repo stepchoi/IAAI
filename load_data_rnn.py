@@ -14,7 +14,7 @@ import gc
 from tqdm import tqdm
 
 from miscel import check_dup, date_type
-from preprocess.ratios import worldscope, full_period, trim_outlier
+from preprocess.x_ratios import worldscope, full_period, trim_outlier
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -45,7 +45,7 @@ def read_data(macro_monthly=True):
         print('local version run - quarter_summary_clean / ibes_data / stock_data / macro_data / clean_ratios')
     except:
         print('---------------------> load rnn data')
-        ws = worldscope().fill_missing_ws() # from Proprocess.ratios.py genenrate raw worldscope data
+        ws = worldscope().fill_missing_ws() # from Proprocess.x_ratios.py genenrate raw worldscope data
         with engine.connect() as conn:
             ibes = pd.read_sql('SELECT * FROM ibes_data', conn)     # use DB TABLE if no local file
             stock = pd.read_sql('SELECT * FROM stock_data', conn)

@@ -140,14 +140,14 @@ def HPOT(space, max_evals):
     # write stock_pred for the best hyperopt records to sql
     with engine.connect() as conn:
         hpot['best_stock_df'].to_sql('results_lightgbm_stock', con=conn, index=False, if_exists='append', method='multi')
-        hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append', method='multi')
+        if sql_result['y_type'] == 'ibes':
+            hpot['best_importance'].to_sql('results_feature_importance', con=conn, index=False, if_exists='append', method='multi')
+        elif sql_result['y_type'] == 'ibes_qoq':
+            hpot['best_importance'].to_sql('results_feature_importance_qoq', con=conn, index=False, if_exists='append', method='multi')
         pd.DataFrame(hpot['all_results']).to_sql('results_lightgbm', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    plot_history(hpot['best_plot'], hpot['best_model'], hpot['best_trial'])
-
-    if sql_result['icb_code']==201030:
-        hpot['best_model'].save_model('models_lgbm/model_201030_{}.txt'.format(hpot['best_trial']))
+    # plot_history(hpot['best_plot'], hpot['best_model'], hpot['best_trial']
 
     sql_result['trial_hpot'] += 1
     # return best

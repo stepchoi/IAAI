@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, accuracy_score
 from tqdm import tqdm
-from preprocess.ratios import full_period, worldscope
+from preprocess.x_ratios import full_period, worldscope
 from miscel import date_type, check_dup
 from collections import Counter
 import os

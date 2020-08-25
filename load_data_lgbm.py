@@ -11,7 +11,7 @@ from results_analysis.lgbm_consensus import eps_to_yoy
 from miscel import date_type
 import gc
 from miscel import check_dup
-from preprocess.ratios import full_period
+from preprocess.x_ratios import full_period
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -95,6 +95,7 @@ class add_macro:
     def __init__(self, macro_monthly=True):
         try:
             self.ratios = pd.read_csv('preprocess/clean_ratios.csv')
+            self.ratios_qoq = pd.read_csv('preprocess/ratios_qoq.csv')
             self.macros = pd.read_csv('preprocess/clean_macros.csv')
             self.ibes_qoq = pd.read_csv('preprocess/ibes_data_qoq.csv').dropna(how='any')
             self.new_macros = pd.read_csv('preprocess/clean_macros_new.csv')
@@ -103,6 +104,7 @@ class add_macro:
             print('-----------------> download data from DB: clean_ratios/clean_macros')
             with engine.connect() as conn:
                 self.ratios = pd.read_sql('SELECT * FROM clean_ratios', conn)
+                self.ratios_qoq = pd.read_sql('SELECT * FROM ratios_qoq', conn)
                 self.macros = pd.read_sql('SELECT * FROM clean_macros', conn)
                 self.ibes_qoq = pd.read_sql('SELECT * FROM ibes_data_qoq', conn).dropna(how='any')
                 self.new_macros = pd.read_sql('SELECT * FROM clean_macros_new', conn)
@@ -111,6 +113,7 @@ class add_macro:
         self.macros = date_type(self.macros)    # convert to date
         self.new_macros = date_type(self.new_macros)
         self.ratios = date_type(self.ratios).merge(date_type(self.ibes_qoq), on=['identifier','period_end'], how='outer')
+        self.ratios = self.ratios.merge(date_type(self.ratios_qoq), on=['identifier','period_end'], how='outer')
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 
         if macro_monthly == True:
@@ -235,8 +238,14 @@ class load_data:
         if filter_stock_return_only == True:
             self.sector = stock_return_only(self.sector)
 
-        self.sector = self.sector.dropna(subset=(['y_{}'.format(y_type)]+['ibes_qcut_as_x']), how='any')    # remove companies with NaN y_ibes
-        self.train = self.sector.loc[(start <= self.sector['period_end']) & (self.sector['period_end'] < testing_period)].reset_index(drop=True)
+        if y_type == 'ibes':    # remove unreliable recors (i.e. without ni_yoy, rev_yoy, ibes_yoy, or consensus)
+            self.sector = self.sector.dropna(subset=(['y_ibes', 'y_ni', 'y_rev', 'ibes_qcut_as_x']), how='any')
+        elif y_type == 'ibes_qoq':
+            self.sector = self.sector.dropna(subset=(['y_ibes_qoq', 'y_consensus_qoq']), how='any')
+            self.sector['ibes_qcut_as_x'] = self.sector['y_consensus_qoq']  # replace consensus col with qoq
+
+        self.train = self.sector.loc[(start <= self.sector['period_end']) &
+                                     (self.sector['period_end'] < testing_period)].reset_index(drop=True)
         self.test = self.sector.loc[self.sector['period_end'] == testing_period].reset_index(drop=True)
 
         print('test_df: ', self.test.shape)
@@ -250,18 +259,51 @@ class load_data:
             ws_ni_col = ['ni_ts01','ni_ts13','ni_ts35']
             id_col = ['identifier', 'period_end', 'icb_sector', 'market', 'icb_industry']
 
-            if exclude_fwd == False:    # use IBES data as X
-                x = df.drop(id_col + y_col + ws_ni_col , axis=1)
-            else:   # remove 2 ratios calculated with ibes consensus data
-                x = df.drop(id_col + y_col + fwd_eps_col + fwd_col + ['ibes_qcut_as_x'], axis=1)
+            if y_type == 'ibes':
+                df = df.drop(['ni_qoq0', 'sales_qoq0', 'pretax_margin_qoq0', 'cfps_qoq0', 'eps_qoq0'], axis=1)  # remove qoq columns? maybe add improve results?
 
-            if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
-                x = x.drop(['stock_return_1qa'], axis=1)
+                if exclude_fwd == False:    # use IBES data as X
+                    x = df.drop(ws_ni_col , axis=1)
+                else:   # remove 2 ratios calculated with ibes consensus data
+                    x = df.drop(fwd_eps_col + fwd_col + ['ibes_qcut_as_x'], axis=1)
 
-            if filter_stock_return_only == True:      # stock return only data
-                x = df[[x for x in df.columns if 'stock_return_1qa' in x]]
-            elif num_best_col > 0:       # for trial with only top N important features (dense2)
-                x = filter_best_col(x, num_best_col, exclude_fwd, filter_stock_return_only)
+                if exclude_stock == True:   # for trial without stock_return_1qa data (Lightgbm)
+                    x = x.drop(['stock_return_1qa'], axis=1)
+
+                if filter_stock_return_only == True:      # stock return only data
+                    x = df[[x for x in df.columns if 'stock_return_1qa' in x]]
+                elif num_best_col > 0:       # for trial with only top N important features (dense2)
+                    x = filter_best_col(x, num_best_col, exclude_fwd, filter_stock_return_only)
+
+            elif y_type == 'ibes_qoq':
+                df = df.drop(['ni_ts01', 'sales_ts01', 'pretax_margin_ts01', 'eps_ts01', 'cfps_ts01'], axis=1)  # remove within 1 year YoY columns
+
+                def ts_name(name_str):  # raname ts ratios e.g. ni_ts01 for y-1 ~ y0
+                    ts_col = ['ni', 'sales', 'pretax_margin', 'cfps','eps']
+                    return [x + '_' + name_str for x in ts_col]
+
+                for i in range(3):  # add lagging qoq for the last 4 quarters (last i.e.qoq0 already exists)
+                    df[ts_name('qoq{}'.format(i + 1))] = df[ts_name('qoq0')].shift(i + 1)
+                    df.loc[df.groupby('identifier').head(i + 1).index, ts_name('qoq{}'.format(i + 1))] = np.nan
+
+                for i in range(4):  # add lagging stock_return qoq for last 4 quarters, remove stock_return_1qa
+                    df['stock_return_qoq{}'.format(i)] = df['stock_return_1qa'].shift(i + 1)
+                    df.loc[df.groupby('identifier').head(i + 1).index, 'stock_return_qoq{}'.format(i)] = np.nan
+
+                df = df.drop(['stock_return_1qa', 'stock_return_3qb'], axis=1)  # remove original stock_returns
+
+                if exclude_fwd == False:  # use IBES data as X
+                    x = df.drop(['ni_qoq0', 'ni_qoq1', 'ni_qoq2', 'ni_qoq3', 'ni_ts13','ni_ts35'], axis=1)
+                else:  # remove 2 ratios calculated with ibes consensus data
+                    x = df.drop(['fwd_ey', 'fwd_roic', 'eps_ts13', 'eps_ts35', 'eps_qoq0', 'eps_qoq1', 'eps_qoq2',
+                                 'eps_qoq3', 'ibes_qcut_as_x'], axis=1)
+            else:
+                NameError('WRONG y_type!')
+
+            try:
+                x = x.drop(id_col + y_col, axis=1)  # remove columns for Y or id & date
+            except:
+                pass
 
             self.feature_names = x.columns.to_list()
             y = {}
@@ -399,11 +441,11 @@ if __name__ == '__main__':
     # these are parameters used to load_data
     icb_code = 0
     testing_period = dt.datetime(2018,3,31)
-    qcut_q = 0
+    qcut_q = 10
     y_type = 'ibes_qoq'
 
     exclude_fwd = True
-    ibes_qcut_as_x = False
+    ibes_qcut_as_x = not(exclude_fwd)
     macro_monthly = True
 
     data = load_data(sp_only=False)
@@ -418,8 +460,9 @@ if __name__ == '__main__':
                                                                       ibes_qcut_as_x=ibes_qcut_as_x,
                                                                       exclude_stock=False,
                                                                       filter_stock_return_only=False)
-
+    print(feature_names)
     print(sorted(feature_names))
+    exit(0)
     print(len(feature_names))
     print(feature_names.index('stock_return_1qa'))
 
