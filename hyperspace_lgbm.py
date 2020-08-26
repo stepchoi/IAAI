@@ -299,6 +299,12 @@ space_yoy[65] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
+# l2_update = {
+#
+#
+#
+# }
+
 def find_hyperspace(sql_result):
 
     if sql_result['y_type'] == 'ibes_qoq':
