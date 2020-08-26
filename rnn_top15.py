@@ -34,8 +34,9 @@ space = {
 
     'num_gru_layer': hp.choice('num_gru_layer', [2, 3, 4]),     # number of layers # drop 1
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
-    'gru_nodes': hp.choice('gru_nodes', [1, 2]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_nodes': hp.choice('gru_nodes', [0, 1]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
 
+    # 'gru_dropout': 0,
     'gru_dropout': hp.choice('gru_drop', [0.1, 0.25]),
 
     'activation': 'tanh',
@@ -78,12 +79,12 @@ def rnn_train(space): #functional
         print(g_1.shape)
 
         for i in range(1, params['num_gru_layer']):
-            temp_nodes = int(max(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8))  # nodes grow at 2X or stay same - at least 8 nodes
+            temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * (i-1))), 8))  # nodes grow at 2X or stay same - at least 8 nodes
 
             if i == params['num_gru_layer'] - 1:
                 g_1_2 = GRU(temp_nodes, return_sequences=False)(g_1)  # this is the forecast state, last layer does not output the whole sequence
                 g_1 = GRU(1, dropout=0, return_sequences=True)(g_1)
-            elif i == 0:
+            elif i == 1:
                 g_1 = GRU(temp_nodes, return_sequences=True)(g_1)
             else:
                 g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], return_sequences=True)(g_1)
@@ -139,13 +140,13 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    # with engine.connect() as conn:
-    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_top', con=conn, index=False,
-    #                                                             if_exists='append', method='multi')
-    # engine.dispose()
+    with engine.connect() as conn:
+        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_top', con=conn, index=False,
+                                                                if_exists='append', method='multi')
+    engine.dispose()
 
-    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
-    # exit(0)
+    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    exit(0)
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
@@ -193,7 +194,7 @@ def plot_history(history, trial, mae):
     plt.ylabel('loss')
     plt.legend()
 
-    plt.savefig('results_rnn/plot_cnn_dnn_{} {}.png'.format(trial, round(mae,4)))
+    plt.savefig('results_rnn/plot_rnn_top_{} {}.png'.format(trial, round(mae,4)))
     plt.close()
 
 def pred_to_sql(Y_test_pred):
