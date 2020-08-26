@@ -339,6 +339,8 @@ if __name__ == "__main__":
 
                 # print('23355L106' in test_id)
                 print(feature_names)
+                if 'i0eps' in feature_names:
+                    NameError('WRONG feature_names with i0eps!')
 
                 # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
