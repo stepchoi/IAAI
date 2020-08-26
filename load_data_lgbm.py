@@ -360,17 +360,24 @@ class load_data:
             s_train = pd.Series(s_train)    # convert to series for mask (max/min)
             s_test = pd.Series(s_test)
 
+            print(s_train.describe())
+            # exit(0)
+
             s_train = s_train.mask(s_train > max, max)    # filter max/min with 5 std
             s_train = s_train.mask(s_train < min, min)
+            s_train = np.round(s_train, 2)     # rounding by 0.01
+
             s_test = s_test.mask(s_test > max, max)  # filter max/min with 5 std
             s_test = s_test.mask(s_test < min, min)
+            s_test = np.round(s_test, 2)     # rounding by 0.01
+
             return s_train.values, s_test.values
 
         self.cut_bins = {}
-        if qcut_q > 0:
+        if qcut_q > 0:      # using qcut & convert to median
             self.sample_set['train_y'], self.sample_set['test_y'], \
             self.cut_bins['cut_bins'], self.cut_bins['med_train'] = to_median(use_median)
-        elif qcut_q == 0:
+        elif qcut_q == 0:   # using filter and rounding
             self.sample_set['train_y'], self.sample_set['test_y'] = filter_std(self.sample_set['train_y'][y_type],
                                                                                self.sample_set['test_y'][y_type])
         else:
@@ -442,8 +449,8 @@ if __name__ == '__main__':
     # these are parameters used to load_data
     icb_code = 0
     testing_period = dt.datetime(2018,3,31)
-    qcut_q = 10
-    y_type = 'ibes_qoq'
+    qcut_q = 0
+    y_type = 'ibes'
 
     exclude_fwd = True
     ibes_qcut_as_x = not(exclude_fwd)
