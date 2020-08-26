@@ -140,13 +140,13 @@ def eval(space):
     print('sql_result_before writing: ', sql_result)
     hpot['all_results'].append(sql_result.copy())
 
-    with engine.connect() as conn:
-        pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_top', con=conn, index=False,
-                                                                if_exists='append', method='multi')
-    engine.dispose()
-
-    plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
-    exit(0)
+    # with engine.connect() as conn:
+    #     pd.DataFrame.from_records(sql_result, index=[0]).to_sql('results_rnn_top', con=conn, index=False,
+    #                                                             if_exists='append', method='multi')
+    # engine.dispose()
+    #
+    # plot_history(history, sql_result['trial_lgbm'], sql_result['mae_test'])  # plot training history
+    # exit(0)
 
     if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
         hpot['best_mae'] = result['mae_valid']
