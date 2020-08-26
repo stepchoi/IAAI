@@ -32,7 +32,7 @@ def lgbm_train(space):
 
     evals_result = {}
     if params['objective'] == 'r2':
-        params['objective'] = 'regression_l2'
+        params['objective'] = 'regression_l1'
         gbm = lgb.train(params,
                         lgb_train,
                         valid_sets=[lgb_eval, lgb_train],
@@ -42,6 +42,7 @@ def lgbm_train(space):
                         feature_name=feature_names,
                         evals_result=evals_result,
                         feval=lgb_r2_score)
+
     else:
         gbm = lgb.train(params,
                         lgb_train,
@@ -55,7 +56,7 @@ def lgbm_train(space):
     # plot_history(evals_result, gbm, sql_result['trial_lgbm'])
 
     # prediction on all sets
-    if space['objective'] in ['regression_l1', 'regression_l2']:
+    if space['objective'] in ['regression_l1', 'regression_l2', 'r2']:
         Y_train_pred = gbm.predict(sample_set['train_xx'], num_iteration=gbm.best_iteration)
         Y_valid_pred = gbm.predict(sample_set['valid_x'], num_iteration=gbm.best_iteration)
         Y_test_pred = gbm.predict(sample_set['test_x'], num_iteration=gbm.best_iteration)
@@ -154,7 +155,7 @@ def HPOT(space, max_evals):
 
     trials = Trials()
 
-    if space['objective'] in ['regression_l1', 'regression_l2']:
+    if space['objective'] in ['regression_l1', 'regression_l2', 'r2']:
         best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     elif space['objective'] == 'multiclass':
         hpot['best_mae'] = 0  # record best training (min mae_valid) in each hyperopt
