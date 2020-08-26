@@ -81,6 +81,9 @@ def read_data(macro_monthly=True):
     main.columns = [x.lower() for x in main.columns]    # convert columns name to lower case
     main = main.sort_values('market').drop_duplicates(['identifier','period_end'], keep='first')    # for cross listing (CH + HK) use macro for CH
 
+    print(main.columns)
+    main.iloc[:,2:] = trim_outlier(main.iloc[:,2:])
+
     return main
 
 class add_macro:

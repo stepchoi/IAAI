@@ -1,20 +1,6 @@
 from hyperopt import hp
 
 space_qoq = {}
-space = {}
-space[0] = {
-    'learning_rate': hp.choice('learning_rate', [0.1, 0.12]),
-    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
-    'max_bin': hp.choice('max_bin', [255]),
-    'num_leaves': hp.choice('num_leaves', [75, 125, 250]),
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [25, 50]),
-    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
-    'bagging_freq': hp.choice('bagging_freq', [1, 8]),
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.08]),
-    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
-    'lambda_l2': hp.choice('lambda_l2', [10, 100]),
-}
 
 space_qoq[0] = {
     'learning_rate': 0.01,
@@ -172,7 +158,22 @@ space_compare = {
     'lambda_l2': 100,
 }
 
-space[11] = {
+space_yoy = {}
+space_yoy[0] = {
+    'learning_rate': hp.choice('learning_rate', [0.1, 0.12]),
+    'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
+    'max_bin': hp.choice('max_bin', [255]),
+    'num_leaves': hp.choice('num_leaves', [75, 125, 250]),
+    'min_data_in_leaf': hp.choice('min_data_in_leaf', [25, 50]),
+    'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
+    'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
+    'bagging_freq': hp.choice('bagging_freq', [1, 8]),
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 0.08]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 10]),
+    'lambda_l2': hp.choice('lambda_l2', [10, 100]),
+}
+
+space_yoy[11] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]), # remove 0.12
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -186,7 +187,7 @@ space[11] = {
     'lambda_l2': hp.choice('lambda_l2', [30, 50]), # remove 10
 }
 
-space[20] = {
+space_yoy[20] = {
     'learning_rate': hp.choice('learning_rate', [0.12, 0.15]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -200,7 +201,7 @@ space[20] = {
     'lambda_l2': hp.choice('lambda_l2', [5, 10]),
 }
 
-space[30] = {
+space_yoy[30] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -214,7 +215,7 @@ space[30] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
-space[35] = {
+space_yoy[35] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [127]),
@@ -228,7 +229,7 @@ space[35] = {
     'lambda_l2': hp.choice('lambda_l2', [1, 5]),
 }
 
-space[40] = {
+space_yoy[40] = {
     'learning_rate': hp.choice('learning_rate', [0.05, 0.08]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -242,7 +243,7 @@ space[40] = {
     'lambda_l2': hp.choice('lambda_l2', [0, 10]),
 }
 
-space[45] = {
+space_yoy[45] = {
     'learning_rate': hp.choice('learning_rate', [0.1, 0.15]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [127]),
@@ -256,7 +257,7 @@ space[45] = {
     'lambda_l2': hp.choice('lambda_l2', [1, 5]), # try 20??
 }
 
-space[51] = {
+space_yoy[51] = {
     'learning_rate': hp.choice('learning_rate', [0.03, 0.05]),
     'boosting_type': hp.choice('boosting_type', ['gbdt']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -270,7 +271,7 @@ space[51] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
-space[60] = {
+space_yoy[60] = {
     'learning_rate': hp.choice('learning_rate', [0.06, 0.08]),
     'boosting_type': hp.choice('boosting_type', ['gbdt']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -284,7 +285,7 @@ space[60] = {
     'lambda_l2': hp.choice('lambda_l2', [50, 100]),
 }
 
-space[65] = {
+space_yoy[65] = {
     'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [127]),
@@ -302,6 +303,8 @@ def find_hyperspace(sql_result):
 
     if sql_result['y_type'] == 'ibes_qoq':
         space = space_qoq
+    else:
+        space = space_yoy
 
     if sql_result['icb_code'] < 10:
         if 'compare' in sql_result['name']:
@@ -323,5 +326,5 @@ def find_hyperspace(sql_result):
         return space[sector_2_ind[sql_result['icb_code']]]
 
 if __name__ == '__main__':
-    sql_result = {'icb_code': 999}
+    sql_result = {'icb_code': 0, 'y_type':'ibes', 'name':''}
     print(find_hyperspace(sql_result))
