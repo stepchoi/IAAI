@@ -253,8 +253,8 @@ def read_db_last(sql_result, results_table = 'results_lightgbm'):
         db_last_trial_hpot = int(db_last['trial_hpot'])
         db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
-        sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
-        sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+        sql_result['trial_hpot'] = db_last_trial_hpot + args.trial_lgbm_add  # trial_hpot = # of Hyperopt performed (n trials each)
+        sql_result['trial_lgbm'] = db_last_trial_lgbm + args.trial_lgbm_add  # trial_lgbm = # of Lightgbm performed
         print('if resume from: ', db_last_param,'; sql last trial_lgbm: ', sql_result['trial_lgbm'])
     except:
         db_last_param = None
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     parser.add_argument('--y_type', default='ibes')
     parser.add_argument('--sample_no', type=int, default=21)
     parser.add_argument('--qcut_q', default=10, type=int)
-    # parser.add_argument('--trial_lgbm_add', default=1, type=int)
+    parser.add_argument('--trial_lgbm_add', default=1, type=int)
     parser.add_argument('--sleep', type=int, default=0)
     args = parser.parse_args()
 
