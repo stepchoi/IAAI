@@ -158,8 +158,8 @@ space_compare = {
     'lambda_l2': 100,
 }
 
-space = {}
-space[0] = {
+space_yoy = {}
+space_yoy[0] = {
     'learning_rate': hp.choice('learning_rate', [0.1, 0.12]),
     'boosting_type': hp.choice('boosting_type', ['gbdt', 'dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -173,7 +173,7 @@ space[0] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 100]),
 }
 
-space[11] = {
+space_yoy[11] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]), # remove 0.12
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -187,7 +187,7 @@ space[11] = {
     'lambda_l2': hp.choice('lambda_l2', [30, 50]), # remove 10
 }
 
-space[20] = {
+space_yoy[20] = {
     'learning_rate': hp.choice('learning_rate', [0.12, 0.15]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -201,7 +201,7 @@ space[20] = {
     'lambda_l2': hp.choice('lambda_l2', [5, 10]),
 }
 
-space[30] = {
+space_yoy[30] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -215,7 +215,7 @@ space[30] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
-space[35] = {
+space_yoy[35] = {
     'learning_rate': hp.choice('learning_rate', [0.08, 0.1]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [127]),
@@ -229,7 +229,7 @@ space[35] = {
     'lambda_l2': hp.choice('lambda_l2', [1, 5]),
 }
 
-space[40] = {
+space_yoy[40] = {
     'learning_rate': hp.choice('learning_rate', [0.05, 0.08]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -243,7 +243,7 @@ space[40] = {
     'lambda_l2': hp.choice('lambda_l2', [0, 10]),
 }
 
-space_yo[45] = {
+space_yoy[45] = {
     'learning_rate': hp.choice('learning_rate', [0.1, 0.15]),
     'boosting_type': hp.choice('boosting_type', ['dart']),
     'max_bin': hp.choice('max_bin', [127]),
@@ -257,7 +257,7 @@ space_yo[45] = {
     'lambda_l2': hp.choice('lambda_l2', [1, 5]), # try 20??
 }
 
-space[51] = {
+space_yoy[51] = {
     'learning_rate': hp.choice('learning_rate', [0.03, 0.05]),
     'boosting_type': hp.choice('boosting_type', ['gbdt']),
     'max_bin': hp.choice('max_bin', [255]),
@@ -271,7 +271,7 @@ space[51] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
-space[60] = {
+space_yoy[60] = {
     'learning_rate': hp.choice('learning_rate', [0.06, 0.08]),
     'boosting_type': hp.choice('boosting_type', ['gbdt']),
     'max_bin': hp.choice('max_bin', [255]),

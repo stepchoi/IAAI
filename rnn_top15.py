@@ -34,7 +34,7 @@ space = {
 
     'num_gru_layer': hp.choice('num_gru_layer', [2, 3, 4]),     # number of layers # drop 1
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
-    'gru_nodes': hp.choice('gru_nodes', [0, 1]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
+    'gru_nodes': hp.choice('gru_nodes', [1, 2]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
 
     # 'gru_dropout': 0,
     'gru_dropout': hp.choice('gru_drop', [0.1, 0.25]),
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,4,1)
+    period_1 = dt.datetime(2013,10,1)
     sample_no = 21
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False,
                         'eps_only': False, 'top15': 'lgbm'}
