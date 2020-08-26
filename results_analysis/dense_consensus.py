@@ -125,6 +125,7 @@ if __name__ == "__main__":
     # r_name = 'compare large space'
     # r_name = 'new industry model -fix space'
     # r_name = 'all x 0 -fix space'
+    r_name = 'compare large space'
 
     # r_name = 'sp_fix_space -best_col 0 -code 0 -exclude_fwd True'
 

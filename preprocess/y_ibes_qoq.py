@@ -77,7 +77,7 @@ def eps_to_qoq():
     ibes.loc[ibes.groupby('identifier').tail(1).index, 'y_ibes_qoq'] = np.nan  # use ibes ttm for Y
 
     ibes['y_consensus_qoq'] = (ibes['epsi1md'] - ibes['i0eps']) * ibes['fn_5192'] / ibes['fn_8001']  # use ibes fwd & ttm for Y estimation
-    final_df = ibes[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq',
+    final_df = ibes[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq', 'epsi1md',
                      'i0eps']].dropna(subset=['y_ibes_qoq','y_consensus_qoq'], how='all')   # remove NaN records after full_period conversion
 
     final_df.to_csv('preprocess/ibes_data_qoq.csv', index=False)
@@ -88,4 +88,27 @@ def eps_to_qoq():
 if __name__ == '__main__':
     # clean_ibes_excel()
     # clean_ibes_excel2()
-    eps_to_qoq()
+    # eps_to_qoq()
+
+    import ast
+    nodes = pd.read_csv('nodes.csv')
+    nodes['nodes'] = nodes['nodes'].apply(lambda x: ast.literal_eval(x))
+
+    def calc_params(lst, num_f):
+        p = 0
+        for i in range((len(lst)+1)):
+            if i==0:
+                p+=num_f*lst[i]
+            elif i == (len(lst)):
+                p+=lst[i-1]
+            else:
+                p+=lst[i]*lst[i-1]
+        p+=(np.sum(lst) + 1)
+        return p
+
+    nodes['parms-46'] = nodes['nodes'].apply(lambda x: calc_params(x, 46))
+    nodes['parms-49'] = nodes['nodes'].apply(lambda x: calc_params(x, 49))
+    nodes['parms-15'] = nodes['nodes'].apply(lambda x: calc_params(x, 15))
+
+    nodes.to_csv('nodes.csv', index=False)
+    exit(0)

@@ -76,6 +76,9 @@ def merge_ibes_stock():
     detail_stock['y_type'] = 'ibes'     # all rnn trials has been ibes_yoy as Y
     detail_stock['label'] = 'rnn'       # "label" to find cut_bins from TABLE results_bins_new
 
+    if tname == 'rnn_top':
+        detail_stock['exclude_fwd'] = False
+
     # decide base list -> identifier + period_end appeared in both lgbm and rnn models
     lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
                        usecols=['identifier', 'testing_period'])
@@ -150,8 +153,12 @@ if __name__ == "__main__":
     # organize()
 
     r_name = 'small_training_False_0'
-    r_name = 'industry_exclude'
+    # r_name = 'industry_exclude'
     tname = 'cnn_rnn' # or rnn_eps
+    #
+    # r_name = 'top15_lgbm'
+    # tname = 'rnn_top'
+
 
     yoy_merge = merge_ibes_stock()
     calc_mae_write(yoy_merge, r_name, tname='{}｜{}'.format(tname, r_name))

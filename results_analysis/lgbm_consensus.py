@@ -111,39 +111,13 @@ class eps_to_yoy:
         self.ibes.loc[self.ibes.groupby('identifier').tail(4).index, 'y_ibes'] = np.nan     # use ibes ttm for Y
 
         self.ibes['y_consensus'] = (self.ibes['eps1fd12'] - self.ibes['eps1tr12']) * self.ibes['fn_5192'] / self.ibes['fn_8001']     # use ibes fwd & ttm for Y estimation
-
-        self.ibes = label_sector(self.ibes[['identifier', 'period_end', 'y_consensus', 'y_ibes','y_ni']]).dropna(how='any')
+        self.ibes = label_sector(self.ibes).dropna(how='any')
         self.ibes = self.ibes.merge(date_type(self.ibes_qoq), on=['identifier', 'period_end'], how='outer')  # add qoq to consensus
 
         return self.ibes
 
 def yoy_to_median(yoy):
     ''' 2. convert yoy in qcut format to medians with med_train from training set'''
-
-    # print(yoy.columns, yoy)
-    # df = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_qoq.csv',usecols=['identifier', 'testing_period']).drop_duplicates()
-    # yoy = date_type(df,'testing_period').merge(yoy, left_on=['identifier', 'testing_period'], right_on=['identifier', 'period_end'])
-    # yoy = yoy.dropna(subset=['y_ibes_qoq','y_consensus_qoq'], how='any')
-    #
-    # for i in [10]:
-    #
-    #     def convert_qcut(s):
-    #         train_y, cut_bins = pd.qcut(s, q=i, retbins=True, labels=False, duplicates='drop')  # qoq will drop duplicated bins when occur
-    #         df = pd.DataFrame(np.vstack((s, np.array(train_y)))).T  # concat original series / qcut series
-    #         median = df.groupby([1]).median().sort_index().iloc[:,0].to_list()  # find median of each group
-    #         train_y = pd.DataFrame(train_y).replace(range(len(cut_bins) - 1), median).iloc[:,0].values
-    #         return train_y
-    #
-    #     yoy['y_ibes_qoq_qcut'] = convert_qcut(yoy['y_ibes_qoq'])
-    #     yoy['y_consensus_qoq_qcut'] = convert_qcut(yoy['y_consensus_qoq'])
-    #
-    #     dict = {}
-    #     dict['consensus_r2'] = r2_score(yoy['y_ibes_qoq_qcut'], yoy['y_consensus_qoq_qcut'])
-    #     dict['consensus_r2_org'] = r2_score(yoy['y_ibes_qoq'], yoy['y_consensus_qoq'])
-    #     dict['len'] = len(yoy)
-    #
-    #     print(i, dict)
-    # exit(0)
 
     try:    # read cut_bins from DB TABLE results_bins_new
         bins_df = pd.read_csv('results_analy1sis/results_bins_new.csv')
@@ -207,10 +181,6 @@ def yoy_to_median(yoy):
         yoy_list.append(part_yoy)
 
     yoy_median = pd.concat(yoy_list, axis=0).dropna(subset=['y_consensus_qcut','y_ibes_qcut'], how='all')
-
-    # print(set(yoy_median['label']))
-    # print(yoy_median)
-    # exit(0)
 
     return yoy_median
 
@@ -343,14 +313,18 @@ class calc_mae_write():
             base_list = date_type(base_list, 'testing_period')
             yoy_merge = yoy_merge.merge(base_list, on=['identifier', 'testing_period'], how='inner')
 
-        # print(yoy_merge)
-        # print(yoy_merge.columns)
-        # yoy_merge['pred_eps'] = yoy_merge['eps']
-        # exit(0)
+        # if not 'qoq' in r_name:     # add real eps prediction
+        #     yoy_merge['pred_eps'] = yoy_merge['pred'] * yoy_merge['fn_8001'] / yoy_merge['fn_5192'] + yoy_merge['eps1tr12']
+        # else:
+        #     yoy_merge['pred_eps'] = yoy_merge['pred'] * yoy_merge['fn_8001'] / yoy_merge['fn_5192'] + yoy_merge['i0eps']
+        #
+        # yoy_merge = full_period(yoy_merge, 'identifier')    # find actual eps for next q/y
+        # yoy_merge['eps_nexty'] = yoy_merge['eps1tr12'].shift(-4)
+        # yoy_merge.loc[yoy_merge.groupby('identifier').tail(4).index, 'eps_nexty'] = np.nan # last quarter qoq
+        # yoy_merge['eps_nextq'] = yoy_merge['i0eps'].shift(-1)
+        # yoy_merge.loc[yoy_merge.groupby('identifier').tail(1).index, 'eps_nextq'] = np.nan # last quarter qoq
+        # yoy_merge = yoy_merge.dropna(how='any')
 
-        self.tname = tname
-        # self.merge = yoy_merge
-        # self.merge['exclude_fwd'] = self.merge['exclude_fwd'].replace([True, False], ['ex_fwd', 'in_fwd'])
         yoy_merge['icb_code'] = yoy_merge['icb_code'].astype(int).astype(str)
         yoy_merge['icb_type'] = [len(x) for x in yoy_merge['icb_code']]
         yoy_merge['icb_type'] = yoy_merge['icb_type'].astype(str)
@@ -404,7 +378,7 @@ class calc_mae_write():
 
         industry_dict = {}
 
-        for name, g in self.merge.groupby(['testing_period', 'icb_industry', 'x_type']):
+        for name, g in self.merge.groupby(['testing_period', 'x_type']):
             industry_dict[name] = self.part_mae(g)
 
         df = pd.DataFrame(industry_dict).T.unstack()
@@ -468,9 +442,10 @@ class calc_mae_write():
         def median_absolute_error(y_true, y_pred):
             return np.median(np.abs(y_true - y_pred))
 
+        print(r2_score(df['y_ibes'], df['y_ibes_qcut']))
+
         dict = {}
         dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])      # after qcut metrices - consensus
-        # dict['consensus_mape_org'] = mean_absolute_percentage_error(df['y_ibes'], df['y_consensus'])
         dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
 
@@ -483,22 +458,30 @@ class calc_mae_write():
             dict['consensus_medae_org'] = median_absolute_error(df['y_ibes'], df['y_consensus'])
             dict['consensus_mse_org'] = mean_squared_error(df['y_ibes'], df['y_consensus'])
             dict['consensus_r2_org'] = r2_score(df['y_ibes'], df['y_consensus'])
+            # dict['consensus_mae_eps'] = mean_absolute_error(df['eps_nexty'], df['eps1fd12'])
+            # dict['consensus_mape_eps'] = mean_absolute_percentage_error(df['eps_nexty'], df['eps1fd12'])
 
             dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes'], df['pred'])    # before qcut metrices - lgbm
             dict['lgbm_medae_org'] = median_absolute_error(df['y_ibes'], df['pred'])
             dict['lgbm_mse_org'] = mean_squared_error(df['y_ibes'], df['pred'])
             dict['lgbm_r2_org'] = r2_score(df['y_ibes'], df['pred'])
+            # dict['lgbm_mae_eps'] = mean_absolute_error(df['eps_nexty'], df['pred_eps'])
+            # dict['lgbm_mape_eps'] = mean_absolute_percentage_error(df['eps_nexty'], df['pred_eps'])
 
         elif 'ibes_qoq' in self.name:   # calculate when y == ibes qoq
             dict['consensus_mae_org'] = mean_absolute_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
             dict['consensus_medae_org'] = median_absolute_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
             dict['consensus_mse_org'] = mean_squared_error(df['y_ibes_qoq'], df['y_consensus_qoq'])
             dict['consensus_r2_org'] = r2_score(df['y_ibes_qoq'], df['y_consensus_qoq'])
+            # dict['consensus_mae_eps'] = mean_absolute_error(df['eps_nextq'], df['epsi1md'])
+            # dict['consensus_mape_eps'] = mean_absolute_percentage_error(df['eps_nextq'], df['epsi1md'])
 
             dict['lgbm_mae_org'] = mean_absolute_error(df['y_ibes_qoq'], df['pred'])    # before qcut metrices - lgbm
             dict['lgbm_medae_org'] = median_absolute_error(df['y_ibes_qoq'], df['pred'])
             dict['lgbm_mse_org'] = mean_squared_error(df['y_ibes_qoq'], df['pred'])
             dict['lgbm_r2_org'] = r2_score(df['y_ibes_qoq'], df['pred'])
+            # dict['lgbm_mae_eps'] = mean_absolute_error(df['eps_nextq'], df['pred_eps'])
+            # dict['lgbm_mape_eps'] = mean_absolute_percentage_error(df['eps_nextq'], df['pred_eps'])
 
         # elif 'ni' in self.name:
         #     dict['lgbm_mae'] = mean_absolute_error(df['y_ni_qcut'], df['pred'])
@@ -588,14 +571,19 @@ if __name__ == "__main__":
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'ibes_new industry_all x -indi space'
     # r_name = 'ibes_entire_only ws -smaller space'
-    r_name = 'ibes_industry -sp500'
+    # r_name = 'ibes_industry -sp500'
+    # r_name = 'sp500_entire'
 
     # r_name = 'xgb ind2 -sample_type industry -x_type fwdepsqcut'
-    r_name = 'xgb ind4 -sample_type industry -x_type ni'
+    # r_name = 'xgb ind4 -sample_type industry -x_type ni'
     # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
+    # r_name = 'xgb tune_indi -sample_type industry -x_type ni'
+    # r_name = 'xgb tryrun -sample_type entire -x_type fwdepsqcut'
 
     # r_name = 'ibes_qoq_tune10_ind2'
     # r_name = 'ibes_qoq_tune10_ind3'
+
+    # r_name = 'ibes_new industry_all x -mse'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

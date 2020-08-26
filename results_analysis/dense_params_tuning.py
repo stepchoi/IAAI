@@ -192,6 +192,9 @@ if __name__ == "__main__":
     r_name = 'mini_tune15_re -code 0 -exclude_fwd True'
 
     r_name = 'hyperopt_compare3 -code 0 -exclude_fwd False'
+    r_name = 'compare large space'
+    r_name = 'top15_infwd_mini -code 0 -exclude_fwd False'
+
     tname = 'dense2'
 
     results = download(r_name=r_name, best='best')
