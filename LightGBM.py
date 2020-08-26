@@ -16,6 +16,11 @@ from load_data_lgbm import load_data
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+def lgb_r2_score(preds, dtrain):
+    ''' r2 objective for training '''
+    labels = dtrain.get_label()
+    return 'r2', r2_score(labels, preds), True
+
 def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
@@ -26,14 +31,26 @@ def lgbm_train(space):
     lgb_eval = lgb.Dataset(sample_set['valid_x'], label=sample_set['valid_y'], free_raw_data=False, reference=lgb_train)
 
     evals_result = {}
-    gbm = lgb.train(params,
-                    lgb_train,
-                    valid_sets=[lgb_eval, lgb_train],
-                    valid_names=['valid', 'train'],
-                    num_boost_round=1000,
-                    early_stopping_rounds=150,
-                    feature_name = feature_names,
-                    evals_result=evals_result)
+    if params['objective'] == 'r2':
+        params['objective'] = 'regression_l2'
+        gbm = lgb.train(params,
+                        lgb_train,
+                        valid_sets=[lgb_eval, lgb_train],
+                        valid_names=['valid', 'train'],
+                        num_boost_round=1000,
+                        early_stopping_rounds=150,
+                        feature_name=feature_names,
+                        evals_result=evals_result,
+                        feval=lgb_r2_score)
+    else:
+        gbm = lgb.train(params,
+                        lgb_train,
+                        valid_sets=[lgb_eval, lgb_train],
+                        valid_names=['valid', 'train'],
+                        num_boost_round=1000,
+                        early_stopping_rounds=150,
+                        feature_name = feature_names,
+                        evals_result=evals_result)
 
     # plot_history(evals_result, gbm, sql_result['trial_lgbm'])
 
@@ -87,7 +104,14 @@ def eval(space):
 
     sql_result['trial_lgbm'] += 1
 
-    return result['mae_valid']
+    if sql_result['objective'] == 'r2':
+        return 1 - result['r2_valid']
+    elif sql_result['objective'] == 'regression_l2':
+        return result['mse_valid']
+    elif sql_result['objective'] == 'regression_l1':
+        return result['mae_valid']
+    else:
+        NameError('Objective not evaluated!')
 
 def eval_classify(space):
     ''' train & evaluate LightGBM on given space by hyperopt trails '''
@@ -281,8 +305,7 @@ if __name__ == "__main__":
         partitions = [0]
 
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
-    base_space = {'objective': 'regression_l1',  # for regression
-                  'verbose': -1,
+    base_space = {'verbose': -1,
                   'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
