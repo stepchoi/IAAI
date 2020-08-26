@@ -320,22 +320,6 @@ class download:
                                             right_on=['identifier', 'period_end','y_type', 'icb_code','label'],
                                             suffixes=('_lgbm', '_ibes'))
 
-        # c = yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut'].values == yoy_merge.loc[yoy_merge['x_type']=='fwdepsqcut-industry_code'].values
-        # print(c)
-        # print(yoy_merge.columns)
-        # print(c.sum(axis=0))
-        # exit(0)
-
-        # new = {}
-        # new['consensus'] = mean_absolute_error(yoy_merge_1['y_consensus_qcut'], yoy_merge_1['y_ibes_qcut'])
-        # new['lgbm'] = mean_absolute_error(yoy_merge_1['pred'], yoy_merge_1['y_ibes_qcut'])
-        # print(i, r_name, new)
-
-        # exit(0)
-
-        # return label_sector(yoy_merge[['identifier', 'testing_period', 'y_type', 'x_type', 'pred', 'icb_code',
-        #                                'y_consensus_qcut', 'y_ni_qcut', 'y_ibes_qcut', 'y_ibes', 'y_consensus']]) # 'exclude_fwd -> x_type
-
         return label_sector(yoy_merge)
 
 class calc_mae_write():
@@ -359,7 +343,10 @@ class calc_mae_write():
             base_list = date_type(base_list, 'testing_period')
             yoy_merge = yoy_merge.merge(base_list, on=['identifier', 'testing_period'], how='inner')
 
-        print(yoy_merge)
+        # print(yoy_merge)
+        # print(yoy_merge.columns)
+        # yoy_merge['pred_eps'] = yoy_merge['eps']
+        # exit(0)
 
         self.tname = tname
         # self.merge = yoy_merge
@@ -608,6 +595,7 @@ if __name__ == "__main__":
     # r_name = 'xgb ind_all_tuning -sample_type industry -x_type ni'
 
     # r_name = 'ibes_qoq_tune10_ind2'
+    # r_name = 'ibes_qoq_tune10_ind3'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

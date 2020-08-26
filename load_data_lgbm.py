@@ -112,7 +112,8 @@ class add_macro:
 
         self.macros = date_type(self.macros)    # convert to date
         self.new_macros = date_type(self.new_macros)
-        self.ratios = date_type(self.ratios).merge(date_type(self.ibes_qoq), on=['identifier','period_end'], how='outer')
+        self.ratios = date_type(self.ratios).merge(date_type(self.ibes_qoq[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq']])
+                                                   , on=['identifier','period_end'], how='outer')
         self.ratios = self.ratios.merge(date_type(self.ratios_qoq), on=['identifier','period_end'], how='outer')
         self.macros = self.macros.loc[self.macros['period_end'] >= dt.datetime(1997,12,31)] # filter records after 1998
 

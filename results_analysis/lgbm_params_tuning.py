@@ -178,7 +178,9 @@ if __name__ == "__main__":
 
     r_name = ['compare15']
 
-    # r_name = ['xgb ind3 -sample_type industry -x_type ni','xgb ind_all_tuning -sample_type industry -x_type ni']
+    r_name = ['xgb ind3 -sample_type industry -x_type ni','xgb ind_all_tuning -sample_type industry -x_type ni',
+              'xgb ind4 -sample_type industry -x_type ni']
+    r_name = ['xgb ind4 -sample_type industry -x_type ni']
 
     # r_name = ['ibes_qoq_tune10']
     # r_name = ['ibes_qoq_tune10_ind']

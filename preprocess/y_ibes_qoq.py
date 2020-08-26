@@ -77,8 +77,13 @@ def eps_to_qoq():
     ibes.loc[ibes.groupby('identifier').tail(1).index, 'y_ibes_qoq'] = np.nan  # use ibes ttm for Y
 
     ibes['y_consensus_qoq'] = (ibes['epsi1md'] - ibes['i0eps']) * ibes['fn_5192'] / ibes['fn_8001']  # use ibes fwd & ttm for Y estimation
+    final_df = ibes[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq',
+                     'i0eps']].dropna(subset=['y_ibes_qoq','y_consensus_qoq'], how='all')   # remove NaN records after full_period conversion
 
-    ibes[['identifier', 'period_end','y_ibes_qoq','y_consensus_qoq']].dropna(['y_ibes_qoq','y_consensus_qoq'], how='all').to_csv('preprocess/ibes_data_qoq.csv', index=False)
+    final_df.to_csv('preprocess/ibes_data_qoq.csv', index=False)
+    with engine.connect() as conn:
+        final_df.to_sql('ibes_data_qoq', con=conn, index=False, if_exists='replace', method='multi')
+    engine.dispose()
 
 if __name__ == '__main__':
     # clean_ibes_excel()

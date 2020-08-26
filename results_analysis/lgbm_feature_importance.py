@@ -15,9 +15,9 @@ def download_result_features(r_name=[]):
         # read DB TABLE results_lightgbm data for given "name"
         if r_name == []:
             result_all = pd.read_sql("SELECT trial_lgbm, x_type, y_type,icb_code FROM results_{} "
-                                     "WHERE y_type ='ibes".format(tname), conn)
+                                     "WHERE y_type ='ibes".format(tname_1), conn)
         else:
-            query_1 = text('SELECT trial_lgbm, x_type, y_type,icb_code FROM results_{} WHERE (name IN :r_name)'.format(tname))
+            query_1 = text('SELECT trial_lgbm, x_type, y_type,icb_code FROM results_{} WHERE (name IN :r_name)'.format(tname_1))
             query_1 = query_1.bindparams(r_name=tuple(r_name))
             result_all = pd.read_sql(query_1, conn)
 
@@ -25,7 +25,7 @@ def download_result_features(r_name=[]):
         trial_lgbm = set(result_all['trial_lgbm'])
 
         # read corresponding part of DB TABLE results_lightgbm_stock
-        query = text('SELECT * FROM results_feature_importance WHERE (trial_lgbm IN :trial_lgbm)')
+        query = text('SELECT * FROM results_feature_importance{} WHERE (trial_lgbm IN :trial_lgbm)'.format(tname_2))
         query = query.bindparams(trial_lgbm=tuple(trial_lgbm))
         result_stock = pd.read_sql(query, conn)
         print('result_stock: ', result_stock.shape)
@@ -84,7 +84,12 @@ def org_describe(feature_info, importance_type='split', tname=''):
        'uscnper.d', 'cpi', 'gdp', 'ipi', 'reer', 'index', 'interest_rate_10y',
        'interest_rate_3m', 'unemployment', 'eps_ts01',
        'eps_ts13', 'eps_ts35', 'ibes_qcut_as_x', 'icb_sector_x',
-       'icb_industry_x']
+       'icb_industry_x', 'ni_qoq1',
+       'sales_qoq1', 'pretax_margin_qoq1', 'cfps_qoq1', 'ni_qoq2',
+       'sales_qoq2', 'pretax_margin_qoq2', 'cfps_qoq2', 'ni_qoq3',
+       'sales_qoq3', 'pretax_margin_qoq3', 'cfps_qoq3', 'stock_return_qoq0',
+       'stock_return_qoq1', 'stock_return_qoq2', 'stock_return_qoq3', 'i0eps', 'ni_qoq0',
+       'sales_qoq0', 'pretax_margin_qoq0', 'cfps_qoq0']
 
     feature_info = feature_info.filter(['x_type', 'trial_lgbm', 'icb_code', 'importance_type', 'y_type'] + x_col)
 
@@ -128,8 +133,9 @@ if __name__ == "__main__":
 
     # r_name = 'xgb xgb_space -sample_type industry -x_type fwdepsqcut'
 
-    r_name = ['ibes_qoqcut8_entire']
-    tname = 'lightgbm'
+    r_name = ['ibes_qoq_tune10_ind3']
+    tname_1 = 'lightgbm'
+    tname_2 = '_qoq'
 
     feature = download(r_name).finish()
     # feature = pd.read_csv('201030 feature importance.csv')
