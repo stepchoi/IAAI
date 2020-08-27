@@ -1,7 +1,6 @@
 from hyperopt import hp
 
 space_qoq = {}
-
 space_qoq[0] = {
     'learning_rate': 0.01,
     'boosting_type': 'dart',
@@ -145,17 +144,17 @@ space_qoq[65] = {
 
 # add this one for hyperspace comparison test
 space_compare = {
-    'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
-    'boosting_type': 'dart',
-    'max_bin': 128,
-    'num_leaves': 125,
-    'min_data_in_leaf': hp.choice('min_data_in_leaf', [1, 500]),
-    'feature_fraction': hp.choice('feature_fraction', [0.1, 0.9]),
-    'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
-    'bagging_freq': 1,
-    'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 50]),
-    'lambda_l1': hp.choice('lambda_l1', [1, 500]),
-    'lambda_l2': 100,
+'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
+'boosting_type': 'dart',
+'max_bin': 128,
+'num_leaves': 125,
+'min_data_in_leaf': hp.choice('min_data_in_leaf', [1, 500]),
+'feature_fraction': hp.choice('feature_fraction', [0.1, 0.9]),
+'bagging_fraction': hp.choice('bagging_fraction', [0.1, 0.9]),
+'bagging_freq': 1,
+'min_gain_to_split': hp.choice('min_gain_to_split', [0.05, 50]),
+'lambda_l1': hp.choice('lambda_l1', [1, 500]),
+'lambda_l2': 100,
 }
 
 space_yoy = {}
@@ -299,6 +298,11 @@ space_yoy[65] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
+space_yoy['us'] = {}
+space_yoy['hk'] = {}
+space_yoy['jp'] = {}
+space_yoy['cn'] = {}
+
 l2_update = {
     'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.001, 0.1]),
     'lambda_l1': hp.choice('lambda_l1', [0, 1, 10, 100]),
@@ -315,11 +319,14 @@ def find_hyperspace(sql_result):
     if sql_result['objective'] == 'regression_l2':
         space.update(l2_update)
 
-    if sql_result['icb_code'] < 10:
+    if sql_result['icb_code'] < 10:     # for 0, 1, 2
         if 'compare' in sql_result['name']:
             return space_compare
-        else:
+        elif sql_result['market'] == ' normal':
             return space[0]
+        else:
+            return space[sql_result['market']]
+
     elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
         sp = space[sql_result['icb_code']]
         if 'mse' in sql_result['name']:

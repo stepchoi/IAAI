@@ -32,6 +32,7 @@ def download_add_detail(r_name, table_name):
     print('----------------> update stock results from DB TABLE {}'.format(table_name))
     if tname == 'xgboost':
         col_name.append('grow_policy')
+
     with engine.connect() as conn:
 
         if r_name != 'all':     # read DB TABLE results_lightgbm data for given "name"
@@ -40,6 +41,8 @@ def download_add_detail(r_name, table_name):
             query = text("SELECT {} FROM results_lightgbm").format(', '.join(col_name))
         result_all = pd.read_sql(query, conn)
         trial_lgbm = set(result_all['trial_lgbm'])
+
+        print(result_all)
 
         try:
             result_stock = pd.read_csv('results_analysis/compare_with_ibes/stocks_all.csv')
@@ -242,8 +245,7 @@ class download:
     def merge_stock_ibes(self, agg_type='median'):
         ''' combine all prediction together '''
 
-        self.detail_stock = fill_non_columns(self.detail_stock)     # fill in not existed columns
-        self.detail_stock = combine_5_cv_results(self.detail_stock, agg_type=agg_type)     # combine 5 results
+        self.detail_stock = combine_5_cv_results(self.detail_stock, fill_non_columns, agg_type=agg_type)     # combine 5 results
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
 
         # merge (stock prediction) with (ibes consensus median)
@@ -309,8 +311,6 @@ def combine_market_industry_results():
     yoy_merge = label_sector(yoy_merge)
 
     calc_mae_write(date_type(yoy_merge, 'testing_period'), r_name='', base_list_type='sp', csv_name='config_4')
-
-
 
 class calc_mae_write():
 
@@ -467,12 +467,12 @@ class calc_mae_write():
         print(r2_score(df['y_ibes'], df['y_ibes_qcut']))
 
         dict = {}
-        dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])      # after qcut metrices - consensus
-        dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
+        # dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])      # after qcut metrices - consensus
+        # dict['consensus_mse'] = mean_squared_error(df['y_ibes_qcut'], df['y_consensus_qcut'])
         dict['consensus_r2'] = r2_score(df['y_ibes_qcut'], df['y_consensus_qcut'])
 
-        dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])   # after qcut metrices - lgbm
-        dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
+        # dict['lgbm_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['pred'])   # after qcut metrices - lgbm
+        # dict['lgbm_mse'] = mean_squared_error(df['y_ibes_qcut'], df['pred'])
         dict['lgbm_r2'] = r2_score(df['y_ibes_qcut'], df['pred'])
 
         if 'ibes' in self.name:     # calculate when y == ibes (yoy)
@@ -590,8 +590,8 @@ def combine():
 
 if __name__ == "__main__":
 
-    combine_market_industry_results()
-    exit(0)
+    # combine_market_industry_results()
+    # exit(0)
 
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'ibes_new industry_all x -indi space'
@@ -610,6 +610,9 @@ if __name__ == "__main__":
 
     # r_name = 'ibes_new industry_all x -mse'
     r_name = 'rounding_ind_ex'
+    r_name = 'optimize_r2_industry'
+
+    r_name = 'mse_tune_entire'
 
     if 'xgb' in r_name:
         tname = 'xgboost'

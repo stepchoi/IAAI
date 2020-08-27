@@ -73,9 +73,9 @@ def calc_average(df, r_name, model='lgbm'):
         # df_list.append(sub_df.mean()['mae_test'])
         for p in params:
             try:
-                des_df = sub_df.groupby(p).mean()['mae_test'].reset_index()  # calculate means of each subset
+                des_df = sub_df.groupby(p).mean()[['mae_test','r2_test']].reset_index()  # calculate means of each subset
                 des_df['len'] = sub_df.groupby(p).count().reset_index()['mae_test']
-                des_df.columns = ['subset', 'mae_test', 'len']
+                des_df.columns = ['subset', 'mae_test', 'r2_test', 'len']
                 des_df['params'] = p
                 des_df = des_df.sort_values(by=['mae_test'], ascending=True)
                 print(des_df)
@@ -185,6 +185,8 @@ if __name__ == "__main__":
 
     # r_name = ['ibes_qoq_tune10']
     # r_name = ['ibes_qoq_tune10_ind']
+
+    r_name = ['mse_tune_entire']
 
     if 'xgb' in r_name[0]:
         tname = 'xgboost'
