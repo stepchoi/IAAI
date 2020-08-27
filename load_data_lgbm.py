@@ -76,7 +76,7 @@ def check_id(df, id=idd):
     exit(0)
 
 def filter_sp_only(df, market='normal'):
-    ''' select members from S&P500 index for training '''
+    ''' select members from certain index for training '''
 
     with engine.connect() as conn:
         sp = pd.read_sql('SELECT index_ric, identifier FROM dl_value_universe', conn)       # read index-ticker-id mapping from DB
@@ -85,14 +85,15 @@ def filter_sp_only(df, market='normal'):
     df = pd.merge(sp, df, on='identifier') # label market for each id
 
     market_index_map = {'us': '0#.SPX', 'cn': '0#.CSI300', 'jp': '0#.N225', 'hk': '0#.HSLI'}    # map market name to index name
-    print('----> filter out stocks from market {}'.format(market), df.shape, len(set(df['identifier'])))
 
-    try:
-        df = df.loc[sp['index_ric']==market_index_map[market]]
+    try:    # select companies
+        df = df.loc[df['index_ric']==market_index_map[market]]
     except:
         NameError('WRONG market label: use [us, cn, jp, hk]')
 
-    return df
+    print('----> filter out stocks from market {}'.format(market), df.shape, len(set(df['identifier'])))
+
+    return df.drop(['index_ric'], axis=1)
 
 class add_macro:
 

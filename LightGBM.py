@@ -281,7 +281,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--name_sql', required=True)
     parser.add_argument('--objective', default='regression_l1')
-    parser.add_argument('--sp_only', default=False, action='store_true')
     parser.add_argument('--exclude_stock', default=False, action='store_true')
     parser.add_argument('--resume', default=False, action='store_true')
     parser.add_argument('--exclude_fwd', default=False, action='store_true')
@@ -298,6 +297,7 @@ if __name__ == "__main__":
     sleep(args.sleep)
 
     # training / testing sets split par
+    market_list = ['normal'] # default setting = all samples cross countries
     if args.sample_type == 'industry':
         partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
     elif args.sample_type == 'sector':
@@ -305,6 +305,10 @@ if __name__ == "__main__":
                        201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
     elif args.sample_type == 'entire':
         partitions = [0]
+    elif args.sample_type == 'market':
+        partitions = [0]
+        market_list = ['jp', 'cn', 'hk']
+
 
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     base_space = {'verbose': -1,
@@ -325,71 +329,72 @@ if __name__ == "__main__":
                         'exclude_stock': args.exclude_stock,
                         }
 
-    data = load_data(macro_monthly=True, sp_only=args.sp_only, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    for mkt in market_list:     # roll over partition for each market (for IIIb)
+        data = load_data(macro_monthly=True, market=mkt, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
-    sql_result['objective'] = base_space['objective'] = args.objective
-    x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
-    sql_result['x_type'] = x_type_map[args.exclude_fwd]
-    sql_result['name'] = args.name_sql
+        sql_result['objective'] = base_space['objective'] = args.objective
+        x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
+        sql_result['x_type'] = x_type_map[args.exclude_fwd]
+        sql_result['name'] = args.name_sql
 
-    # update load_data data
-    sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
-    sql_result['y_type'] = load_data_params['y_type']
+        # update load_data data
+        sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
+        sql_result['y_type'] = load_data_params['y_type']
 
-    ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
+        ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
 
-    db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+        db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
 
-    for icb_code in partitions:   # roll over industries (first 2 icb code)
+        for icb_code in partitions:   # roll over industries (first 2 icb code)
 
-        data.split_industry(icb_code, combine_ind=True)
-        sql_result['icb_code'] = icb_code
+            data.split_industry(icb_code, combine_ind=True)
+            sql_result['icb_code'] = icb_code
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3)
-            sql_result['testing_period'] = testing_period
+            for i in tqdm(range(sample_no)):  # roll over testing period
+                testing_period = period_1 + i * relativedelta(months=3)
+                sql_result['testing_period'] = testing_period
 
-            # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
-            if resume == True:
+                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
+                if resume == True:
 
-                if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
-                    resume = False
-                    print('---------> Resume Training', icb_code, testing_period)
-                else:
-                    print('Not yet resume: params done', icb_code, testing_period)
-                    continue
+                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
+                        resume = False
+                        print('---------> Resume Training', icb_code, testing_period)
+                    else:
+                        print('Not yet resume: params done', icb_code, testing_period)
+                        continue
 
-            # try:
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
-            sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
+                # try:
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
 
-            # print('23355L106' in test_id)
-            print(feature_names)
-            if 'i0eps' in feature_names:
-                NameError('WRONG feature_names with i0eps!')
+                # print('23355L106' in test_id)
+                print(feature_names)
+                if 'i0eps' in feature_names:
+                    NameError('WRONG feature_names with i0eps!')
 
-            # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
 
-            cv_number = 1   # represent which cross-validation sets
-            for train_index, valid_index in cv:     # roll over 5 cross validation set
-                sql_result['cv_number'] = cv_number
+                cv_number = 1   # represent which cross-validation sets
+                for train_index, valid_index in cv:     # roll over 5 cross validation set
+                    sql_result['cv_number'] = cv_number
 
-                # when Resume = False: try split validation set from training set + start hyperopt
-                sample_set['valid_x'] = sample_set['train_x'][valid_index]
-                sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
-                sample_set['valid_y'] = sample_set['train_y'][valid_index]
-                sample_set['train_yy'] = sample_set['train_y'][train_index]
+                    # when Resume = False: try split validation set from training set + start hyperopt
+                    sample_set['valid_x'] = sample_set['train_x'][valid_index]
+                    sample_set['train_xx'] = sample_set['train_x'][train_index] # train_x is in fact train & valid set
+                    sample_set['valid_y'] = sample_set['train_y'][valid_index]
+                    sample_set['train_yy'] = sample_set['train_y'][train_index]
 
-                sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
-                sql_result['valid_len'] = len(sample_set['valid_x'])
+                    sql_result['train_len'] = len(sample_set['train_xx']) # record length of training/validation sets
+                    sql_result['valid_len'] = len(sample_set['valid_x'])
 
-                space = find_hyperspace(sql_result)
-                space.update(base_space)
-                print(space)
+                    space = find_hyperspace(sql_result)
+                    space.update(base_space)
+                    print(space)
 
-                HPOT(space, max_evals=10)   # start hyperopt
-                cv_number += 1
-            # except:
-            #     pass
+                    HPOT(space, max_evals=10)   # start hyperopt
+                    cv_number += 1
+                # except:
+                #     pass
 
 
