@@ -331,6 +331,7 @@ if __name__ == "__main__":
 
     for mkt in market_list:     # roll over partition for each market (for IIIb)
         data = load_data(macro_monthly=True, market=mkt, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+        sql_result['market'] = mkt
 
         sql_result['objective'] = base_space['objective'] = args.objective
         x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
