@@ -299,11 +299,11 @@ space_yoy[65] = {
     'lambda_l2': hp.choice('lambda_l2', [10, 20]),
 }
 
-# l2_update = {
-#
-#
-#
-# }
+l2_update = {
+    'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.001, 0.1]),
+    'lambda_l1': hp.choice('lambda_l1', [0, 1, 10, 100]),
+    'lambda_l2': hp.choice('lambda_l2', [0, 1, 10, 100]),
+}
 
 def find_hyperspace(sql_result):
 
@@ -311,6 +311,9 @@ def find_hyperspace(sql_result):
         space = space_qoq
     else:
         space = space_yoy
+
+    if sql_result['objective'] == 'regression_l2':
+        space.update(l2_update)
 
     if sql_result['icb_code'] < 10:
         if 'compare' in sql_result['name']:
