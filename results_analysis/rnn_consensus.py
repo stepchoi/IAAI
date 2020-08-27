@@ -153,7 +153,8 @@ if __name__ == "__main__":
     # organize()
 
     r_name = 'small_training_False_0'
-    # r_name = 'industry_exclude'
+    r_name = 'without ibes -2'
+    r_name = 'industry_exclude'
     tname = 'cnn_rnn' # or rnn_eps
     #
     # r_name = 'top15_lgbm'

@@ -13,9 +13,8 @@ def download(r_name, best='best'):
     ''' donwload results from results_lightgbm '''
 
     if best == 'best':
-        if
         query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot, exclude_fwd, icb_code) " \
-                "as min_thing from {})t where mae_valid = min_thing".format(tname)
+                "as min_thing from results_{})t where mae_valid = min_thing".format(tname)
 
     try:  # update if newer results is downloaded
         print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
@@ -155,6 +154,9 @@ if __name__ == "__main__":
 
     r_name = 'new with indi code -fix space'
     tname = 'rnn_eps'
+
+    r_name = 'small_training_False_0'
+    tname = 'cnn_rnn'
 
     results = download(r_name=r_name)
     calc_average(results, params=params, r_name=r_name, model='dense2')

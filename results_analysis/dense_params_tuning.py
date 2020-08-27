@@ -195,6 +195,8 @@ if __name__ == "__main__":
     r_name = 'compare large space'
     r_name = 'top15_infwd_mini -code 0 -exclude_fwd False'
 
+    r_name = 'large_big_allx -code 0 -exclude_fwd True'
+
     tname = 'dense2'
 
     results = download(r_name=r_name, best='best')

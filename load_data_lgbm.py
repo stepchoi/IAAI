@@ -165,7 +165,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, macro_monthly=True, sp_only=False):
+    def __init__(self, macro_monthly=True, sp_only=False, sample_ratio=1):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -185,6 +185,8 @@ class load_data:
 
         if sp_only==True:
             self.main = filter_sp_only(self.main)
+        elif sample_ratio < 1:    # select random half of sample for new config I
+            self.main = self.main.sample(frac=sample_ratio)
 
         # define self objects
         self.sample_set = {}
@@ -229,7 +231,7 @@ class load_data:
         self.sector = self.main
 
     def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col,
-                         filter_stock_return_only, sample_ratio):
+                         filter_stock_return_only):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -244,9 +246,6 @@ class load_data:
         elif y_type == 'ibes_qoq':
             self.sector = self.sector.dropna(subset=(['y_ibes_qoq', 'y_consensus_qoq']), how='any')
             self.sector['ibes_qcut_as_x'] = self.sector['y_consensus_qoq']  # replace consensus col with qoq
-
-        if sample_ratio < 1:    # select random half of sample for new config I
-            self.sector = self.sector.sample(frac=sample_ratio)
 
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                                      (self.sector['period_end'] < testing_period)].reset_index(drop=True)
@@ -403,12 +402,11 @@ class load_data:
         return gkf
 
     def split_all(self, testing_period, qcut_q, y_type='ibes', exclude_fwd=False, use_median=True, chron_valid=False,
-                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False,
-                  sample_ratio=1):
+                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False):
         ''' work through cleansing process '''
 
         self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col,
-                              filter_stock_return_only, sample_ratio)
+                              filter_stock_return_only)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)

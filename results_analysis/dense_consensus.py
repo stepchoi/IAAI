@@ -128,6 +128,7 @@ if __name__ == "__main__":
     r_name = 'compare large space'
 
     # r_name = 'sp_fix_space -best_col 0 -code 0 -exclude_fwd True'
+    r_name = 'large_big_allx -code 0 -exclude_fwd True'
 
     tname = 'dense2'
 

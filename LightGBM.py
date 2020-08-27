@@ -323,9 +323,9 @@ if __name__ == "__main__":
                         'qcut_q': args.qcut_q,
                         'ibes_qcut_as_x': not(args.exclude_fwd),
                         'exclude_stock': args.exclude_stock,
-                        'sample_ratio':args.sample_ratio}
+                        }
 
-    data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    data = load_data(macro_monthly=True, sp_only=args.sp_only, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 
     sql_result['objective'] = base_space['objective'] = args.objective
     x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
