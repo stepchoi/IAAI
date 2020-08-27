@@ -229,7 +229,7 @@ class load_data:
         self.sector = self.main
 
     def split_train_test(self, testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col,
-                         filter_stock_return_only):
+                         filter_stock_return_only, sample_ratio):
         ''' split training / testing set based on testing period '''
 
         # 1. split train / test set
@@ -244,6 +244,9 @@ class load_data:
         elif y_type == 'ibes_qoq':
             self.sector = self.sector.dropna(subset=(['y_ibes_qoq', 'y_consensus_qoq']), how='any')
             self.sector['ibes_qcut_as_x'] = self.sector['y_consensus_qoq']  # replace consensus col with qoq
+
+        if sample_ratio < 1:    # select random half of sample for new config I
+            self.sector = self.sector.sample(frac=sample_ratio)
 
         self.train = self.sector.loc[(start <= self.sector['period_end']) &
                                      (self.sector['period_end'] < testing_period)].reset_index(drop=True)
@@ -400,10 +403,12 @@ class load_data:
         return gkf
 
     def split_all(self, testing_period, qcut_q, y_type='ibes', exclude_fwd=False, use_median=True, chron_valid=False,
-                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False):
+                  ibes_qcut_as_x=False, exclude_stock=False, num_best_col=False, filter_stock_return_only=False,
+                  sample_ratio=1):
         ''' work through cleansing process '''
 
-        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col, filter_stock_return_only)
+        self.split_train_test(testing_period, exclude_fwd, ibes_qcut_as_x, y_type, exclude_stock, num_best_col,
+                              filter_stock_return_only, sample_ratio)
         self.standardize_x()
         self.y_qcut(qcut_q, use_median, y_type, ibes_qcut_as_x)
         gkf = self.split_valid(testing_period, chron_valid)
@@ -451,6 +456,7 @@ if __name__ == '__main__':
     testing_period = dt.datetime(2018,3,31)
     qcut_q = 0
     y_type = 'ibes'
+    sample_ratio = 0.5
 
     exclude_fwd = True
     ibes_qcut_as_x = not(exclude_fwd)
@@ -467,7 +473,8 @@ if __name__ == '__main__':
                                                                       chron_valid=chron_valid,
                                                                       ibes_qcut_as_x=ibes_qcut_as_x,
                                                                       exclude_stock=False,
-                                                                      filter_stock_return_only=False)
+                                                                      filter_stock_return_only=False,
+                                                                      sample_ratio=sample_ratio)
     print(feature_names)
     print(sorted(feature_names))
     exit(0)

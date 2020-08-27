@@ -290,6 +290,7 @@ if __name__ == "__main__":
     parser.add_argument('--sample_no', type=int, default=21)
     parser.add_argument('--qcut_q', default=10, type=int)
     parser.add_argument('--trial_lgbm_add', default=1, type=int)
+    parser.add_argument('--sample_ratio', default=1, type=float)
     parser.add_argument('--sleep', type=int, default=0)
     args = parser.parse_args()
 
@@ -321,7 +322,8 @@ if __name__ == "__main__":
                         'y_type': args.y_type,
                         'qcut_q': args.qcut_q,
                         'ibes_qcut_as_x': not(args.exclude_fwd),
-                        'exclude_stock': args.exclude_stock}
+                        'exclude_stock': args.exclude_stock,
+                        'sample_ratio':args.sample_ratio}
 
     data = load_data(macro_monthly=True, sp_only=args.sp_only)          # load all data: create load_data.main = df for all samples - within data(CLASS)
 

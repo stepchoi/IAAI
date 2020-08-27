@@ -584,6 +584,7 @@ if __name__ == "__main__":
     # r_name = 'ibes_qoq_tune10_ind3'
 
     # r_name = 'ibes_new industry_all x -mse'
+    r_name = 'rounding_ind_ex'
 
     if 'xgb' in r_name:
         tname = 'xgboost'
