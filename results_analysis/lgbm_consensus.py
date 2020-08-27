@@ -239,50 +239,11 @@ class download:
 
         return yoy_med
 
-    def merge_stock_ibes(self, agg_type='median', sp_only=False):
+    def merge_stock_ibes(self, agg_type='median'):
         ''' combine all prediction together '''
 
-        # convert datetime
-        # self.detail_stock['exclude_fwd'] = self.detail_stock['exclude_fwd'].fillna(False)
-        self.detail_stock['y_type'] = self.detail_stock['y_type'].fillna('ni')
-
-        if sp_only==True:
-            self.detail_stock['label'] = 'lgbm_sp'
-        else:
-            self.detail_stock['label'] = 'lgbm_normal'
-
-        if 'entire' in r_name: # for entire
-            print('------ convert entire ------')
-            self.detail_stock.loc[self.detail_stock['icb_code']==1, 'x_type'] = 'fwdepsqcut-industry_code'
-            self.detail_stock.loc[self.detail_stock['icb_code']==2, 'x_type'] = 'fwdepsqcut-sector_code'
-            self.detail_stock['icb_code'] = 0
-
-        if tname == 'xgboost':
-            print(self.detail_stock['x_type'])
-            self.detail_stock['x_type'] += '_depthwise'
-
-        print(self.detail_stock['x_type'])
-
-        # print(set(self.detail_stock['x_type']))
-
-        self.detail_stock = self.detail_stock.drop_duplicates(
-            subset=['icb_code', 'identifier', 'testing_period', 'cv_number','x_type','y_type'], keep='last')
-
-        # print(self.yoy_med.columns)
-        # print(self.detail_stock.columns)
-        # exit(0)
-
-        # use median/mean for cross listing & multiple cross-validation
-        if agg_type == 'mean':
-            self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                           'x_type','y_type','label']).mean()['pred'].reset_index(drop=False)
-        elif agg_type == 'median':
-            self.detail_stock = self.detail_stock.groupby(['icb_code', 'identifier', 'testing_period', 'exclude_fwd',
-                                                           'x_type', 'y_type', 'label']).median()['pred'].reset_index(drop=False)
-        else:
-            exit(1)
-
-        self.detail_stock['icb_code'] = self.detail_stock['icb_code'].astype(float)   # convert icb_code to int
+        self.detail_stock = fill_non_columns(self.detail_stock)     # fill in not existed columns
+        self.detail_stock = combine_5_cv_results(self.detail_stock, agg_type=agg_type)     # combine 5 results
         self.yoy_med['icb_code'] = self.yoy_med['icb_code'].astype(float)
 
         # merge (stock prediction) with (ibes consensus median)
@@ -292,9 +253,68 @@ class download:
 
         return label_sector(yoy_merge)
 
+def fill_non_columns(df):
+    ''' fill in columns not exists for certain results table / name for combination '''
+
+    # transitory process: add "market" based on "name" -> all used normal is ok (we no longer keep track of consensus results)
+    df['market'] = 'normal'
+
+    df['y_type'] = df['y_type'].fillna('ni')    # y_type default as ni
+    df['label'] = 'lgbm_' + df['market']        # market label to merge cut_bins
+    df = df.loc[df['icb_code'] == 0]            # use only icb_code = 0, no industry/sector code
+
+    return df
+
+def combine_5_cv_results(df, fill_non_columns=None, agg_type='median'):
+    ''' combine results of all 5 cross validation to mean/median '''
+
+    if fill_non_columns != None:    # fill non type for df
+        fill_non_columns(df)
+
+    agg_col = ['icb_code', 'identifier', 'testing_period', 'exclude_fwd', 'x_type', 'y_type', 'label']
+    
+    df = df.drop_duplicates(subset=['cv_number'] + agg_col, keep='last')  # use last results for same type training (i.e. first one might be test run)
+
+    if agg_type == 'mean':  # use median/mean for cross listing & multiple cross-validation
+        df = df.groupby(agg_col).mean()['pred'].reset_index(drop=False)
+    elif agg_type == 'median':
+        df = df.groupby(agg_col).median()['pred'].reset_index(drop=False)
+    else:
+        exit(1)
+
+    df['icb_code'] = df['icb_code'].astype(float)  # convert icb_code to int
+    return df
+
+def combine_market_industry_results():
+    ''' combine market models + industry models for final results in new config IV '''
+
+    industry = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv')
+    us = pd.read_csv('results_analysis/compare_with_ibes/stock_sp500_entire.csv')
+
+    industry = combine_5_cv_results(industry, fill_non_columns)     # combine 5 cv results
+    us = combine_5_cv_results(us, fill_non_columns)
+
+    industry['icb_code'] = 0
+    us['icb_code'] = 0
+    both = pd.merge(us, industry, on=['icb_code', 'identifier', 'testing_period', 'exclude_fwd', 'x_type', 'y_type',
+                                      'label'],suffixes=('_mkt', '_ind'), how='inner')
+    both['pred'] = both[['pred_mkt', 'pred_ind']].mean(axis=1)
+
+    yoy_med = pd.read_csv('results_analysis/compare_with_ibes/ibes_median.csv')
+    yoy_merge = both.merge(yoy_med,left_on=['identifier', 'testing_period', 'y_type', 'icb_code', 'label'],
+                                    right_on=['identifier', 'period_end', 'y_type', 'icb_code', 'label'],
+                                    suffixes=('_lgbm', '_ibes'))
+
+    print(both)
+    yoy_merge = label_sector(yoy_merge)
+
+    calc_mae_write(date_type(yoy_merge, 'testing_period'), r_name='', base_list_type='sp', csv_name='config_4')
+
+
+
 class calc_mae_write():
 
-    def __init__(self, yoy_merge, r_name, tname='', base_list_type='all'):
+    def __init__(self, yoy_merge, r_name, tname='', base_list_type='all', csv_name=''):
         ''' calculate all MAE and save to local xlsx '''
 
         # decide base list (for non qoq) -> identifier + period_end appeared in both lgbm and rnn models
@@ -334,7 +354,9 @@ class calc_mae_write():
             self.name = name
             self.merge = g
 
-            if base_list_type == 'all':
+            if csv_name != '':
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_new_{}.xlsx'.format(csv_name))
+            elif base_list_type == 'all':
                 self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
             elif base_list_type == 'sp':
                 self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}_sp500.xlsx'.format('_'.join(name),tname))
@@ -568,6 +590,9 @@ def combine():
 
 if __name__ == "__main__":
 
+    combine_market_industry_results()
+    exit(0)
+
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'ibes_new industry_all x -indi space'
     # r_name = 'ibes_entire_only ws -smaller space'
@@ -593,7 +618,7 @@ if __name__ == "__main__":
     else:
         tname = 'lightgbm'
 
-    yoy_merge = download(r_name).merge_stock_ibes(agg_type='median', sp_only=False)
+    yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, r_name, tname=r_name, base_list_type='all')
 
     if compare_using_old_ibes != True:

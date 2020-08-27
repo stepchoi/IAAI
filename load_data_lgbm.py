@@ -75,18 +75,22 @@ def check_id(df, id=idd):
         print(df.loc[df['identifier'] ==id, ['period_end', 'y_ibes']].sort_values(['period_end']))
     exit(0)
 
-def filter_sp_only(df):
+def filter_sp_only(df, market='normal'):
     ''' select members from S&P500 index for training '''
 
     with engine.connect() as conn:
-        sp = pd.read_sql('SELECT * FROM dl_value_universe', conn)       # read index-ticker-id mapping from DB
+        sp = pd.read_sql('SELECT index_ric, identifier FROM dl_value_universe', conn)       # read index-ticker-id mapping from DB
     engine.dispose()
 
-    sp = sp.loc[sp['index_ric']=='0#.SPX', 'identifier'].to_list()      # select SPX members
+    df = pd.merge(sp, df, on='identifier') # label market for each id
 
-    print(df.shape, len(set(df['identifier'])))
-    df = df.loc[df['identifier'].isin(sp)]                              # filter companies
-    print(df.shape, len(set(df['identifier'])))
+    market_index_map = {'us': '0#.SPX', 'cn': '0#.CSI300', 'jp': '0#.N225', 'hk': '0#.HSLI'}    # map market name to index name
+    print('----> filter out stocks from market {}'.format(market), df.shape, len(set(df['identifier'])))
+
+    try:
+        df = df.loc[sp['index_ric']==market_index_map[market]]
+    except:
+        NameError('WRONG market label: use [us, cn, jp, hk]')
 
     return df
 
@@ -165,7 +169,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, macro_monthly=True, sp_only=False, sample_ratio=1):
+    def __init__(self, macro_monthly=True, market='normal', sample_ratio=1):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -183,8 +187,8 @@ class load_data:
         self.main['icb_industry'] = self.main['icb_sector'].astype(str).str[:2].astype(int)
         print('main_consensus: ', self.main.shape)
 
-        if sp_only==True:
-            self.main = filter_sp_only(self.main)
+        if market!='normal':
+            self.main = filter_sp_only(self.main, market=market)
         elif sample_ratio < 1:    # select random half of sample for new config I
             self.main = self.main.sample(frac=sample_ratio)
 
@@ -460,7 +464,7 @@ if __name__ == '__main__':
     ibes_qcut_as_x = not(exclude_fwd)
     macro_monthly = True
 
-    data = load_data(sp_only=False)
+    data = load_data(market='us', sample_ratio=sample_ratio)
     # data.split_sector(icb_code)
     data.split_industry(icb_code, combine_ind=True)
 
@@ -472,7 +476,7 @@ if __name__ == '__main__':
                                                                       ibes_qcut_as_x=ibes_qcut_as_x,
                                                                       exclude_stock=False,
                                                                       filter_stock_return_only=False,
-                                                                      sample_ratio=sample_ratio)
+                                                                      )
     print(feature_names)
     print(sorted(feature_names))
     exit(0)
