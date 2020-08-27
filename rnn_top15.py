@@ -76,7 +76,6 @@ def rnn_train(space): #functional
     for col in range(10):   # build model for each feature
 
         g_1 = K.expand_dims(input_img[:,:,col], axis=2)    # slide input img to certain feature: shape = (samples, 20, 1)
-        print(g_1.shape)
 
         for i in range(1, params['num_gru_layer']):
             temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * (i-1))), 8))  # nodes grow at 2X or stay same - at least 8 nodes
