@@ -1,7 +1,7 @@
 from hyperopt import hp
 base_space = {'min_child_weight': 0, 'alpha': 0, 'tree_method': 'exact'}
 
-def find_l1_sapce():
+def find_l1_space():
     ''' found space when objective is regression_l1 '''
 
     space = {}
@@ -127,7 +127,7 @@ def find_l1_sapce():
 
     return space
 
-def find_l2_sapce():
+def find_l2_space():
     ''' found space when objective is regression_l1 '''
 
     space = {}
@@ -253,12 +253,141 @@ def find_l2_sapce():
 
     return space
 
+def find_l2_round_space():
+    ''' found space when objective is regression_l1 '''
+
+    space = {}
+    space[0] = {
+        'booster': hp.choice('booster',['dart','gbtree']),
+        'max_depth': hp.choice('max_depth',[4, 8, 12]),
+        'max_bin': hp.choice('max_bin', [64, 128, 512]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.2, 0.5, 0.8]), # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.2, 0.5, 0.8]),
+        'gamma': hp.choice('gamma', [50, 100, 500]),
+        'lambda': hp.choice('lambda', [0, 1, 5, 20, 100]), # remove 10
+        'eta': hp.choice('eta', [0.05, 0.1, 0.01]),
+    }
+
+    space[11] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [4, 5, 6]),
+        'max_bin': 128,
+        'colsample_bytree': hp.choice('colsample_bytree', [0.3, 0.9]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.7, 0.8, 0.9]),
+        'gamma': 500,
+        'lambda': hp.choice('lambda', [5, 10, 20]),  # remove 10
+        'eta': 0.05,
+    }
+
+    space[20] = {
+        'booster': 'gbtree',
+        'max_depth': hp.choice('max_depth', [6, 12]),
+        'max_bin': 64,
+        'colsample_bytree': hp.choice('colsample_bytree', [0.2, 0.3, 0.4]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.4, 0.5, 0.6]),
+        'gamma': hp.choice('gamma', [100, 500]),
+        'lambda': hp.choice('lambda', [1, 3, 5]),  # remove 10
+        'eta': 0.05,
+    }
+
+    space[30] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [10, 12, 15]),
+        'max_bin': hp.choice('max_bin', [128, 256]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.7, 0.8, 0.9]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.7, 0.8, 0.9]),
+        'gamma': hp.choice('gamma', [100, 500]),
+        'lambda': hp.choice('lambda', [1, 10, 20]),  # remove 10
+        'eta': 0.05,
+    }
+
+    space[35] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [8, 10]),
+        'max_bin': hp.choice('max_bin', [512, 256]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.4, 0.5, 0.6]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.6, 0.8]),
+        'gamma': 100,
+        'lambda': hp.choice('lambda', [0, 10, 20]),  # remove 10
+        'eta': 0.1,
+    }
+
+    space[40] = {
+        'booster': 'gbtree',
+        'max_depth': hp.choice('max_depth', [12, 10]),
+        'max_bin': 128,
+        'colsample_bytree': hp.choice('colsample_bytree', [0.7, 0.8, 0.9]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.7, 0.8, 0.9]),
+        'gamma': hp.choice('lambda', [500, 100]),
+        'lambda': hp.choice('lambda', [0, 10, 20]),  # remove 10
+        'eta': hp.choice('lambda', [0.1, 0.05])
+    }
+
+    space[45] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [4, 6]),
+        'max_bin': hp.choice('max_bin', [64, 128]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.2, 0.3, 0.4]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.5, 0.7]),
+        'gamma': 500,
+        'lambda': hp.choice('lambda', [1, 10, 20]),  # remove 10
+        'eta': 0.05,
+    }
+
+    space[51] = {
+        'booster': 'gbtree',
+        'max_depth': hp.choice('max_depth', [8, 10]),
+        'max_bin': hp.choice('max_bin', [256, 512]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.6, 0.8]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.5, 0.7]),
+        'gamma': hp.choice('gamma', [50, 100]),
+        'lambda': hp.choice('lambda', [5, 10, 20]),  # remove 10
+        'eta': 0.05,
+    }
+
+    space[60] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [8, 10]),
+        'max_bin': 64,
+        'colsample_bytree': hp.choice('colsample_bytree', [0.7, 0.8, 0.9]), # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.5, 0.7]),
+        'gamma': 500,
+        'lambda': hp.choice('lambda', [0, 100]),  # remove 10
+        'eta': hp.choice('eta', [0.01, 0.1]),
+    }
+
+    space[65] = {
+        'booster': 'dart',
+        'max_depth': hp.choice('max_depth', [4, 6]),
+        'max_bin': hp.choice('max_bin', [128, 256]),
+        'colsample_bytree': hp.choice('colsample_bytree', [0.2, 0.4]),  # remove 0.7
+        'colsample_bylevel': 1,
+        'subsample': hp.choice('subsample', [0.3, 0.9]),
+        'gamma': 100,
+        'lambda': hp.choice('lambda', [1, 100]),  # remove 10
+        'eta': 0.1,
+    }
+
+    return space
+
 def find_hyperspace(sql_result):
 
     if sql_result['objective'] == 'mae':
-        space = find_l1_sapce()
+        space = find_l1_space()
     elif sql_result['objective'] == 'rmse':
-        space = find_l2_sapce()
+        if sql_result['qcut_q'] == 0:
+            space = find_l2_round_space()
+        else:
+            space = find_l2_space()
 
     myspace = space[sql_result['icb_code']]
     myspace.update(base_space)

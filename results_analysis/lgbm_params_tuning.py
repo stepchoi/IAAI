@@ -188,12 +188,11 @@ if __name__ == "__main__":
 
     r_name = ['mse_tune_entire']
 
-    if 'xgb' in r_name[0]:
-        tname = 'xgboost'
-    elif 'rf' in r_name[0]:
-        tname = 'randomforest'
-    else:
-        tname = 'lightgbm'
+    tname = 'lightgbm'
+
+    r_name = ['mse_ex_ind_rounding_tune']
+    r_name = ['mse_ex_ind_tune']
+    tname = 'xgboost'
 
     results = download(r_name=r_name, best='best')
     calc_average(results, r_name)

@@ -206,6 +206,7 @@ class download:
             detail_stock = download_add_detail(self.r_name,'results_lightgbm_stock')
             detail_stock.to_csv('results_analysis/compare_with_ibes/stock_{}.csv'.format(self.r_name), index=False)
 
+        detail_stock['identifier'] = [x.zfill(9) for x in detail_stock['identifier']]   # update identifier for results
         return detail_stock
 
     def download_ibes(self):
@@ -291,7 +292,7 @@ def combine_market_industry_results():
     ''' combine market models + industry models for final results in new config IV '''
 
     industry = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv')
-    us = pd.read_csv('results_analysis/compare_with_ibes/stock_sp500_entire.csv')
+    us = pd.read_csv('results_analysis/compare_with_ibes/stock_3b_country_partition_mae.csv')
 
     industry = combine_5_cv_results(industry, fill_non_columns)     # combine 5 cv results
     us = combine_5_cv_results(us, fill_non_columns)
@@ -310,7 +311,7 @@ def combine_market_industry_results():
     print(both)
     yoy_merge = label_sector(yoy_merge)
 
-    calc_mae_write(date_type(yoy_merge, 'testing_period'), r_name='', base_list_type='sp', csv_name='config_4')
+    calc_mae_write(date_type(yoy_merge, 'testing_period'), r_name='', csv_name='config_4')
 
 class calc_mae_write():
 
@@ -356,12 +357,10 @@ class calc_mae_write():
 
             if csv_name != '':
                 self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_new_{}.xlsx'.format(csv_name))
-            elif base_list_type == 'all':
-                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
-            elif base_list_type == 'sp':
-                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}_sp500.xlsx'.format('_'.join(name),tname))
             elif compare_using_old_ibes == True:
                 self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_old_ibes.xlsx')
+            else:
+                self.writer = pd.ExcelWriter('results_analysis/compare_with_ibes/mae_{}｜{}.xlsx'.format('_'.join(name),tname))
 
             self.by_sector().to_excel(self.writer, 'by_sector')
             self.by_industry().to_excel(self.writer, 'by_industry')
@@ -450,8 +449,7 @@ class calc_mae_write():
         df = pd.DataFrame(industry_dict).T
         print(df.T)
 
-        return reorder_col(df,['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2','consensus_r2',
-                               'consensus_r2_org','len'])
+        return df
 
     def part_mae(self, df):
         ''' calculate different mae for groups of sample '''
@@ -464,7 +462,7 @@ class calc_mae_write():
         def median_absolute_error(y_true, y_pred):
             return np.median(np.abs(y_true - y_pred))
 
-        print(r2_score(df['y_ibes'], df['y_ibes_qcut']))
+        # print(r2_score(df['y_ibes'], df['y_ibes_qcut']))
 
         dict = {}
         # dict['consensus_mae'] = mean_absolute_error(df['y_ibes_qcut'], df['y_consensus_qcut'])      # after qcut metrices - consensus
@@ -582,16 +580,16 @@ def combine():
     def find_col(k):
         return [x for x in avg_df.columns if k in x]
 
-    reorder_col(avg_df, ['lgbm_mae','consensus_mae','lgbm_mse','consensus_mse','lgbm_r2',
-            'consensus_r2','consensus_r2_org','len']).to_excel(writer, 'average_mae')    # write to files
+    avg_df[['lgbm_mae_org','consensus_mae_org','lgbm_mse_org','consensus_mse_org','lgbm_r2_org',
+            'consensus_r2_org','consensus_r2_org','len']].to_excel(writer, 'average_mae')    # write to files
 
     print('save to file name: #compare_all.xlsx')
     writer.save()
 
 if __name__ == "__main__":
 
-    # combine_market_industry_results()
-    # exit(0)
+    combine_market_industry_results()
+    exit(0)
 
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'ibes_new industry_all x -indi space'
@@ -612,7 +610,9 @@ if __name__ == "__main__":
     r_name = 'rounding_ind_ex'
     r_name = 'optimize_r2_industry'
 
-    r_name = 'mse_tune_entire'
+    r_name = 'mse_tune_entire'      # for mse tuning
+
+    r_name = '3b_country_partition_mae'     # for IIIb country partitions
 
     if 'xgb' in r_name:
         tname = 'xgboost'
@@ -622,7 +622,7 @@ if __name__ == "__main__":
         tname = 'lightgbm'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
-    calc_mae_write(yoy_merge, r_name, tname=r_name, base_list_type='all')
+    calc_mae_write(yoy_merge, r_name, tname=r_name)
 
     if compare_using_old_ibes != True:
         combine()
