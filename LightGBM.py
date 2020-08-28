@@ -290,6 +290,7 @@ if __name__ == "__main__":
     parser.add_argument('--qcut_q', default=10, type=int)
     parser.add_argument('--trial_lgbm_add', default=1, type=int)
     parser.add_argument('--sample_ratio', default=1, type=float)
+    parser.add_argument('--nthread', default=12, type=int)
     parser.add_argument('--sleep', type=int, default=0)
     args = parser.parse_args()
 
@@ -312,7 +313,7 @@ if __name__ == "__main__":
 
     period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
     base_space = {'verbose': -1,
-                  'num_threads': 12}  # for the best speed, set this to the number of real CPU cores
+                  'num_threads': args.nthread}  # for the best speed, set this to the number of real CPU cores
 
     # create dict storing values/df used in training
     sql_result = {}     # data write to DB TABLE lightgbm_results

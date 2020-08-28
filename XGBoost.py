@@ -170,6 +170,7 @@ def to_sql_prediction(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['name'] = sql_result['name']
     # print('stock-wise prediction: ', df)
 
     return df
@@ -237,6 +238,7 @@ if __name__ == "__main__":
     parser.add_argument('--qcut_q', default=10, type=int)
     parser.add_argument('--trial_lgbm_add', default=1, type=int)
     parser.add_argument('--sample_ratio', default=1, type=float)
+    parser.add_argument('--nthread', default=12, type=int)
     parser.add_argument('--sleep', type=int, default=0)
     args = parser.parse_args()
 
@@ -246,7 +248,7 @@ if __name__ == "__main__":
     # training / testing sets split par
     market_list = ['normal']  # default setting = all samples cross countries
     if args.sample_type == 'industry':
-        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+        partitions = [40, 45, 51, 60, 65] # 11, 20, 30, 35,
     elif args.sample_type == 'sector':
         partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                       201020, 502030, 401010,
@@ -261,7 +263,7 @@ if __name__ == "__main__":
 
     period_1 = dt.datetime(2013, 3, 31)  # starting point for first testing set
     base_space = {'verbosity': 0,
-                  'nthread': 12,
+                  'nthread': args.nthread,
                   'eval_metric': args.objective,
                   'grow_policy':'depthwise'}
 
@@ -285,7 +287,7 @@ if __name__ == "__main__":
 
         x_type_map = {True: 'fwdepsqcut', False: 'ni'}  # True/False based on exclude_fwd
         sql_result['x_type'] = x_type_map[args.exclude_fwd]
-        sql_result['name'] = 'xgb {} -sample_type {} -x_type {} -{}'.format(args.name_sql, args.sample_type, sql_result['x_type'])  # label experiment
+        sql_result['name'] = args.name_sql  # label experiment
 
         # update load_data data
         sql_result['qcut_q'] = load_data_params['qcut_q']  # number of Y classes
@@ -339,9 +341,9 @@ if __name__ == "__main__":
                     sql_result['valid_len'] = len(sample_set['valid_x'])
 
 
-                    # try:
-                    HPOT(space, max_evals=10)  # start hyperopt
-                    # except:
-                    #     pass
+                    try:
+                        HPOT(space, max_evals=10)  # start hyperopt
+                    except:
+                        pass
                     cv_number += 1
 
