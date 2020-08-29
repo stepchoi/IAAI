@@ -406,7 +406,7 @@ class calc_mae_write():
         df.columns = ['_'.join(x) for x in df.columns.to_list()]
         print(df)
 
-        return df.reset_index(drop=False)
+        return df
 
     def by_nation(self):
         ''' calculate equivalent per testing_period MAE '''
@@ -616,8 +616,8 @@ if __name__ == "__main__":
     tname = 'lightgbm'
 
 
-    r_name = 'mse_ex_ind_rounding_tune1'        # worse than qcut -> stop
-    r_name = 'mse_ex_ind_tune1'
+    r_name = 'mse_ex_ind_rounding_tune2'        # worse than qcut -> stop
+    # r_name = 'mse_ex_ind_tune2'
     tname = 'xgboost'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
