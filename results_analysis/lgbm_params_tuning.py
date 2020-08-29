@@ -51,18 +51,19 @@ def calc_correl(results):
 
     # pd.DataFrame(correls).to_csv('results_analysis/params_tuning/results_correl.csv')
 
-def calc_average(df, r_name, model='lgbm'):
+def calc_average(df, r_name, params=[], model='lgbm'):
     ''' calculate mean of each variable in db '''
 
-    if tname == 'lightgbm':
-        params = ['bagging_fraction', 'bagging_freq', 'feature_fraction', 'lambda_l1', 'learning_rate',
-                  'min_data_in_leaf', 'min_gain_to_split', 'lambda_l2', 'boosting_type', 'max_bin', 'num_leaves']
-    elif tname == 'xgboost':
-        params = ['alpha', 'booster', 'colsample_bylevel', 'colsample_bycode', 'colsample_bytree', 'eta', 'gamma', 'lambda',
-                  'max_bin', 'max_depth', 'min_child_weight', 'num_leaves', 'subsample']
-    elif tname == 'randomforest':
-        params = ['max_features', 'max_samples', 'min_impurity_decrease', 'min_samples_leaf',
-                  'min_samples_split', 'min_weight_fraction_leaf','max_depth']
+    if params == []:
+        if tname == 'lightgbm':
+            params = ['bagging_fraction', 'bagging_freq', 'feature_fraction', 'lambda_l1', 'learning_rate',
+                      'min_data_in_leaf', 'min_gain_to_split', 'lambda_l2', 'boosting_type', 'max_bin', 'num_leaves']
+        elif tname == 'xgboost':
+            params = ['alpha', 'booster', 'colsample_bylevel', 'colsample_bycode', 'colsample_bytree', 'eta', 'gamma', 'lambda',
+                      'max_bin', 'max_depth', 'min_child_weight', 'num_leaves', 'subsample']
+        elif tname == 'randomforest':
+            params = ['max_features', 'max_samples', 'min_impurity_decrease', 'min_samples_leaf',
+                      'min_samples_split', 'min_weight_fraction_leaf','max_depth']
 
     writer = pd.ExcelWriter('results_analysis/params_tuning/{}_describe|{}.xlsx'.format(model, r_name))    # create excel records
 
@@ -190,8 +191,8 @@ if __name__ == "__main__":
 
     tname = 'lightgbm'
 
-    r_name = ['mse_ex_ind_rounding_tune']
-    r_name = ['mse_ex_ind_tune']
+    r_name = ['mse_ex_ind_rounding_tune1']   #stop!
+    r_name = ['mse_ex_ind_tune1']
     tname = 'xgboost'
 
     results = download(r_name=r_name, best='best')

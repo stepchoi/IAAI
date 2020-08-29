@@ -5,8 +5,8 @@ from matplotlib import pyplot as plt
 import datetime as dt
 from results_analysis.lgbm_params_tuning import calc_correl, calc_average
 
-params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult',
-          'num_Dense_layer', 'num_nodes']
+params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult', 'num_gru_layer'
+          'num_Dense_layer', 'num_nodes', 'gru_dropout', 'gru_nodes', 'gru_nodes_mult', 'icb_code', 'kernel_size']
 
 
 def download(r_name, best='best'):
@@ -18,7 +18,7 @@ def download(r_name, best='best'):
 
     try:  # update if newer results is downloaded
         print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
-        results = pd.read_csv('results_analysis/params_tuning/dense2_{}|{}.csv'.format(best, r_name))
+        results = pd.read_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name))
         print('local version run - {}.csv'.format(r_name))
 
     except:
@@ -27,7 +27,9 @@ def download(r_name, best='best'):
             results = pd.read_sql(query, con=conn)
         engine.dispose()
 
-        results.to_csv('results_analysis/params_tuning/dense2_{}|{}.csv'.format(best, r_name), index=False)
+        results.to_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name), index=False)
+
+    results = results.loc[results['icb_code']==0]
 
     calc_correl(results)  # check correlation
 
@@ -124,7 +126,6 @@ def plot_boxplot(df, table_name='results_dense', r_name=None):
     fig_all.savefig('results_analysis/params_tuning/plot_{}_all.png'.format(r_name))
     pd.concat(des_df_list, axis=0).to_csv('results_analysis/params_tuning/{}_describe.csv'.format(r_name), index=False)
 
-
 def compare_valid():
     chron_v = pd.read_csv('results_analysis/results_chron_valid.csv',
                           usecols=['icb_code', 'testing_period', 'mae_train', 'trial_hpot',
@@ -147,7 +148,6 @@ def compare_valid():
     final = pd.concat(df_list, axis=0)
     final.to_csv('results_analysis/compare_valid.csv', index=False)
 
-
 if __name__ == "__main__":
     db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
     engine = create_engine(db_string)
@@ -156,10 +156,15 @@ if __name__ == "__main__":
     tname = 'rnn_eps'
 
     r_name = 'small_training_False_0'
+    # r_name = 'without ibes -2'
+    r_name = 'top15'
     tname = 'cnn_rnn'
 
+    r_name = 'top15_lgbm'
+    tname = 'rnn_top'
+
     results = download(r_name=r_name)
-    calc_average(results, params=params, r_name=r_name, model='dense2')
+    calc_average(results, params=params, r_name=r_name, model='rnn')
     # plot_boxplot(results, r_name=r_name)
 
     # calc_correl(results)

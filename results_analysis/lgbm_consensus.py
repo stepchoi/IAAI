@@ -588,8 +588,8 @@ def combine():
 
 if __name__ == "__main__":
 
-    combine_market_industry_results()
-    exit(0)
+    # combine_market_industry_results()
+    # exit(0)
 
     r_name = 'ibes_new industry_only ws -indi space3'
     # r_name = 'ibes_new industry_all x -indi space'
@@ -613,13 +613,12 @@ if __name__ == "__main__":
     r_name = 'mse_tune_entire'      # for mse tuning
 
     r_name = '3b_country_partition_mae'     # for IIIb country partitions
+    tname = 'lightgbm'
 
-    if 'xgb' in r_name:
-        tname = 'xgboost'
-    elif 'rf' in r_name:
-        tname = 'randomforest'
-    else:
-        tname = 'lightgbm'
+
+    r_name = 'mse_ex_ind_rounding_tune1'        # worse than qcut -> stop
+    r_name = 'mse_ex_ind_tune1'
+    tname = 'xgboost'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, r_name, tname=r_name)

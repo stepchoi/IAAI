@@ -76,8 +76,10 @@ def merge_ibes_stock():
     detail_stock['y_type'] = 'ibes'     # all rnn trials has been ibes_yoy as Y
     detail_stock['label'] = 'rnn'       # "label" to find cut_bins from TABLE results_bins_new
 
-    if tname == 'rnn_top':
-        detail_stock['exclude_fwd'] = False
+    # if tname == 'rnn_top':
+    detail_stock['exclude_fwd'] = False
+
+    detail_stock = detail_stock.loc[detail_stock['icb_code']==0]
 
     # decide base list -> identifier + period_end appeared in both lgbm and rnn models
     lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
@@ -116,49 +118,20 @@ def merge_ibes_stock():
                                         suffixes=('_lgbm', '_ibes'))
     return label_sector(yoy_merge)
 
-def organize():
-    ''' match records in results_cnn_rnn and results_cnn_rnn_stock '''
-
-    stock = pd.read_csv('#cnn_rnn_stock.csv')
-    info = pd.read_csv('#cnn_rnn.csv')
-
-    info = info.loc[~info['name'].isin(['without ibes', 'small_training_True_0'])]
-    info = info.loc[info['trial_lgbm']>181]
-    print(stock.columns)
-
-    # def rename_dup(x):   # rename same trial_lgbm to different by time
-    #     counter = ['{}_'.format(e) for e in x.groupby(x).cumcount().add(1).astype(str)]
-    #     return x.mask(x.duplicated(), x.astype(str).radd(counter))
-    #
-    # info['trial_lgbm_unique'] = rename_dup(info['trial_lgbm'])
-
-    # i_set = []
-    # for i, g in stock.groupby([(stock['trial_lgbm'] != stock['trial_lgbm'].shift()).cumsum()]):
-    #     i_set.append(g['trial_lgbm'].tolist()[0])
-    #
-    # print(i_set)
-    # exit(1)
-
-    stock_label = ['trial_lgbm', 'icb_code', 'testing_period', 'cv_number']
-    df = pd.merge(stock, info, on=stock_label, how='left')
-    print(df)
-
-    dup = df.loc[df.duplicated(stock_label + ['identifier'], keep=False)]
-
-    # df.to_csv('stock_rnn.csv', index=False)
-
-
 if __name__ == "__main__":
 
     # organize()
 
-    r_name = 'small_training_False_0'
-    r_name = 'without ibes -2'
-    r_name = 'industry_exclude'
+    # r_name = 'small_training_False_0'
+    # r_name = 'without ibes -2'
+    # r_name = 'industry_exclude'
+    r_name = 'new_without_ibes'
+    # r_name = 'top15'
     tname = 'cnn_rnn' # or rnn_eps
     #
     # r_name = 'top15_lgbm'
     # tname = 'rnn_top'
+
 
 
     yoy_merge = merge_ibes_stock()
