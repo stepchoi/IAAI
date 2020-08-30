@@ -34,16 +34,16 @@ parser.add_argument('--name_sql', required=True)
 args = parser.parse_args()
 
 space = {
-    'learning_rate': hp.choice('lr', [2, 3]), # drop 7
+    'learning_rate': 3, # drop 7
     # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size', [64, 256, 384]), #CNN kernel size - num of different "scenario"
+    'kernel_size': hp.choice('kernel_size',[64, 384]), #CNN kernel size - num of different "scenario"
     'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
     'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
     'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
     'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
 
-    'activation': hp.choice('activation', ['tanh']),
-    'batch_size': hp.choice('batch_size', [128, 512]), # drop 1024
+    'activation': 'tanh',
+    'batch_size': hp.choice('batch_size', [64, 512]), # drop 1024
 }
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -227,8 +227,8 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,4,1)
-    sample_no = 21
+    period_1 = dt.datetime(2017,10,1)
+    sample_no = 3
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False, 'top15': args.top15}
 
     sql_result['exclude_fwd'] = args.exclude_fwd

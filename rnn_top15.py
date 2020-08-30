@@ -17,7 +17,6 @@ from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from load_data_rnn import load_data
-from LightGBM import read_db_last
 import matplotlib.pyplot as plt
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
@@ -27,6 +26,7 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 parser = argparse.ArgumentParser()
 parser.add_argument('--gpu_number', type=int, default=1)
 parser.add_argument('--name_sql', required=True)
+parser.add_argument('--trial_lgbm_add', default=1, type=int)
 args = parser.parse_args()
 
 space = {
@@ -204,14 +204,35 @@ def pred_to_sql(Y_test_pred):
 
     return df
 
+def read_db_last(sql_result, results_table = 'results_cnn_rnn'):
+    ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
+
+    try:
+        with engine.connect() as conn:
+            db_last = pd.read_sql("SELECT * FROM {} where finish_timing is not null Order by finish_timing desc LIMIT 1".format(results_table), conn)
+        engine.dispose()
+
+        db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
+        db_last_trial_hpot = int(db_last['trial_hpot'])
+        db_last_trial_lgbm = int(db_last['trial_lgbm'])
+
+        sql_result['trial_hpot'] = db_last_trial_hpot + args.trial_lgbm_add  # trial_hpot = # of Hyperopt performed (n trials each)
+        sql_result['trial_lgbm'] = db_last_trial_lgbm + args.trial_lgbm_add  # trial_lgbm = # of Lightgbm performed
+        print('if resume from: ', db_last_param,'; sql last trial_lgbm: ', sql_result['trial_lgbm'])
+    except:
+        db_last_param = None
+        sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
+
+    return db_last_param, sql_result
+
 if __name__ == "__main__":
 
     sql_result = {}
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,10,1)
-    sample_no = 21
+    period_1 = dt.datetime(2017,7,1)
+    sample_no = 4
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False,
                         'eps_only': False, 'top15': 'lgbm'}
 
