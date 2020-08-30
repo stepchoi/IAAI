@@ -202,8 +202,8 @@ def read_db_last(sql_result, results_table='results_xgboost'):
         db_last_trial_hpot = int(db_last['trial_hpot'])
         db_last_trial_lgbm = int(db_last['trial_lgbm'])
 
-        sql_result['trial_hpot'] = db_last_trial_hpot + 1  # trial_hpot = # of Hyperopt performed (n trials each)
-        sql_result['trial_lgbm'] = db_last_trial_lgbm + 1  # trial_lgbm = # of Lightgbm performed
+        sql_result['trial_hpot'] = db_last_trial_hpot + args.trial_lgbm_add  # trial_hpot = # of Hyperopt performed (n trials each)
+        sql_result['trial_lgbm'] = db_last_trial_lgbm + args.trial_lgbm_add  # trial_lgbm = # of Lightgbm performed
         print('if resume from: ', db_last_param, '; sql last trial_lgbm: ', sql_result['trial_lgbm'])
     except:
         db_last_param = None
@@ -248,7 +248,7 @@ if __name__ == "__main__":
     # training / testing sets split par
     market_list = ['normal']  # default setting = all samples cross countries
     if args.sample_type == 'industry':
-        partitions = [40, 45, 51, 60, 65] # 11, 20, 30, 35,
+        partitions = [40, 45, 51, 60, 65, 11, 20, 30, 35] #
     elif args.sample_type == 'sector':
         partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
                       201020, 502030, 401010,

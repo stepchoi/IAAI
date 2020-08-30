@@ -312,8 +312,8 @@ def find_space_yoy():
 
 def find_space_l2():
 
-    space = {}
-    space[0] = {
+    # space = {}
+    space = {
         'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1]),
         'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
         'max_bin': hp.choice('max_bin', [64, 128, 512]),
@@ -337,7 +337,7 @@ def find_hyperspace(sql_result):
         space = find_space_yoy()
 
     if sql_result['objective'] == 'regression_l2':
-        space = find_space_le()
+        return space
 
     if sql_result['icb_code'] < 10:     # for 0, 1, 2
         if 'compare' in sql_result['name']:
