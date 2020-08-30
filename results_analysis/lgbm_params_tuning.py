@@ -192,7 +192,7 @@ if __name__ == "__main__":
     tname = 'lightgbm'
 
     r_name = ['mse_ex_ind_rounding_tune2']   #stop!
-    # r_name = ['mse_ex_ind_tune2']
+    r_name = ['mse_ex_ind_tune3']
     tname = 'xgboost'
 
     results = download(r_name=r_name, best='best')
