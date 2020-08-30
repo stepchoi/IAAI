@@ -313,18 +313,18 @@ def find_space_yoy():
 def find_space_l2():
 
     # space = {}
-    space = {
-        'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
-        'max_bin': hp.choice('max_bin', [64, 128, 512]),
-        'num_leaves': hp.choice('num_leaves', [15, 125, 250]),
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),
-        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
-        'bagging_freq': 1,
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.01, 1]),
-        'lambda_l1': hp.choice('lambda_l1', [0, 5, 100]),
-        'lambda_l2': hp.choice('lambda_l2', [0, 5, 100]),
+    print('return l2 space')
+    space = {'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1]),
+            'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
+            'max_bin': hp.choice('max_bin', [64, 128, 512]),
+            'num_leaves': hp.choice('num_leaves', [15, 125, 250]),
+            'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),
+            'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),
+            'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
+            'bagging_freq': 1,
+            'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.01, 1]),
+            'lambda_l1': hp.choice('lambda_l1', [0, 5, 100]),
+            'lambda_l2': hp.choice('lambda_l2', [0, 5, 100])
     }
 
     return space
@@ -337,7 +337,7 @@ def find_hyperspace(sql_result):
         space = find_space_yoy()
 
     if sql_result['objective'] == 'regression_l2':
-        return space
+        return find_space_l2()
 
     if sql_result['icb_code'] < 10:     # for 0, 1, 2
         if 'compare' in sql_result['name']:
