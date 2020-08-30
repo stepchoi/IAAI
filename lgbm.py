@@ -278,7 +278,7 @@ def pass_error():
 
 if __name__ == "__main__":
 
-    python3 LightGBM.py --name_sql tune_mse_ind --objective regression_l2 --exclude_fwd
+    # python3 LightGBM.py --name_sql tune_mse_ind --objective regression_l2 --exclude_fwd
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name_sql', required=True)

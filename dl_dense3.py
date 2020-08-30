@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 from load_data_lgbm import load_data
 from hyperspace_dense import find_hyperspace
-from LightGBM import read_db_last
+from lgbm import read_db_last
 import matplotlib.pyplot as plt
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization

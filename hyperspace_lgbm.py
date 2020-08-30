@@ -461,11 +461,6 @@ def find_hyperspace(sql_result):
 
     elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
         sp = space[sql_result['icb_code']]
-        if 'mse' in sql_result['name']:
-            sp.update({'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.001, 0.1]),
-                       'lambda_l1': hp.choice('lambda_l1', [0, 1, 5]),
-                       'lambda_l2': hp.choice('lambda_l2', [0, 1, 5]),
-                       })
         return sp
     elif sql_result['icb_code'] >= 100:
         sector_2_ind = {301010: 30, 101020: 11, 201030: 20, 302020: 30, 351020: 35, 502060: 51, 552010: 51, 651010: 65,
