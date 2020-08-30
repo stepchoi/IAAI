@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import datetime as dt
 from results_analysis.lgbm_params_tuning import calc_correl, calc_average
 
-params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult', 'num_gru_layer'
+params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult', 'num_gru_layer',
           'num_Dense_layer', 'num_nodes', 'gru_dropout', 'gru_nodes', 'gru_nodes_mult', 'icb_code', 'kernel_size']
 
 
@@ -14,20 +14,20 @@ def download(r_name, best='best'):
 
     if best == 'best':
         query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot, exclude_fwd, icb_code) " \
-                "as min_thing from results_{})t where mae_valid = min_thing".format(tname)
+                "as min_thing from results_{})t where mae_valid = min_thing and name = '{}' ".format(tname, r_name)
 
-    try:  # update if newer results is downloaded
-        print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
-        results = pd.read_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name))
-        print('local version run - {}.csv'.format(r_name))
+    # try:  # update if newer results is downloaded
+    #     print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
+    #     results = pd.read_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name))
+    #     print('local version run - {}.csv'.format(r_name))
+    #
+    # except:
+    #     print('--------> download from DB TABLE')
+    with engine.connect() as conn:
+        results = pd.read_sql(query, con=conn)
+    engine.dispose()
 
-    except:
-        print('--------> download from DB TABLE')
-        with engine.connect() as conn:
-            results = pd.read_sql(query, con=conn)
-        engine.dispose()
-
-        results.to_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name), index=False)
+    results.to_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name), index=False)
 
     results = results.loc[results['icb_code']==0]
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # r_name = 'without ibes -2'
     r_name = 'industry_exclude'
     r_name = 'new_without_ibes'
-    r_name = 'top15'
+    # r_name = 'top15'
     tname = 'cnn_rnn'
 
     # r_name = 'top15_lgbm'

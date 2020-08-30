@@ -19,6 +19,7 @@ from tqdm import tqdm
 from load_data_rnn import load_data
 from LightGBM import read_db_last
 import matplotlib.pyplot as plt
+from hyperspace_lgbm import find_hyperspace
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
@@ -32,19 +33,6 @@ parser.add_argument('--gpu_number', type=int, default=1)
 parser.add_argument('--name_sql', required=True)
 
 args = parser.parse_args()
-
-space = {
-    'learning_rate': 3, # drop 7
-    # => 1e-x - learning rate - REDUCE space later - correlated to batch size
-    'kernel_size': hp.choice('kernel_size',[64, 384]), #CNN kernel size - num of different "scenario"
-    'num_gru_layer': hp.choice('num_gru_layer', [2, 3]),     # number of layers # drop 1, 2
-    'gru_nodes_mult': hp.choice('gru_nodes_mult', [0, 1]),      # nodes growth rate *1 or *2
-    'gru_nodes': hp.choice('gru_nodes', [4, 8]),    # start with possible 4 nodes -- 8, 8, 16 combination possible
-    'gru_dropout': hp.choice('gru_drop', [0.25, 0.5]),
-
-    'activation': 'tanh',
-    'batch_size': hp.choice('batch_size', [64, 512]), # drop 1024
-}
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
@@ -266,6 +254,7 @@ if __name__ == "__main__":
 
                 print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
+                space = find_hyperspace(sql_result)
                 HPOT(space, 10)
                 gc.collect()
                 cv_number += 1

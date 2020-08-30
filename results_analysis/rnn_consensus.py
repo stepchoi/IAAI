@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # r_name = 'small_training_False_0'
     # r_name = 'without ibes -2'
     r_name = 'industry_exclude'
-    # r_name = 'new_without_ibes'
+    r_name = 'new_without_ibes'
     # r_name = 'top15'
     tname = 'cnn_rnn' # or rnn_eps
     #
