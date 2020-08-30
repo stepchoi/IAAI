@@ -17,7 +17,7 @@ from dateutil.relativedelta import relativedelta
 from tqdm import tqdm
 
 from load_data_rnn import load_data
-from LightGBM import read_db_last
+from lgbm import read_db_last
 import matplotlib.pyplot as plt
 from hyperspace_lgbm import find_hyperspace
 
