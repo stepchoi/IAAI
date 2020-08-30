@@ -312,22 +312,134 @@ def find_space_yoy():
 
 def find_space_l2():
 
-    # space = {}
-    space = {
-        'learning_rate': hp.choice('learning_rate', [0.01, 0.05, 0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
-        'max_bin': hp.choice('max_bin', [64, 128, 512]),
-        'num_leaves': hp.choice('num_leaves', [15, 125, 250]),
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),
-        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
-        'bagging_freq': 1,
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0, 0.01, 1]),
-        'lambda_l1': hp.choice('lambda_l1', [0, 5, 100]),
-        'lambda_l2': hp.choice('lambda_l2', [0, 5, 100]),
+    space_yoy = {}
+    space_yoy[11] = {
+        'learning_rate': hp.choice('learning_rate', [0.05, 0.1]),  # remove 0.12
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [125, 250]),  # remove 75
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [10, 15]),  # remove 25, 50
+        'feature_fraction': hp.choice('feature_fraction', [0.9, 1]),  # remove 0.7
+        'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 8]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0, 1e-3]),  # remove 0.08
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
     }
 
-    return space
+    space_yoy[20] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.5]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [25, 75]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [50, 75]),
+        'feature_fraction': hp.choice('feature_fraction', [0.3, 0.6]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [1, 2]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[30] = {
+        'learning_rate': hp.choice('learning_rate', [0.08, 0.1]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [350, 400]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 25]),
+        'feature_fraction': hp.choice('feature_fraction', [0.5, 0.6]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.95, 1]),
+        'bagging_freq': hp.choice('bagging_freq', [1, 2]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[35] = {
+        'learning_rate': hp.choice('learning_rate', [0.05, 0.1]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [127]),
+        'num_leaves': hp.choice('num_leaves', [75, 100]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
+        'feature_fraction': hp.choice('feature_fraction', [0.4, 0.6]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [12, 14]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0.001, 0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[40] = {
+        'learning_rate': hp.choice('learning_rate', [0.05, 0.08]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [50, 100]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25]),
+        'feature_fraction': hp.choice('feature_fraction', [0.9, 1]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.45, 0.6]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[45] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.15]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [127]),
+        'num_leaves': hp.choice('num_leaves', [125, 150]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [50, 60]),
+        'feature_fraction': hp.choice('feature_fraction', [0.6, 0.7]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),  # try 20??
+    }
+
+    space_yoy[51] = {
+        'learning_rate': hp.choice('learning_rate', [0.03, 0.05]),
+        'boosting_type': hp.choice('boosting_type', ['gbdt']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [75, 125]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 25]),
+        'feature_fraction': hp.choice('feature_fraction', [0.4, 0.5]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.5, 0.6]),
+        'bagging_freq': hp.choice('bagging_freq', [12, 20]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[60] = {
+        'learning_rate': hp.choice('learning_rate', [0.06, 0.08]),
+        'boosting_type': hp.choice('boosting_type', ['gbdt']),
+        'max_bin': hp.choice('max_bin', [255]),
+        'num_leaves': hp.choice('num_leaves', [350, 400]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 25]),
+        'feature_fraction': hp.choice('feature_fraction', [0.7, 0.8]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    space_yoy[65] = {
+        'learning_rate': hp.choice('learning_rate', [0.01, 0.1]),
+        'boosting_type': hp.choice('boosting_type', ['dart']),
+        'max_bin': hp.choice('max_bin', [127]),
+        'num_leaves': hp.choice('num_leaves', [300, 400]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
+        'feature_fraction': hp.choice('feature_fraction', [0.7, 0.9]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.9]),
+        'bagging_freq': hp.choice('bagging_freq', [1, 16]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1]),
+    }
+
+    return space_yoy
 
 def find_hyperspace(sql_result):
 
@@ -337,7 +449,7 @@ def find_hyperspace(sql_result):
         space = find_space_yoy()
 
     if sql_result['objective'] == 'regression_l2':
-        return space
+        space = find_space_l2()
 
     if sql_result['icb_code'] < 10:     # for 0, 1, 2
         if 'compare' in sql_result['name']:
