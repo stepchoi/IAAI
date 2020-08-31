@@ -188,12 +188,12 @@ if __name__ == "__main__":
     # r_name = ['ibes_qoq_tune10_ind']
 
     r_name = ['mse_tune_entire']
-    r_name = ['tune_mse_ind2']
+    r_name = ['tune_mse_ind3']
     tname = 'lightgbm'
 
     # r_name = ['mse_ex_ind_rounding_tune2']   #stop!
-    r_name = ['mse_ex_ind_tune6', 'mse_ex_ind_tune5', 'mse_ex_ind_tune4', 'mse_ex_ind_tune3']
-    tname = 'xgboost'
+    # r_name = ['mse_ex_ind_tune6', 'mse_ex_ind_tune5', 'mse_ex_ind_tune4', 'mse_ex_ind_tune3']
+    # tname = 'xgboost'
 
     results = download(r_name=r_name, best='best')
     calc_average(results, r_name)

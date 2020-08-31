@@ -618,8 +618,8 @@ if __name__ == "__main__":
 
 
     # r_name = 'mse_ex_ind_rounding_tune2'        # worse than qcut -> stop
-    r_name = 'mse_ex_ind_tune6'
-    tname = 'xgboost'
+    # r_name = 'mse_ex_ind_tune6'
+    # tname = 'xgboost'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, r_name, tname=r_name)

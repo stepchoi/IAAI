@@ -324,21 +324,21 @@ def find_space_l2():
         'bagging_freq': hp.choice('bagging_freq', [2, 8]),
         'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
         'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [1, 3]),
+        'lambda_l2': hp.choice('lambda_l2', [1]),
     }
 
     space_yoy[20] = {
-        'learning_rate': hp.choice('learning_rate', [0.1, 0.05]),
+        'learning_rate': hp.choice('learning_rate', [0.1]),
         'boosting_type': hp.choice('boosting_type', ['dart']),
         'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [25, 75]),  # np.arange(50, 200, 30, dtype=int)
+        'num_leaves': hp.choice('num_leaves', [25, 35, 50]),  # np.arange(50, 200, 30, dtype=int)
         'min_data_in_leaf': hp.choice('min_data_in_leaf', [50]),
         'feature_fraction': hp.choice('feature_fraction', [0.3, 0.6]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.6, 0.7]),
-        'bagging_freq': hp.choice('bagging_freq', [1, 2]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.7]),
+        'bagging_freq': hp.choice('bagging_freq', [1]),
         'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
         'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [1, 3]),
+        'lambda_l2': hp.choice('lambda_l2', [1, 2]),
     }
 
     space_yoy[30] = {
@@ -359,28 +359,28 @@ def find_space_l2():
         'learning_rate': hp.choice('learning_rate', [0.05]),
         'boosting_type': hp.choice('boosting_type', ['dart']),
         'max_bin': hp.choice('max_bin', [127]),
-        'num_leaves': hp.choice('num_leaves', [75, 100]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
+        'num_leaves': hp.choice('num_leaves', [100, 110, 120]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5]),
         'feature_fraction': hp.choice('feature_fraction', [0.4, 0.5]),
         'bagging_fraction': hp.choice('bagging_fraction', [0.8]),
         'bagging_freq': hp.choice('bagging_freq', [12]),
         'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
         'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [1, 3]),
+        'lambda_l2': hp.choice('lambda_l2', [1, 2]),
     }
 
     space_yoy[40] = {
         'learning_rate': hp.choice('learning_rate', [0.05]),
         'boosting_type': hp.choice('boosting_type', ['dart']),
         'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [50, 100]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
+        'num_leaves': hp.choice('num_leaves', [25, 35, 50]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [10, 15]),
         'feature_fraction': hp.choice('feature_fraction', [0.9, 1]),
         'bagging_fraction': hp.choice('bagging_fraction', [0.6]),
-        'bagging_freq': hp.choice('bagging_freq', [2, 4]),
+        'bagging_freq': hp.choice('bagging_freq', [4]),
         'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
         'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [3, 1]),
+        'lambda_l2': hp.choice('lambda_l2', [3]),
     }
 
     space_yoy[45] = {
@@ -401,14 +401,14 @@ def find_space_l2():
         'learning_rate': hp.choice('learning_rate', [0.03]),
         'boosting_type': hp.choice('boosting_type', ['gbdt']),
         'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [100, 125]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 25]),
+        'num_leaves': hp.choice('num_leaves', [100, 110, 125]),  # np.arange(50, 200, 30, dtype=int)
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 20, 25]),
         'feature_fraction': hp.choice('feature_fraction', [0.4]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.4, 0.5]),
+        'bagging_fraction': hp.choice('bagging_fraction', [0.5]),
         'bagging_freq': hp.choice('bagging_freq', [12]),
         'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0, 1]),
-        'lambda_l2': hp.choice('lambda_l2', [3, 1]),
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [1]),
     }
 
     space_yoy[60] = {
