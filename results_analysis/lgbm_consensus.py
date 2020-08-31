@@ -613,13 +613,13 @@ if __name__ == "__main__":
     r_name = 'mse_tune_entire'      # for mse tuning
 
     r_name = '3b_country_partition_mae'     # for IIIb country partitions
-    r_name = 'tune_mse_ind'
+    r_name = 'tune_mse_ind3'
     tname = 'lightgbm'
 
 
     # r_name = 'mse_ex_ind_rounding_tune2'        # worse than qcut -> stop
-    # r_name = 'mse_ex_ind_tune3'
-    # tname = 'xgboost'
+    r_name = 'mse_ex_ind_tune5'
+    tname = 'xgboost'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')
     calc_mae_write(yoy_merge, r_name, tname=r_name)
