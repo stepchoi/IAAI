@@ -439,6 +439,62 @@ def find_space_l2():
         'lambda_l2': hp.choice('lambda_l2', [0]),
     }
 
+    space_yoy['us'] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.05, 0.01]),  # remove 0.12
+        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
+        'max_bin': hp.choice('max_bin', [64, 255]),
+        'num_leaves': hp.choice('num_leaves', [25, 250, 500]),  # remove 75
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),  # remove 25, 50
+        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),  # remove 0.7
+        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1, 3]),
+    }
+
+    space_yoy['cn'] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.05, 0.01]),  # remove 0.12
+        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
+        'max_bin': hp.choice('max_bin', [64, 255]),
+        'num_leaves': hp.choice('num_leaves', [25, 250, 500]),  # remove 75
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),  # remove 25, 50
+        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),  # remove 0.7
+        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1, 3]),
+    }
+
+    space_yoy['jp'] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.05, 0.01]),  # remove 0.12
+        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
+        'max_bin': hp.choice('max_bin', [64, 255]),
+        'num_leaves': hp.choice('num_leaves', [25, 250, 500]),  # remove 75
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),  # remove 25, 50
+        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),  # remove 0.7
+        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1, 3]),
+    }
+
+    space_yoy['hk'] = {
+        'learning_rate': hp.choice('learning_rate', [0.1, 0.05, 0.01]),  # remove 0.12
+        'boosting_type': hp.choice('boosting_type', ['dart', 'gbdt']),
+        'max_bin': hp.choice('max_bin', [64, 255]),
+        'num_leaves': hp.choice('num_leaves', [25, 250, 500]),  # remove 75
+        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 25, 100]),  # remove 25, 50
+        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.5, 0.8]),  # remove 0.7
+        'bagging_fraction': hp.choice('bagging_fraction', [0.2, 0.5, 0.8]),
+        'bagging_freq': hp.choice('bagging_freq', [2, 4, 8]),
+        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
+        'lambda_l1': hp.choice('lambda_l1', [0]),
+        'lambda_l2': hp.choice('lambda_l2', [0, 1, 3]),
+    }
+
     return space_yoy
 
 def find_hyperspace(sql_result):
@@ -451,11 +507,12 @@ def find_hyperspace(sql_result):
     if sql_result['objective'] == 'regression_l2':
         space = find_space_l2()
 
+    if sql_result['market'] == ' normal':
+        return space[sql_result['market']]
+
     if sql_result['icb_code'] < 10:     # for 0, 1, 2
         if 'compare' in sql_result['name']:
             return find_space_compare()
-        elif sql_result['market'] == ' normal':
-            return space[0]
         else:
             return space[sql_result['market']]
 
