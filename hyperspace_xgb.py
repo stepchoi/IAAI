@@ -244,7 +244,7 @@ def find_l2_space():
         'max_depth': 6,
         'max_bin': 64,
         'colsample_bytree': hp.choice('colsample_bytree', [0.9, 0.8]),  # remove 0.7
-        'colsample_bylevel': hp.choice('colsample_bytree', [1]),
+        'colsample_bylevel': hp.choice('colsample_bylevel', [1]),
         'subsample': hp.choice('subsample', [0.5, 0.4]),
         'gamma': 100,
         'lambda': hp.choice('lambda', [1, 3, 7]),  # remove 10
