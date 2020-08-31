@@ -618,7 +618,7 @@ if __name__ == "__main__":
 
 
     # r_name = 'mse_ex_ind_rounding_tune2'        # worse than qcut -> stop
-    r_name = 'mse_ex_ind_tune5'
+    r_name = 'mse_ex_ind_tune6'
     tname = 'xgboost'
 
     yoy_merge = download(r_name).merge_stock_ibes(agg_type='median')

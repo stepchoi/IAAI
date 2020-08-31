@@ -192,8 +192,8 @@ if __name__ == "__main__":
     tname = 'lightgbm'
 
     # r_name = ['mse_ex_ind_rounding_tune2']   #stop!
-    # r_name = ['mse_ex_ind_tune5', 'mse_ex_ind_tune4', 'mse_ex_ind_tune3']
-    # tname = 'xgboost'
+    r_name = ['mse_ex_ind_tune6', 'mse_ex_ind_tune5', 'mse_ex_ind_tune4', 'mse_ex_ind_tune3']
+    tname = 'xgboost'
 
     results = download(r_name=r_name, best='best')
     calc_average(results, r_name)
