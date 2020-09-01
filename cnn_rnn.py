@@ -30,8 +30,8 @@ parser.add_argument('--add_ind_code', type=int, default=0)
 parser.add_argument('--exclude_fwd', default=False, action='store_true')
 parser.add_argument('--top15', default=False)
 parser.add_argument('--gpu_number', type=int, default=1)
+parser.add_argument('--sample_ratio', type=int, default=1)
 parser.add_argument('--name_sql', required=True)
-
 args = parser.parse_args()
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     sql_result['name'] = args.name_sql # label experiment
     db_last_param, sql_result = read_db_last(sql_result, 'results_cnn_rnn')
 
-    data = load_data(macro_monthly=True)
+    data = load_data(macro_monthly=True, sample_ratio=args.sample_ratio)
 
     # add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 means add sector code as X
     for add_ind_code in [0]:

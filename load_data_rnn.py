@@ -158,7 +158,7 @@ class load_data:
         1. split train + valid + test -> sample set
         2. convert x with standardization, y with qcut '''
 
-    def __init__(self, macro_monthly=True):
+    def __init__(self, macro_monthly=True, sample_ratio=1):
         ''' split train and testing set
                     -> return dictionary contain (x, y, y without qcut) & cut_bins'''
 
@@ -174,6 +174,9 @@ class load_data:
         self.sector = pd.DataFrame()
         self.train = pd.DataFrame()
         self.main = self.main.dropna(subset=['icb_sector'])
+
+        if sample_ratio < 1:    # select random half of sample for new config I
+            self.main = self.main.sample(frac=sample_ratio)
 
     def split_entire(self, add_ind_code):   # we always use entire samples for training
         ''' train on all sample, add_ind_code = True means adding industry_code(2) as x '''

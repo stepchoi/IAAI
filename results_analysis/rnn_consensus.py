@@ -126,13 +126,12 @@ if __name__ == "__main__":
     # r_name = 'small_training_False_0'
     # r_name = 'without ibes -2'
     r_name = 'industry_exclude'
-    r_name = 'new_without_ibes'
+    # r_name = 'new_without_ibes3'
     # r_name = 'top15'
     tname = 'cnn_rnn' # or rnn_eps
     #
-    r_name = 'top15_lgbm'
-    tname = 'rnn_top'
-
+    # r_name = 'top15_lgbm'
+    # tname = 'rnn_top'
 
 
     yoy_merge = merge_ibes_stock()

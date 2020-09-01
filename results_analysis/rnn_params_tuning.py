@@ -16,13 +16,7 @@ def download(r_name, best='best'):
         query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot, exclude_fwd, icb_code) " \
                 "as min_thing from results_{})t where mae_valid = min_thing and name = '{}' ".format(tname, r_name)
 
-    # try:  # update if newer results is downloaded
-    #     print('--------> params tuning: lgbm_{}|{}.csv'.format(best, r_name))
-    #     results = pd.read_csv('results_analysis/params_tuning/rnn_{}|{}.csv'.format(best, r_name))
-    #     print('local version run - {}.csv'.format(r_name))
-    #
-    # except:
-    #     print('--------> download from DB TABLE')
+    query = "SELECT * FROM results_{} WHERE name ='{}'".format(tname, r_name)
     with engine.connect() as conn:
         results = pd.read_sql(query, con=conn)
     engine.dispose()
@@ -162,8 +156,8 @@ if __name__ == "__main__":
     # r_name = 'top15'
     tname = 'cnn_rnn'
 
-    r_name = 'top15_lgbm'
-    tname = 'rnn_top'
+    # r_name = 'top15_lgbm'
+    # tname = 'rnn_top'
 
     results = download(r_name=r_name)
     calc_average(results, params=params, r_name=r_name, model='rnn')
