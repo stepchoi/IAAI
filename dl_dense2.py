@@ -202,7 +202,7 @@ def read_db_last(sql_result, results_table = 'results_dense2'):
 
     try:
         with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} where finish_timing is not null Order by finish_timing desc LIMIT 1".format(results_table), conn)
+            db_last = pd.read_sql("SELECT * FROM {} Order by trial_lgbm desc LIMIT 1".format(results_table), conn)
         engine.dispose()
 
         db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]

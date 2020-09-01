@@ -131,7 +131,7 @@ if __name__ == "__main__":
     r_name = 'large_big_allx -code 0 -exclude_fwd True'
 
     r_name = 'small_new_config_1 -code 0 -exclude_fwd True'
-
+    r_name = 'config_1_dense_new_small'
     tname = 'dense2'
 
     # for i in r_name:

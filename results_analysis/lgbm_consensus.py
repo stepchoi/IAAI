@@ -615,6 +615,8 @@ if __name__ == "__main__":
     r_name = '3b_country_partition_mae'     # for IIIb country partitions
     r_name = 'country_part_mse'
     # r_name = 'tune_mse_ind4'
+
+    r_name = 'tune_mse_ind4'
     tname = 'lightgbm'
 
 
