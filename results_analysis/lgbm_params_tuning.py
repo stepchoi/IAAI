@@ -189,6 +189,8 @@ if __name__ == "__main__":
 
     r_name = ['mse_tune_entire']
     r_name = ['tune_mse_ind3']
+
+    r_nam = ['country_part_mse']
     tname = 'lightgbm'
 
     # r_name = ['mse_ex_ind_rounding_tune2']   #stop!

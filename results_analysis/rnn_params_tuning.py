@@ -162,8 +162,8 @@ if __name__ == "__main__":
     # r_name = 'top15'
     tname = 'cnn_rnn'
 
-    # r_name = 'top15_lgbm'
-    # tname = 'rnn_top'
+    r_name = 'top15_lgbm'
+    tname = 'rnn_top'
 
     results = download(r_name=r_name)
     calc_average(results, params=params, r_name=r_name, model='rnn')

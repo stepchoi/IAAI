@@ -77,10 +77,10 @@ def merge_ibes_stock():
     detail_stock['label'] = 'rnn'       # "label" to find cut_bins from TABLE results_bins_new
 
     # if tname == 'rnn_top':
-    # detail_stock['exclude_fwd'] = False
+    detail_stock['exclude_fwd'] = False
 
     detail_stock = detail_stock.loc[detail_stock['icb_code']==0]
-    detail_stock = detail_stock.loc[detail_stock['exclude_fwd']==True]
+    # detail_stock = detail_stock.loc[detail_stock['exclude_fwd']==True]
 
     # decide base list -> identifier + period_end appeared in both lgbm and rnn models
     lgbm = pd.read_csv('results_analysis/compare_with_ibes/stock_ibes_new industry_only ws -indi space3.csv',
@@ -130,8 +130,8 @@ if __name__ == "__main__":
     # r_name = 'top15'
     tname = 'cnn_rnn' # or rnn_eps
     #
-    # r_name = 'top15_lgbm'
-    # tname = 'rnn_top'
+    r_name = 'top15_lgbm'
+    tname = 'rnn_top'
 
 
 

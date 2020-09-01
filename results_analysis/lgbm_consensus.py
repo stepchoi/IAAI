@@ -613,7 +613,8 @@ if __name__ == "__main__":
     r_name = 'mse_tune_entire'      # for mse tuning
 
     r_name = '3b_country_partition_mae'     # for IIIb country partitions
-    r_name = 'tune_mse_ind3'
+    r_name = 'country_part_mse'
+    # r_name = 'tune_mse_ind4'
     tname = 'lightgbm'
 
 
