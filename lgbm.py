@@ -224,6 +224,7 @@ def to_sql_prediction(Y_test_pred):
     df['identifier'] = test_id
     df['pred'] = Y_test_pred
     df['trial_lgbm'] = [sql_result['trial_lgbm']] * len(test_id)
+    df['name'] = [sql_result['name']] * len(test_id)
     # print('stock-wise prediction: ', df)
 
     return df
