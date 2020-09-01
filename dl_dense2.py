@@ -27,6 +27,20 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
+def gpu_mac_address(args):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
+
 def dense_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
 
@@ -206,82 +220,128 @@ def read_db_last(sql_result, results_table = 'results_dense2'):
 
 if __name__ == "__main__":
 
-    sql_result = {}
-    hpot = {}
-    use_median = True
-    chron_valid = False
-    qcut_q = 10
-    sql_result['y_type'] = 'ibes'
-    period_1 = dt.datetime(2013,3,31)
-
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sp_only', default=False, action='store_true')
-    parser.add_argument('--exclude_fwd', default=False, action='store_true')
+    parser.add_argument('--name_sql', required=True)
+    parser.add_argument('--objective', default='regression_l1')
+    parser.add_argument('--exclude_stock', default=False, action='store_true')
     parser.add_argument('--resume', default=False, action='store_true')
-    parser.add_argument('--num_best_col', type=int, default=0)
-    parser.add_argument('--icb_code', type=int, default=0)
+    parser.add_argument('--exclude_fwd', default=False, action='store_true')
+    parser.add_argument('--sample_type', default='entire')
+    parser.add_argument('--y_type', default='ibes')
+    parser.add_argument('--sample_no', type=int, default=21)
+    parser.add_argument('--qcut_q', default=10, type=int)
     parser.add_argument('--trial_lgbm_add', default=1, type=int)
     parser.add_argument('--sample_ratio', default=1, type=float)
-    parser.add_argument('--sample_no', type=int, default=21)
-    parser.add_argument('--name_sql', required=True)
+    parser.add_argument('--nthread', default=12, type=int)
+    parser.add_argument('--sleep', type=int, default=0)
+    parser.add_argument('--gpu_number', type=int, default=1)
     args = parser.parse_args()
 
-    # default settings
-    exclude_fwd = args.exclude_fwd
-    ibes_qcut_as_x = not(args.exclude_fwd)
+    gpu_mac_address(args)
 
-    db_last_param, sql_result = read_db_last(sql_result, 'results_dense2')  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
-    data = load_data(macro_monthly=True, sp_only=args.sp_only, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+    from time import sleep
+    sleep(args.sleep)
 
-    indi_industry_new = [11, 20, 30, 35, 40, 45, 51, 60, 65]
-
-    for add_ind_code in [args.icb_code]: # 1 means add industry code as X
-        data.split_industry(add_ind_code, combine_ind=True)
-        sql_result['icb_code'] = add_ind_code
-
-        for i in tqdm(range(args.sample_no)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3)
-            sql_result['testing_period'] = testing_period
-
-            if args.resume == True:     # resume from last records in DB
-                if {'icb_code': add_ind_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
-                    args.resume = False
-                    print('---------> Resume Training', add_ind_code, testing_period)
-                else:
-                    print('Not yet resume: params done', add_ind_code, testing_period)
-                    continue
+    # training / testing sets split par
+    market_list = ['normal'] # default setting = all samples cross countries
+    if args.sample_type == 'industry':
+        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]
+    elif args.sample_type == 'sector':
+        partitions = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010, 501010,
+                       201020, 502030, 401010, 999999]  # icb_code with > 1300 samples + rests in single big model (999999)
+    elif args.sample_type == 'entire':
+        partitions = [0]
+    elif args.sample_type == 'market':
+        partitions = [0]
+        market_list = ['us', 'jp', 'cn', 'hk']
 
 
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, qcut_q,
-                                                                              y_type=sql_result['y_type'],
-                                                                              exclude_fwd=exclude_fwd,
-                                                                              use_median=use_median,
-                                                                              chron_valid=chron_valid,
-                                                                              # num_best_col=n)
-                                                                              num_best_col=args.num_best_col)
-            print(feature_names)
-            sql_result['name'] = '{} -code {} -exclude_fwd {}'.format(args.name_sql, args.icb_code, args.exclude_fwd)
+    period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
+    base_space = {'verbose': -1,
+                  'num_threads': args.nthread}  # for the best speed, set this to the number of real CPU cores
 
-            X_test = np.nan_to_num(sample_set['test_x'], nan=0)
-            Y_test = sample_set['test_y']
+    # create dict storing values/df used in training
+    sql_result = {}     # data write to DB TABLE lightgbm_results
+    hpot = {}           # storing data for best trials in each Hyperopt
+    resume = args.resume  # change to True if want to resume from the last running as on DB TABLE lightgbm_results
+    sample_no = args.sample_no  # number of training/testing period go over ( 25 = until 2019-3-31)
 
-            sql_result['number_features'] = X_test.shape[1]
+    load_data_params = {'exclude_fwd': args.exclude_fwd,
+                        'use_median': True,
+                        'chron_valid': False,
+                        'y_type': args.y_type,
+                        'qcut_q': args.qcut_q,
+                        'ibes_qcut_as_x': not(args.exclude_fwd),
+                        'exclude_stock': args.exclude_stock,
+                        }
 
-            cv_number = 1
-            for train_index, test_index in cv:
-                sql_result['cv_number'] = cv_number
+    for mkt in market_list:     # roll over partition for each market (for IIIb)
+        data = load_data(macro_monthly=True, market=mkt, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
+        sql_result['market'] = mkt
 
-                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                Y_train = sample_set['train_y'][train_index]
-                X_valid =  np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                Y_valid = sample_set['train_y'][test_index]
+        # sql_result['objective'] = base_space['objective'] = args.objective
+        # x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
+        # sql_result['x_type'] = x_type_map[args.exclude_fwd]
+        sql_result['name'] = args.name_sql
 
-                print(X_train.shape , Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
-                space = find_hyperspace(sql_result)
-                HPOT(space, 10)
+        # update load_data data
+        # sql_result['qcut_q'] = load_data_params['qcut_q']     # number of Y classes
+        sql_result['y_type'] = load_data_params['y_type']
 
-                sql_result['trial_hpot'] += 1
-                cv_number += 1
+        ''' start roll over testing period(25) / icb_code(16) / cross-validation sets(5) for hyperopt '''
+
+        db_last_param, sql_result = read_db_last(sql_result)  # update sql_result['trial_hpot'/'trial_lgbm'] & got params for resume (if True)
+
+        for icb_code in partitions:   # roll over industries (first 2 icb code)
+
+            data.split_industry(icb_code, combine_ind=True)
+            sql_result['icb_code'] = icb_code
+
+            for i in tqdm(range(sample_no)):  # roll over testing period
+                testing_period = period_1 + i * relativedelta(months=3)
+                sql_result['testing_period'] = testing_period
+
+                # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
+                if resume == True:
+
+                    if {'icb_code': icb_code, 'testing_period': pd.Timestamp(testing_period)} == db_last_param:  # if current loop = last records
+                        resume = False
+                        print('---------> Resume Training', icb_code, testing_period)
+                    else:
+                        print('Not yet resume: params done', icb_code, testing_period)
+                        continue
+
+                # try:
+                sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)
+                sql_result['exclude_fwd'] = load_data_params['exclude_fwd']
+
+                # print('23355L106' in test_id)
+                print(feature_names)
+                if 'i0eps' in feature_names:
+                    NameError('WRONG feature_names with i0eps!')
+
+                # to_sql_bins(cut_bins)   # record cut_bins & median used in Y conversion
+
+                X_test = np.nan_to_num(sample_set['test_x'], nan=0)
+                Y_test = sample_set['test_y']
+
+                sql_result['number_features'] = X_test.shape[1]
+
+                cv_number = 1
+                for train_index, test_index in cv:
+                    sql_result['cv_number'] = cv_number
+
+                    X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
+                    Y_train = sample_set['train_y'][train_index]
+                    X_valid = np.nan_to_num(sample_set['train_x'][test_index], nan=0)
+                    Y_valid = sample_set['train_y'][test_index]
+
+                    print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
+                    space = find_hyperspace(sql_result)
+                    HPOT(space, 10)
+
+                    sql_result['trial_hpot'] += 1
+                    cv_number += 1
 
 
 

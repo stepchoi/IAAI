@@ -1,4 +1,4 @@
-import hyperopt as hp
+from hyperopt import hp
 
 space_top = {
     'learning_rate': 2, # drop 7

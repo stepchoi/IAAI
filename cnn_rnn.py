@@ -19,7 +19,7 @@ from tqdm import tqdm
 from load_data_rnn import load_data
 from lgbm import read_db_last
 import matplotlib.pyplot as plt
-from hyperspace_lgbm import find_hyperspace
+from hyperspace_rnn import find_hyperspace
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2017,10,1)
+    period_1 = dt.datetime(2013,10,1)
     sample_no = 3
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False, 'top15': args.top15}
 
