@@ -28,15 +28,15 @@ os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 engine = create_engine(db_string)
 
-params = ['batch_size', 'dropout', 'init_nodes', 'learning_rate', 'mult_freq', 'mult_start', 'nodes_mult', 'num_gru_layer',
-          'num_Dense_layer', 'num_nodes', 'gru_dropout', 'gru_nodes', 'gru_nodes_mult', 'icb_code', 'kernel_size']
+params = ['batch_size', 'learning_rate', 'mult_freq', 'num_gru_layer',
+          'gru_dropout', 'gru_nodes', 'gru_nodes_mult', 'kernel_size']
 
 db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
 
 def download(tname, r_name):
     ''' donwload results from results_lightgbm '''
 
-    query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot, exclude_fwd, icb_code) " \
+    query = "select * from (select DISTINCT *, min(mae_valid) over (partition by trial_hpot, icb_code) " \
             "as min_thing from results_{})t where mae_valid = min_thing and name = '{}' ".format(tname, r_name)
 
     with engine.connect() as conn:
@@ -45,19 +45,17 @@ def download(tname, r_name):
 
     print(results.columns)
 
-    results = results.drop_duplicates(subset=['icb_code', 'identifier', 'testing_period', 'cv_number','y_type'], keep='last')
+    results = results.drop_duplicates(subset=['icb_code', 'testing_period', 'cv_number'], keep='last')
 
     return results.filter(params)
 
-def cnn_rnn(space, x_fields): #functional
+def cnn_rnn(space, n): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
     params = space.copy()
     print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
-
-    #FUNCTIONAL  - refer to the input after equation formuala with (<prev layer>)
-    #pseudo-code---------------------------------------------------------------------------------------------------------
+    x_fields = n
 
     kernel_size =params['kernel_size'] # of different "scenario"
     num_nodes = params['gru_nodes']
@@ -102,7 +100,7 @@ def cnn_rnn(space, x_fields): #functional
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
-    return model
+    return count_p(model)
 
 def rnn_top(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
@@ -149,7 +147,7 @@ def rnn_top(space): #functional
     adam = optimizers.Adam(lr=lr_val)
     model.compile(adam, loss='mae')
 
-    return model
+    return count_p(model)
 
 def count_p(model):
     trainable_count = int(
@@ -157,17 +155,35 @@ def count_p(model):
     non_trainable_count = int(
         np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
 
-    print('Total params: {:,}'.format(trainable_count + non_trainable_count))
-    print('Trainable params: {:,}'.format(trainable_count))
+    return trainable_count + non_trainable_count
 
 if __name__ == '__main__':
     r_name = 'new_without_ibes'
-    # r_name = 'small_training_False_0'
-    # r_name = 'top15'
-    # r_name = 'industry_exclude'
+    r_name = 'small_training_False_0'
+    r_name = 'top15'
+    r_name = 'industry_exclude'
     tname = 'cnn_rnn'
 
-    # r_name = 'top15_lgbm'
-    # tname = 'rnn_top'
+    r_name = 'top15_lgbm'
+    tname = 'rnn_top'
 
-    download(tname, r_name)
+    results = download(tname, r_name)
+    results = results.astype(int)
+    print(results)
+
+    p_num = []
+    for i in range(len(results)):
+        space = results.iloc[i,:].to_dict()
+        # p = cnn_rnn(space=space, n=45)
+        p = rnn_top(space=space)
+        p_num.append(p)
+        K.clear_session()
+
+    results['params'] = p_num
+
+    results.to_csv('cnn_rnn_params_{}.csv'.format(r_name))
+    print(np.mean(p_num))
+
+
+
+

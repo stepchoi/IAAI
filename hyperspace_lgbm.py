@@ -514,7 +514,7 @@ def find_hyperspace(sql_result):
         if 'compare' in sql_result['name']:
             return find_space_compare()
         else:
-            return space[sql_result['market']]
+            return space[0]
 
     elif (sql_result['icb_code'] >= 10) and (sql_result['icb_code'] < 100):
         sp = space[sql_result['icb_code']]
