@@ -356,7 +356,7 @@ if __name__ == "__main__":
             sql_result['icb_code'] = icb_code
 
             for i in tqdm(range(sample_no)):  # roll over testing period
-                testing_period = period_1 + i * relativedelta(months=3)
+                testing_period = period_1 + (i+0) * relativedelta(months=3)
                 sql_result['testing_period'] = testing_period
 
                 # when setting resume = TRUE -> continue training from last records in DB results_lightgbm
