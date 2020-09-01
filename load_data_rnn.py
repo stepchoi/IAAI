@@ -236,6 +236,8 @@ class load_data:
             x_col = top15_col_org
         elif top15 == 'lgbm':   # using top15 features with lgbm featues (in fact 10 variables) for concat model
             x_col = top15_col
+        else:
+            x_col = list(set(x_col) - {'capex_to_dda', 'fwd_roic', 'ebitda_to_ev', 'ni_to_cfo', 'ibes_qcut_as_x'})
 
         # 2.1. slice data for sample period + lookback period
         start_train = testing_period - relativedelta(years=15)    # train df = 10y + 5y lookback
@@ -323,7 +325,7 @@ if __name__ == '__main__':
     add_ind_code = 0
     period_1 = dt.datetime(2015, 1, 1)
     sample_no = 21
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': True}
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': True, 'eps_only': False}
 
     data = load_data(macro_monthly=True)
     data.split_entire(11)
@@ -334,6 +336,7 @@ if __name__ == '__main__':
 
         train_x, train_y, X_test, Y_test, cv, test_id, x_col, cut_bins = data.split_train_test(testing_period, **load_data_params)
         print(X_test.shape)
+        print(x_col)
 
         for train_index, test_index in cv:
 
