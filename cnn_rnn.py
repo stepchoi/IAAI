@@ -215,8 +215,8 @@ if __name__ == "__main__":
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2013,10,1)
-    sample_no = 3
+    period_1 = dt.datetime(2013,4,1)
+    sample_no = 21
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': args.exclude_fwd, 'eps_only': False, 'top15': args.top15}
 
     sql_result['exclude_fwd'] = args.exclude_fwd
