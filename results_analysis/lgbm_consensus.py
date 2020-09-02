@@ -616,7 +616,7 @@ if __name__ == "__main__":
     r_name = 'country_part_mse'
     # r_name = 'tune_mse_ind4'
 
-    r_name = 'tune_mse_ind4'
+    r_name = 'tune_mse_ind5'
     tname = 'lightgbm'
 
 

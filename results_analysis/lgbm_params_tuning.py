@@ -188,7 +188,7 @@ if __name__ == "__main__":
     # r_name = ['ibes_qoq_tune10_ind']
 
     r_name = ['mse_tune_entire']
-    r_name = ['tune_mse_ind4', 'tune_mse_ind3']
+    r_name = ['tune_mse_ind4', 'tune_mse_ind3', 'tune_mse_ind5', 'tune_mse_ind2']
 
     # r_nam = ['country_part_mse']
     tname = 'lightgbm'
