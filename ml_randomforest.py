@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 from load_data_lgbm import load_data
 from hyperspace_rf import find_hyperspace
 
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
 
 def lgbm_train(space):
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''

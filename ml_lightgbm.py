@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 from hyperspace_lgbm import find_hyperspace
 from load_data_lgbm import load_data
 
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
+
 
 def lgb_r2_score(preds, dtrain):
     ''' r2 objective for training '''

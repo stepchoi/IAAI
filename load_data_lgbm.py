@@ -13,8 +13,7 @@ import gc
 from miscel import check_dup
 from preprocess.x_ratios import full_period
 
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
+
 
 indi_sectors = [301010, 101020, 201030, 302020, 351020, 502060, 552010, 651010, 601010, 502050, 101010,
                 501010, 201020, 502030, 401010]

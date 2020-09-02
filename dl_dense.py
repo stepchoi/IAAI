@@ -24,8 +24,7 @@ import tensorflow as tf                             # avoid error in Tensorflow 
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
+
 
 def gpu_mac_address(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
@@ -278,10 +277,6 @@ if __name__ == "__main__":
     for mkt in market_list:     # roll over partition for each market (for IIIb)
         data = load_data(macro_monthly=True, market=mkt, sample_ratio=args.sample_ratio)          # load all data: create load_data.main = df for all samples - within data(CLASS)
         sql_result['market'] = mkt
-
-        # sql_result['objective'] = base_space['objective'] = args.objective
-        # x_type_map = {True: 'fwdepsqcut', False: 'ni'} # True/False based on exclude_fwd
-        # sql_result['x_type'] = x_type_map[args.exclude_fwd]
         sql_result['name'] = args.name_sql
 
         # update load_data data

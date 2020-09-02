@@ -43,8 +43,6 @@ space = {
     'batch_size': 128 # drop 64, 512, 1024
 }
 
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
 
 def gpu_mac_address(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
@@ -161,34 +159,13 @@ def HPOT(space, max_evals = 10):
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
-    print(hpot['best_stock_df'])
-
     with engine.connect() as conn:
         pd.DataFrame(hpot['all_results']).to_sql('results_rnn_top', con=conn, index=False, if_exists='append', method='multi')
         hpot['best_stock_df'].to_sql('results_rnn_top_stock', con=conn, index=False, if_exists='append', method='multi')
     engine.dispose()
 
-    # plot_history(hpot['best_history'], hpot['best_trial'], hpot['best_mae'])  # plot training history
-
     sql_result['trial_hpot'] += 1
-
     return best
-
-def plot_history(history, trial, mae):
-    ''' plot the training loss history '''
-
-    history_dict = history.history
-    epochs = range(10, len(history_dict['loss'])+1)
-
-    plt.plot(epochs, history_dict['loss'][9:], 'bo', label='training loss')
-    plt.plot(epochs, history_dict['val_loss'][9:], 'b', label='validation loss')
-    plt.title('dense - training and validation loss')
-    plt.xlabel('epochs')
-    plt.ylabel('loss')
-    plt.legend()
-
-    plt.savefig('results_rnn/plot_rnn_top_{} {}.png'.format(trial, round(mae,4)))
-    plt.close()
 
 def pred_to_sql(Y_test_pred):
     ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
@@ -204,42 +181,19 @@ def pred_to_sql(Y_test_pred):
 
     return df
 
-def read_db_last(sql_result, results_table = 'results_cnn_rnn'):
-    ''' read last records on DB TABLE lightgbm_results for resume / trial_no counting '''
-
-    try:
-        with engine.connect() as conn:
-            db_last = pd.read_sql("SELECT * FROM {} where finish_timing is not null Order by finish_timing desc LIMIT 1".format(results_table), conn)
-        engine.dispose()
-
-        db_last_param = db_last[['icb_code','testing_period']].to_dict('index')[0]
-        db_last_trial_hpot = int(db_last['trial_hpot'])
-        db_last_trial_lgbm = int(db_last['trial_lgbm'])
-
-        sql_result['trial_hpot'] = db_last_trial_hpot + args.trial_lgbm_add  # trial_hpot = # of Hyperopt performed (n trials each)
-        sql_result['trial_lgbm'] = db_last_trial_lgbm + args.trial_lgbm_add  # trial_lgbm = # of Lightgbm performed
-        print('if resume from: ', db_last_param,'; sql last trial_lgbm: ', sql_result['trial_lgbm'])
-    except:
-        db_last_param = None
-        sql_result['trial_hpot'] = sql_result['trial_lgbm'] = 0
-
-    return db_last_param, sql_result
-
 if __name__ == "__main__":
 
     sql_result = {}
     hpot = {}
 
     # default params for load_data
-    period_1 = dt.datetime(2017,7,1)
-    sample_no = 4
-    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False,
-                        'eps_only': False, 'top15': 'lgbm'}
+    period_1 = dt.datetime(2013,4,1)
+    sample_no = 21
+    load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': False, 'top15': 'lgbm'}
 
     # these are parameters used to load_data
     sql_result['qcut_q'] = load_data_params['qcut_q']
     sql_result['name'] = args.name_sql # label experiment
-    db_last_param, sql_result = read_db_last(sql_result, 'results_rnn_top')
 
     data = load_data(macro_monthly=True)
 
@@ -247,14 +201,12 @@ if __name__ == "__main__":
     for add_ind_code in [0]:
         data.split_entire(add_ind_code=add_ind_code)
         sql_result['icb_code'] = add_ind_code
-        print(sql_result)
 
         for i in tqdm(range(sample_no)):  # roll over testing period
             testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
             sql_result['testing_period'] = testing_period
 
             train_x, train_y, X_test, Y_test, cv, test_id, x_col, cut_bins = data.split_train_test(testing_period, **load_data_params)
-            print(x_col)
 
             cv_number = 1
             for train_index, test_index in cv:
@@ -264,8 +216,6 @@ if __name__ == "__main__":
                 Y_train = train_y[train_index]
                 X_valid = train_x[test_index]
                 Y_valid = train_y[test_index]
-
-                print(X_train.shape, Y_train.shape, X_valid.shape, Y_valid.shape, X_test.shape, Y_test.shape)
 
                 HPOT(space, 10)
                 gc.collect()

@@ -13,11 +13,6 @@ from collections import Counter
 import gc
 from tqdm import tqdm
 
-from miscel import check_dup, date_type
-from preprocess.x_ratios import worldscope, full_period, trim_outlier
-
-db_string = 'postgres://postgres:DLvalue123@hkpolyu.cgqhw7rofrpo.ap-northeast-2.rds.amazonaws.com:5432/postgres'
-engine = create_engine(db_string)
 
 top15_col_org = {'close', 'cap1fd12','ebd1fd12','fn_18100','fn_18199','fn_18262','fn_18263','fn_18265',
         'fn_18304','fn_18309','fn_18310','fn_18311','fn_18313','fn_8001','eps1tr12'}
