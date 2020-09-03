@@ -6,28 +6,20 @@ import pandas as pd
 import datetime as dt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from sklearn.metrics import r2_score, mean_absolute_error
+from dateutil.relativedelta import relativedelta
+from tqdm import tqdm
 
 from tensorflow.python.keras import callbacks, optimizers, initializers
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Dense, GRU, Dropout, Flatten,  LeakyReLU, Input, Concatenate, Reshape, Lambda, Conv2D
 from tensorflow.python.keras import backend as K
 
-from sqlalchemy import create_engine
-from dateutil.relativedelta import relativedelta
-from tqdm import tqdm
-
 from load_data_rnn import load_data
-import matplotlib.pyplot as plt
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--gpu_number', type=int, default=1)
-parser.add_argument('--name_sql', required=True)
-parser.add_argument('--trial_lgbm_add', default=1, type=int)
-args = parser.parse_args()
 
 space = {
     'learning_rate': hp.choice('lr', [1, 2]), # => 1e-x - learning rate - REDUCE space later - correlated to batch size
@@ -43,7 +35,6 @@ space = {
     'batch_size': 128 # drop 64, 512, 1024
 }
 
-
 def gpu_mac_address(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_number)
     gpus = tf.config.experimental.list_physical_devices('GPU')
@@ -58,12 +49,9 @@ def gpu_mac_address(args):
             # Memory growth must be set before GPUs have been initialized
             print(e)
 
-gpu_mac_address(args)
-
 def rnn_train(space): #functional
     ''' train lightgbm booster based on training / validaton set -> give predictions of Y '''
     params = space.copy()
-    print(params)
 
     lookback = 20                   # lookback = 5Y * 4Q = 20Q
     x_fields = 10                   # lgbm top15 features -> 10 features in dense
@@ -88,8 +76,6 @@ def rnn_train(space): #functional
 
         g_1 = Flatten()(g_1)  # convert 3d sequence(?,?,1) -> 2d (?,?)
         layers.extend([g_1, g_1_2])
-
-    print(layers)
 
     # join the return sequence and forecast state
     f_x = Concatenate(axis=1)(layers)
@@ -116,7 +102,6 @@ def rnn_train(space): #functional
 
     return Y_test_pred, Y_train_pred, Y_valid_pred, history
 
-
 def eval(space):
     ''' train & evaluate each of the dense model '''
 
@@ -130,95 +115,43 @@ def eval(space):
               'r2_test': r2_score(Y_test, Y_test_pred),
               'status': STATUS_OK}
 
-    sql_result.update(space)
-    sql_result.update(result)
-    sql_result['finish_timing'] = dt.datetime.now()
-
-    print('sql_result_before writing: ', sql_result)
-    hpot['all_results'].append(sql_result.copy())
-
-    # wik(0)
-
-    if result['mae_valid'] < hpot['best_mae']:  # update best_mae to the lowest value for Hyperopt
-        hpot['best_mae'] = result['mae_valid']
-        hpot['best_stock_df'] = pred_to_sql(Y_test_pred)
-        hpot['best_history'] = history
-        hpot['best_trial'] = sql_result['trial_lgbm']
-
     K.clear_session()
-    sql_result['trial_lgbm'] += 1
-
     return result['mae_valid']
 
 def HPOT(space, max_evals = 10):
     ''' use hyperopt on each set '''
 
-    hpot['best_mae'] = 1  # record best training (min mae_valid) in each hyperopt
-    hpot['all_results'] = []
-
     trials = Trials()
     best = fmin(fn=eval, space=space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
 
-    with engine.connect() as conn:
-        pd.DataFrame(hpot['all_results']).to_sql('results_rnn_top', con=conn, index=False, if_exists='append', method='multi')
-        hpot['best_stock_df'].to_sql('results_rnn_top_stock', con=conn, index=False, if_exists='append', method='multi')
-    engine.dispose()
-
-    sql_result['trial_hpot'] += 1
     return best
-
-def pred_to_sql(Y_test_pred):
-    ''' prepare array Y_test_pred to DataFrame ready to write to SQL '''
-
-    df = pd.DataFrame()
-    df['identifier'] = test_id
-    df['pred'] = Y_test_pred
-    df['trial_lgbm'] = [sql_result['trial_lgbm']]*len(test_id)
-    df['icb_code'] = [sql_result['icb_code']]*len(test_id)
-    df['testing_period'] = [sql_result['testing_period']]*len(test_id)
-    df['cv_number'] = [sql_result['cv_number']]*len(test_id)
-    # print('stock-wise prediction: ', df)
-
-    return df
 
 if __name__ == "__main__":
 
-    sql_result = {}
-    hpot = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu_number', type=int, default=1)
+    args = parser.parse_args()
+    gpu_mac_address(args)           # GPU set up
 
     # default params for load_data
     period_1 = dt.datetime(2013,4,1)
     sample_no = 21
     load_data_params = {'qcut_q': 10, 'y_type': 'ibes', 'exclude_fwd': False, 'eps_only': False, 'top15': 'lgbm'}
 
-    # these are parameters used to load_data
-    sql_result['qcut_q'] = load_data_params['qcut_q']
-    sql_result['name'] = args.name_sql # label experiment
+    data = load_data(macro_monthly=True)        # load data step 1
+    data.split_entire()    # load data step 2
 
-    data = load_data(macro_monthly=True)
+    for i in tqdm(range(21)):  # roll over testing period
+        testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
+        train_x, train_y, X_test, Y_test, cv, test_id, x_col, cut_bins = data.split_train_test(testing_period, **load_data_params)      # load data step 3
 
-    # add_ind_code = args.add_ind_code # 1 means add industry code as X; 2 means add sector code as X
-    for add_ind_code in [0]:
-        data.split_entire(add_ind_code=add_ind_code)
-        sql_result['icb_code'] = add_ind_code
+        for train_index, test_index in cv:      # roll over 5-fold cross validation
+            X_train = train_x[train_index]
+            Y_train = train_y[train_index]
+            X_valid = train_x[test_index]
+            Y_valid = train_y[test_index]
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
-            sql_result['testing_period'] = testing_period
-
-            train_x, train_y, X_test, Y_test, cv, test_id, x_col, cut_bins = data.split_train_test(testing_period, **load_data_params)
-
-            cv_number = 1
-            for train_index, test_index in cv:
-                sql_result['cv_number'] = cv_number
-
-                X_train = train_x[train_index]
-                Y_train = train_y[train_index]
-                X_valid = train_x[test_index]
-                Y_valid = train_y[test_index]
-
-                HPOT(space, 10)
-                gc.collect()
-                cv_number += 1
+            HPOT(space, 10)
+            gc.collect()
 
 
