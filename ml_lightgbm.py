@@ -78,6 +78,7 @@ if __name__ == "__main__":
     parser.add_argument('--qcut_q', default=10, type=int)
     parser.add_argument('--sample_ratio', default=1, type=float)    # 0.5 = select 50% random sample from original data set
     parser.add_argument('--nthread', default=12, type=int)
+    parser.add_argument('--hyperspace_type', default='small')
     args = parser.parse_args()
 
     # training / testing sets split par
