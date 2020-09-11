@@ -1,22 +1,18 @@
-import numpy as np
-import pandas as pd
 import datetime as dt
 from dateutil.relativedelta import relativedelta
-import ast
 import argparse
 from tqdm import tqdm
+from hyperopt import fmin, tpe, STATUS_OK, Trials
 import os
 
-from hyperopt import fmin, tpe, STATUS_OK, Trials
+from load_data_dense import load_data
+from hyperspace_dense import find_hyperspace
+
 from tensorflow.python.keras import callbacks, optimizers
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.layers import Dense, Dropout, Input
 from tensorflow.python.keras import backend as K
 from sklearn.metrics import r2_score, mean_absolute_error
-
-from load_data_lgbm import load_data
-from hyperspace_dense import find_hyperspace
-import matplotlib.pyplot as plt
 
 import tensorflow as tf                             # avoid error in Tensorflow initialization
 tf.compat.v1.disable_eager_execution()
@@ -44,26 +40,23 @@ def dense_train(space):
     input_shape = (X_train.shape[-1],)      # input shape depends on x_fields used
     input_img = Input(shape=input_shape)
 
+    init_nodes = params['init_nodes']       # fisrt dense layer - number of nodes
+    nodes_mult = params['nodes_mult']       # nodes growth rate
+    mult_freq = params['mult_freq']         # grow every X layer
+    mult_start = params['mult_start']       # grow from X layer
+    end_nodes = params['end_nodes']         # maximum number of nodes
 
-    init_nodes = params['init_nodes']
-    nodes_mult = params['nodes_mult']
-    mult_freq = params['mult_freq']
-    mult_start = params['mult_start']
-    num_Dense_layer = params['num_Dense_layer']
-
-    if num_Dense_layer < 4:
+    if params['num_Dense_layer'] < 4:
         params['init_nodes'] = init_nodes = 16
 
     d_1 = Dense(init_nodes, activation=params['activation'])(input_img)  # remove kernel_regularizer=regularizers.l1(params['l1'])
     d_1 = Dropout(params['dropout'])(d_1)
 
-    nodes = [init_nodes]
-    for i in range(1, num_Dense_layer):
-        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start + 3)//mult_freq, 0))), params['end_nodes'])) # nodes grow at 2X or stay same - at most 128 nodes
-        d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)  # remove kernel_regularizer=regularizers.l1(params['l1'])
-        nodes.append(temp_nodes)
+    for i in range(1, params['num_Dense_layer']):
+        temp_nodes = int(min(init_nodes * (2 ** (nodes_mult * max((i - mult_start + 3)//mult_freq, 0))), end_nodes))
+        d_1 = Dense(temp_nodes, activation=params['activation'])(d_1)
 
-        if i != num_Dense_layer - 1:    # last dense layer has no dropout
+        if i != params['num_Dense_layer'] - 1:    # last dense layer has no dropout
             d_1 = Dropout(params['dropout'])(d_1)
 
     f_x = Dense(1)(d_1)
@@ -113,57 +106,33 @@ def HPOT(space, max_evals = 10):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()  # setting for different configuration
-    parser.add_argument('--objective', default='regression_l1')  # regression_l2 = optimizing mse
-    parser.add_argument('--exclude_fwd', default=False, action='store_true')  # True = without ibes as X
-    parser.add_argument('--sample_type', default='industry')  # sampling type
-    parser.add_argument('--y_type', default='ibes')  # ibes_qoq for qoq type growth prediction
-    parser.add_argument('--qcut_q', default=10, type=int)
-    parser.add_argument('--sample_ratio', default=1, type=float)  # 0.5 = select 50% random sample from original data set
-    parser.add_argument('--nthread', default=12, type=int)
+    parser = argparse.ArgumentParser()      # setting for different configuration
+    parser.add_argument('--objective', default='regression_l1')     # regression_l2 = optimizing mse
+    parser.add_argument('--exclude_fwd', default=False, action='store_true')     # True = no I/B/E/S consensus features
+    parser.add_argument('--sample_type', default='industry')
+    parser.add_argument('--sample_ratio', default=1, type=float) # 0.5 = select 50% random sample from original data set
     args = parser.parse_args()
 
-    gpu_mac_address(args)
+    if args.sample_type == 'industry':  # config III
+        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]   # 11 represents industry (10 + 15); 51 represents (50 + 55)
+    elif args.sample_type == 'entire':  # config II
+        partitions = [0]    # 0 represents aggregate model
 
-    # training / testing sets split par
-    if args.sample_type == 'industry':
-        partitions = [11, 20, 30, 35, 40, 45, 51, 60, 65]  # 11 represents industry (10 + 15); 51 represents (50 + 55)
-    elif args.sample_type == 'entire':
-        partitions = [0]  # 0 represents aggregate model
-
-    period_1 = dt.datetime(2013, 3, 31)     # starting point for first testing set
-    base_space = {'verbose': -1,
-                  'num_threads': args.nthread}  # for the best speed, set this to the number of real CPU cores
-
-    # create dict storing values/df used in training
-    sample_no = args.sample_no  # number of training/testing period go over ( 25 = until 2019-3-31)
-
-    load_data_params = {'exclude_fwd': args.exclude_fwd,
-                        'y_type': args.y_type,
-                        'qcut_q': args.qcut_q,
-                        }
-
-    # load data from raw data files in DB
-    data = load_data(sample_ratio=args.sample_ratio)          # load data step 1
+    period_1 = dt.datetime(2013, 4, 1)     # starting point for first testing set
 
     for icb_code in partitions:   # roll over industries (first 2 icb code)
-        data.split_industry(icb_code)      # load data step 2
+        for i in tqdm(range(21)):  # roll over 2013-3-31 to 2018-3-31
+            testing_period = period_1 + i * relativedelta(months=3) - relativedelta(days=1)
+            train_x, train_y, X_test, Y_test, cv, feature_names = load_data(testing_period, **vars(args))
 
-        for i in tqdm(range(sample_no)):  # roll over testing period
-            testing_period = period_1 + i * relativedelta(months=3)
-            sample_set, cut_bins, cv, test_id, feature_names = data.split_all(testing_period, **load_data_params)     # load data step 3 - organize final x/y arrays
-
-            X_test = np.nan_to_num(sample_set['test_x'], nan=0)     # fill NaN for X
-            Y_test = sample_set['test_y']
-
-            for train_index, test_index in cv:      # cross validation
-                X_train = np.nan_to_num(sample_set['train_x'][train_index], nan=0)
-                Y_train = sample_set['train_y'][train_index]
-                X_valid = np.nan_to_num(sample_set['train_x'][test_index], nan=0)
-                Y_valid = sample_set['train_y'][test_index]
+            for train_index, test_index in cv:     # roll over 5 cross validation set
+                X_train = train_x[train_index]
+                Y_train = train_y[train_index]
+                X_valid = train_x[test_index]
+                Y_valid = train_y[test_index]
 
                 space = find_hyperspace(args)
-                HPOT(space, 10)
+                HPOT(space, max_evals=10)   # start hyperopt
 
 
 

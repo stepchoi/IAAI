@@ -1,5 +1,4 @@
 from hyperopt import hp
-base_space = {'min_child_weight': 0, 'alpha': 0, 'tree_method': 'exact'}
 
 def find_l1_space():
     ''' found space when objective is regression_l1 '''
@@ -254,6 +253,7 @@ def find_l2_space():
     return space
 
 def find_hyperspace(args):
+    base_space = {'min_child_weight': 0, 'alpha': 0, 'tree_method': 'exact'}
 
     if args.objective == 'mae':
         space = find_l1_space()
