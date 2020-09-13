@@ -55,44 +55,51 @@ def rnn_train(space): #functional
     dense_loss_weight = 2  # loss weights for final output
     loss_weights = [inputs_loss_weight] * x_fields + [dense_loss_weight]  # loss weights for training
 
-    loss = ['mae'] * (x_fields + 1)  # use MAE loss function for all inputs and final
-    metrics = ['mae'] * (x_fields + 1)
+    loss = [args.objective] * (x_fields + 1)  # use MAE loss function for all inputs and final
+    metrics = [args.objective] * (x_fields + 1)
 
     input_img = Input(shape=(lookback, x_fields))
-    layers = []
+    outputs = []
+    states = []
+
     for col in range(10):  # build model for each feature
+
         g_1 = K.expand_dims(input_img[:, :, col], axis=2)  # add dimension to certain feature: shape = (samples, 20, 1)
 
         for i in range(params['num_gru_layer']):
-            temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8))  # nodes grow at 2X or stay same - at most 8 nodes
+            temp_nodes = int(min(params['gru_nodes'] * (2 ** (params['gru_nodes_mult'] * i)), 8))
             extra = dict(return_sequences=True)
+
             if args.bi == False:
                 if i == params['num_gru_layer'] - 1:
                     extra = dict(return_sequences=False)
-                    g_2 = GRU(temp_nodes, **extra)(g_1)  # forecast state
+                    g_state = GRU(temp_nodes, **extra)(g_1)  # forecast state
                 elif i == 0:
                     g_1 = GRU(temp_nodes, **extra)(g_1)
                 else:
                     g_1 = GRU(temp_nodes, dropout=params['gru_dropout'], **extra)(g_1)
+
             else:  # try bidirectional one
                 if i == params['num_gru_layer'] - 1:
                     extra = dict(return_sequences=False)
-                    g_2 = GRU(temp_nodes, **extra)(g_1)  # forecast state
+                    g_state = GRU(temp_nodes, **extra)(g_1)  # forecast state
                 elif i == 0:
                     g_1 = Bidirectional(GRU(temp_nodes, **extra))(g_1)
                 else:
                     g_1 = Bidirectional(GRU(temp_nodes, dropout=params['gru_dropout'], **extra))(g_1)
 
-        layers.append(g_2)
+        g_output = Dense(1)(g_state)
 
-    f_x = Concatenate(axis=1)(layers)    # join all forecast states
+        states.append(g_state)
+        outputs.append(g_output)
 
-    for i in range(params['num_dense_layer'] - 1):  # dense layers based on forecast states
+    f_x = Concatenate(axis=1)(states)
+    for i in range(params['num_dense_layer']):  # for second or third dense layers
         f_x = Dense(10)(f_x)
 
-    f_x = Dense(1)(f_x)
+    f_x = Dense(1, name='final_dense')(f_x)
 
-    outputs = layers + [f_x]    # outputs = all forecast states + final dense
+    outputs.append(f_x)
     model = Model(inputs=input_img, outputs=outputs)  # outputs = 10 forecast states + final forecast
 
     callbacks_list = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10),
@@ -140,6 +147,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu_number', type=int, default=1)
     parser.add_argument('--exclude_fwd', default=False, action='store_true')       # using without I/B/E/S features
+    parser.add_argument('--objective', default='mae')       # using without I/B/E/S features
     args = parser.parse_args()
     gpu_mac_address(args)           # GPU set up
 
