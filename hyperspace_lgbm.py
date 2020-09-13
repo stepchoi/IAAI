@@ -153,129 +153,129 @@ def find_space_l2():
 
     space = {}
     space[11] = {
-        'learning_rate': hp.choice('learning_rate', [0.05]),  # remove 0.12
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [200, 250]),  # remove 75
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [10, 15]),  # remove 25, 50
-        'feature_fraction': hp.choice('feature_fraction', [0.9, 1]),  # remove 0.7
-        'bagging_fraction': hp.choice('bagging_fraction', [0.8]),
-        'bagging_freq': hp.choice('bagging_freq', [4, 8]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),  # remove 0.08
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [2]),
+        'learning_rate': 0.05,
+        'boosting_type': 'dart',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 100, 150, 10),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 10, 50, 10),
+        'feature_fraction': hp.quniform('feature_fraction', 0.7, 0.9, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.7, 0.9, 0.1),
+        'bagging_freq': 4,
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 10, 15, 5),
     }
 
     space[20] = {
-        'learning_rate': hp.choice('learning_rate', [0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [40, 50, 60]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [50]),
-        'feature_fraction': hp.choice('feature_fraction', [0.2, 0.3, 0.6, 0.7]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.7]),
-        'bagging_freq': hp.choice('bagging_freq', [1]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [2]),
+        'learning_rate': 0.1,
+        'boosting_type': 'dart',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 200, 50),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 5, 20, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.4, 0.8, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.8, 0.9, 0.1),
+        'bagging_freq': 4,
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 5, 1),
     }
 
     space[30] = {
-        'learning_rate': hp.choice('learning_rate', [0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [350, 300]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
-        'feature_fraction': hp.choice('feature_fraction', [0.6]),
-        'bagging_fraction': hp.choice('bagging_fraction', [1]),
-        'bagging_freq': hp.choice('bagging_freq', [1]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [2, 4]),
+        'learning_rate': 0.1,
+        'boosting_type': 'dart',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 150, 200, 10),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 10, 30, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.7, 0.9, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.4, 0.8, 0.1),
+        'bagging_freq': hp.quniform('bagging_freq', 4, 8, 2),
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 15, 20, 1),
     }
 
     space[35] = {
-        'learning_rate': hp.choice('learning_rate', [0.05]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [127]),
-        'num_leaves': hp.choice('num_leaves', [120, 100]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [1, 5]),
-        'feature_fraction': hp.choice('feature_fraction', [0.5, 0.6]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.8]),
-        'bagging_freq': hp.choice('bagging_freq', [8, 12]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [3]),
+        'learning_rate': 0.05,
+        'boosting_type': 'dart',
+        'max_bin': 127,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 150, 20),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 20, 40, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.6, 0.9, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.7, 0.8, 0.1),
+        'bagging_freq': hp.choice('bagging_freq', [2, 8]),
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 15, 5),
     }
 
     space[40] = {
-        'learning_rate': hp.choice('learning_rate', [0.05]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [50, 75]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [5, 10]),
-        'feature_fraction': hp.choice('feature_fraction', [0.9, 1]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.6]),
-        'bagging_freq': hp.choice('bagging_freq', [4]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [2, 3]),
+        'learning_rate': 0.05,
+        'boosting_type': 'dart',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 150, 20),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 30, 50, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.5, 0.7, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.5, 0.6, 0.1),
+        'bagging_freq': 6,
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 10, 2),
     }
 
     space[45] = {
-        'learning_rate': hp.choice('learning_rate', [0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [127]),
-        'num_leaves': hp.choice('num_leaves', [125, 100]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [60]),
-        'feature_fraction': hp.choice('feature_fraction', [0.7, 0.6]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.8]),
-        'bagging_freq': hp.choice('bagging_freq', [2]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [4, 5]),  # try 20??
+        'learning_rate': 0.1,
+        'boosting_type': 'dart',
+        'max_bin': 127,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 150, 20),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 20, 40, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.6, 0.8, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.4, 0.6, 0.1),
+        'bagging_freq': 6,
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 10, 2),
     }
 
     space[51] = {
-        'learning_rate': hp.choice('learning_rate', [0.03]),
-        'boosting_type': hp.choice('boosting_type', ['gbdt']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [110, 125, 150]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [30, 40, 50]),
-        'feature_fraction': hp.choice('feature_fraction', [0.4]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.5]),
-        'bagging_freq': hp.choice('bagging_freq', [12]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [1]),
+        'learning_rate': 0.03,
+        'boosting_type': 'gbdt',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 100, 10),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 5, 20, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.7, 0.9, 0.2),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.2, 0.5, 0.1),
+        'bagging_freq': hp.quniform('bagging_freq', 2, 8, 2),
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 20, 5),
     }
 
     space[60] = {
-        'learning_rate': hp.choice('learning_rate', [0.1]),
-        'boosting_type': hp.choice('boosting_type', ['gbdt']),
-        'max_bin': hp.choice('max_bin', [255]),
-        'num_leaves': hp.choice('num_leaves', [300, 400]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [30, 25]),
-        'feature_fraction': hp.choice('feature_fraction', [0.7, 0.8]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.8, 0.9]),
-        'bagging_freq': hp.choice('bagging_freq', [4]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [3]),
+        'learning_rate': 0.1,
+        'boosting_type': 'gbdt',
+        'max_bin': 255,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 100, 200, 20),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 5, 20, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.3, 0.5, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.3, 0.5, 0.1),
+        'bagging_freq': hp.quniform('bagging_freq', 2, 8, 2),
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 10, 20, 2),
     }
 
     space[65] = {
-        'learning_rate': hp.choice('learning_rate', [0.1]),
-        'boosting_type': hp.choice('boosting_type', ['dart']),
-        'max_bin': hp.choice('max_bin', [127]),
-        'num_leaves': hp.choice('num_leaves', [250, 300]),  # np.arange(50, 200, 30, dtype=int)
-        'min_data_in_leaf': hp.choice('min_data_in_leaf', [15, 20]),
-        'feature_fraction': hp.choice('feature_fraction', [0.7, 0.6]),
-        'bagging_fraction': hp.choice('bagging_fraction', [0.7, 0.8]),
-        'bagging_freq': hp.choice('bagging_freq', [1]),
-        'min_gain_to_split': hp.choice('min_gain_to_split', [0]),
-        'lambda_l1': hp.choice('lambda_l1', [0]),
-        'lambda_l2': hp.choice('lambda_l2', [0]),
+        'learning_rate': 0.1,
+        'boosting_type': 'dart',
+        'max_bin': 127,
+        'min_gain_to_split': 0,
+        'num_leaves': hp.quniform('num_leaves', 50, 150, 20),
+        'min_data_in_leaf': hp.quniform('min_data_in_leaf', 10, 30, 5),
+        'feature_fraction': hp.quniform('feature_fraction', 0.6, 0.8, 0.1),
+        'bagging_fraction': hp.quniform('bagging_fraction', 0.4, 0.6, 0.1),
+        'bagging_freq': hp.quniform('bagging_freq', 4, 8, 2),
+        'lambda_l1': 0,
+        'lambda_l2': hp.quniform('lambda_l2', 0, 5, 1),
     }
 
     return space
